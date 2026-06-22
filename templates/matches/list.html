@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+{% load dict_extras %}
+
+{% block content %}
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h2 class="mb-0">Partidos</h2>
+        <span class="text-muted small">{{ page_obj.paginator.count }} registros</span>
+    </div>
+
+    <div class="card shadow-sm">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0 align-middle">
+                <thead class="table-light">
+                <tr>
+                    <th>Partido</th>
+                    <th>Fase</th>
+                    <th>Fecha</th>
+                    <th>Marcador</th>
+                    <th class="text-end">Accion</th>
+                </tr>
+                </thead>
+                <tbody>
+                {% for match in matches %}
+                    <tr>
+                        <td>
+                            <div class="fw-semibold">
+                                {% if match.finished and match.home_score > match.away_score %}
+                                    <mark class="px-1 rounded bg-success-subtle text-success-emphasis">{{ match.home_team }}</mark>
+                                {% else %}
+                                    <span>{{ match.home_team }}</span>
+                                {% endif %}
+                                vs
+                                {% if match.finished and match.away_score > match.home_score %}
+                                    <mark class="px-1 rounded bg-success-subtle text-success-emphasis">{{ match.away_team }}</mark>
+                                {% else %}
+                                    <span>{{ match.away_team }}</span>
+                                {% endif %}
+                            </div>
+                        </td>
+                        <td>
+                            <span class="badge {{ match.phase|phase_color }}">{{ match.get_phase_display }}</span>
+                        </td>
+                        <td>{{ match.kickoff_at|date:"d/m/Y H:i" }}</td>
+                        <td>
+                            {% if match.finished %}
+                                <span class="badge text-bg-dark">{{ match.home_score }} - {{ match.away_score }}</span>
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-end">
+                            {% if not match.finished and not match.has_prediction %}
+                                <a href="{% url 'prediction_create' match.id %}" class="btn btn-primary btn-sm">Pronosticar</a>
+                            {% elif match.finished %}
+                                <span class="badge text-bg-secondary">Finalizado</span>
+                            {% else %}
+                                <span class="badge text-bg-light border">Ya pronosticado</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                {% empty %}
+                    <tr>
+                        <td colspan="5" class="text-center text-muted py-4">No hay partidos para mostrar.</td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    {% if is_paginated %}
+        <div class="d-flex justify-content-between align-items-center mt-3 flex-wrap gap-2">
+            <span class="text-muted small">
+                Pagina {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}
+            </span>
+            <nav aria-label="Paginacion partidos">
+            <ul class="pagination pagination-sm mb-0">
+                {% if page_obj.has_previous %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page=1">Primera</a>
+                    </li>
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.previous_page_number }}">Anterior</a>
+                    </li>
+                {% else %}
+                    <li class="page-item disabled"><span class="page-link">Primera</span></li>
+                    <li class="page-item disabled"><span class="page-link">Anterior</span></li>
+                {% endif %}
+
+                <li class="page-item active" aria-current="page">
+                    <span class="page-link">{{ page_obj.number }}</span>
+                </li>
+
+                {% if page_obj.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.next_page_number }}">Siguiente</a>
+                    </li>
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}">Ultima</a>
+                    </li>
+                {% else %}
+                    <li class="page-item disabled"><span class="page-link">Siguiente</span></li>
+                    <li class="page-item disabled"><span class="page-link">Ultima</span></li>
+                {% endif %}
+            </ul>
+            </nav>
+        </div>
+    {% endif %}
+{% endblock %}

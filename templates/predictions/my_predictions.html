@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+{% load dict_extras %}
+
+{% block content %}
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h2 class="mb-0">Mis pronosticos</h2>
+        <span class="text-muted small">{{ page_obj.paginator.count }} registros</span>
+    </div>
+
+    <div class="card shadow-sm">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0 align-middle">
+                <thead class="table-light">
+                <tr>
+                    <th>Partido</th>
+                    <th>Fase</th>
+                    <th>Fecha</th>
+                    <th>Tu pronostico</th>
+                    <th>Puntos</th>
+                </tr>
+                </thead>
+                <tbody>
+                {% for prediction in predictions %}
+                    <tr>
+                        <td>
+                            <div class="fw-semibold">{{ prediction.match.home_team }} vs {{ prediction.match.away_team }}</div>
+                            <div class="text-muted small">
+                                {% if prediction.match.finished %}
+                                    Resultado final: {{ prediction.match.home_score }} - {{ prediction.match.away_score }}
+                                {% else %}
+                                    Partido pendiente
+                                {% endif %}
+                            </div>
+                        </td>
+                        <td>
+                            <span class="badge {{ prediction.match.phase|phase_color }}">{{ prediction.match.get_phase_display }}</span>
+                        </td>
+                        <td>{{ prediction.match.kickoff_at|date:"d/m/Y H:i" }}</td>
+                        <td>
+                            <span class="badge text-bg-dark">{{ prediction.predicted_home_score }} - {{ prediction.predicted_away_score }}</span>
+                        </td>
+                        <td><span class="badge {% if prediction.points == 0 %}text-bg-light text-secondary border{% else %}text-bg-primary{% endif %} rounded-pill">{{ prediction.points }} pts</span></td>
+                    </tr>
+                {% empty %}
+                    <tr>
+                        <td colspan="5" class="text-center text-muted py-4">Aun no tienes pronosticos guardados.</td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    {% if is_paginated %}
+        <div class="d-flex justify-content-between align-items-center mt-3 flex-wrap gap-2">
+            <span class="text-muted small">
+                Pagina {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}
+            </span>
+            <nav aria-label="Paginacion mis pronosticos">
+                <ul class="pagination pagination-sm mb-0">
+                    {% if page_obj.has_previous %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page=1">Primera</a>
+                        </li>
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.previous_page_number }}">Anterior</a>
+                        </li>
+                    {% else %}
+                        <li class="page-item disabled"><span class="page-link">Primera</span></li>
+                        <li class="page-item disabled"><span class="page-link">Anterior</span></li>
+                    {% endif %}
+
+                    <li class="page-item active" aria-current="page">
+                        <span class="page-link">{{ page_obj.number }}</span>
+                    </li>
+
+                    {% if page_obj.has_next %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.next_page_number }}">Siguiente</a>
+                        </li>
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}">Ultima</a>
+                        </li>
+                    {% else %}
+                        <li class="page-item disabled"><span class="page-link">Siguiente</span></li>
+                        <li class="page-item disabled"><span class="page-link">Ultima</span></li>
+                    {% endif %}
+                </ul>
+            </nav>
+        </div>
+    {% endif %}
+
+{% endblock %}

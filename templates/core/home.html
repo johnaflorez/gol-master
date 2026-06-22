@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+
+{% block title %}Inicio | Mundial Familiar{% endblock %}
+
+{% block content %}
+    <div class="row justify-content-center py-4">
+        <div class="col-lg-8">
+            <div class="text-center py-5">
+                <span class="badge text-bg-success-subtle text-success-emphasis rounded-pill px-3 py-2 mb-3">Bienvenido</span>
+                <h1 class="display-5 fw-semibold page-title mb-3">Mundial Familiar</h1>
+                <p class="lead text-muted mb-4">
+                    Consulta los partidos, realiza tus pronósticos y sigue el ranking de forma rápida y visual.
+                </p>
+                <div class="d-flex justify-content-center gap-2 flex-wrap">
+                    <a href="{% url 'match_list' %}" class="btn btn-primary btn-lg">Ver partidos</a>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}

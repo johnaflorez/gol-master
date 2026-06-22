@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+
+{% block title %}Ranking | Mundial Familiar{% endblock %}
+
+{% block content %}
+    <h2 class="mb-3">Ranking</h2>
+
+    <div class="alert alert-info mt-3 shadow-sm border-0">
+        <h5>📊 Sistema de puntuación</h5>
+
+        <ul class="mb-0">
+            <li>✔ 3 puntos por acertar el ganador o empate</li>
+            <li>✔ +2 puntos adicionales si aciertas el marcador exacto</li>
+            <li>✔ Los puntos se calculan automáticamente al finalizar cada partido</li>
+        </ul>
+
+    </div>
+
+    <div class="card shadow-sm border-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0 align-middle">
+                <thead class="table-light">
+                <tr>
+                    <th>Posición</th>
+                    <th>Jugador</th>
+                    <th>Puntos</th>
+                </tr>
+                </thead>
+                <tbody>
+                {% for item in ranking %}
+                    <tr>
+                        <td>{{ forloop.counter }}</td>
+                        <td>{{ item.user.get_full_name|default:item.user.username }}</td>
+                        <td>
+                            <span class="badge {% if item.points == 0 %}text-bg-light text-secondary border{% else %}text-bg-primary{% endif %} rounded-pill"
+                                  data-bs-toggle="tooltip"
+                                  data-bs-placement="top"
+                                  title="Acierto: {{ item.hit_rate|floatformat:1 }}% ({{ item.correct_predictions }}/{{ item.total_predictions }}) pronósticos">
+                                {{ item.points }}
+                            </span>
+                        </td>
+                    </tr>
+                {% empty %}
+                    <tr>
+                        <td colspan="3" class="text-center text-muted py-4">Aun no hay datos de ranking.</td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        // Inicializar tooltips de Bootstrap
+        const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+        tooltipTriggerList.map(function (tooltipTriggerEl) {
+            return new bootstrap.Tooltip(tooltipTriggerEl);
+        });
+    </script>
+{% endblock %}

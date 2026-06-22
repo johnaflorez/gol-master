@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% load dict_extras %}
+
+{% block content %}
+    <h2>⚽ Mis Pronósticos</h2>
+    <form method="post">
+        {% csrf_token %}
+
+        <table class="table">
+            {% for match in matches %}
+                {% with pred=prediction_map|get_item:match.id %}
+                <tr>
+                    <td>{{ match.home_team }}</td>
+                    <td style="width: 120px;">
+                        <input type="number"
+                               name="home_{{ match.id }}"
+                               value="{{ pred.predicted_home_score|default:'' }}"
+                               class="form-control">
+
+                    </td>
+                    <td style="width: 120px;">
+                        <input type="number"
+                               name="away_{{ match.id }}"
+                               value="{{ pred.predicted_away_score|default:'' }}"
+                               class="form-control">
+
+                    </td>
+                    <td>{{ match.away_team }}</td>
+                    <td>{{ match.kickoff_at }}</td>
+                </tr>
+                {% endwith %}
+            {% endfor %}
+        </table>
+
+        <button class="btn btn-success">Guardar pronósticos</button>
+    </form>
+{% endblock %}

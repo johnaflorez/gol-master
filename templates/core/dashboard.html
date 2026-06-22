@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+{% load dict_extras %}
+
+{% block content %}
+    <div class="row g-4">
+        <div class="col-lg-4">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0">Ranking</h5>
+                </div>
+                <div class="card-body">
+                    {% for item in ranking %}
+                        <div class="d-flex justify-content-between align-items-center py-2 border-bottom">
+                            <div>
+                                <strong>{{ forloop.counter }}.</strong>
+                                {{ item.user.get_full_name|default:item.user.username }}
+                            </div>
+                            <div class="d-flex gap-2 align-items-center">
+                                <span class="badge {% if item.points == 0 %}text-bg-light text-secondary border{% else %}text-bg-primary{% endif %} rounded-pill">{{ item.points }} pts</span>
+                            </div>
+                        </div>
+                    {% empty %}
+                        <p class="text-muted mb-0">Aun no hay datos para el ranking.</p>
+                    {% endfor %}
+
+                    <hr class="my-3">
+
+                    <div class="alert alert-info mb-0 shadow-sm border-0">
+                        <h6 class="fw-semibold">📊 Sistema de puntuación</h6>
+                        <ul class="mb-0 ps-3 small">
+                            <li>3 puntos por acertar el ganador o empate</li>
+                            <li>+2 puntos adicionales si aciertas el marcador exacto</li>
+                            <li>Los puntos se calculan automáticamente al finalizar cada partido</li>
+                        </ul>
+                    </div>
+
+                    <div class="d-grid mt-3">
+                        <a href="{% url 'ranking' %}" class="btn btn-outline-primary btn-sm">Ver ranking completo</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-8">
+            <div class="row g-4 h-100">
+                <div class="col-12">
+                    <div class="card shadow-sm">
+                        <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0">Estadísticas del torneo</h5>
+                            <span class="text-muted small">Resumen general</span>
+                        </div>
+                        <div class="card-body">
+                            <div class="row g-3 text-center">
+                                <div class="col-md-4">
+                                    <div class="p-3 rounded-3 bg-light h-100">
+                                        <div class="text-muted small mb-1">Partidos finalizados</div>
+                                        <div class="fs-3 fw-semibold">{{ tournament_stats.total_matches }}</div>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="p-3 rounded-3 bg-light h-100">
+                                        <div class="text-muted small mb-1">Goles totales</div>
+                                        <div class="fs-3 fw-semibold">{{ tournament_stats.total_goals }}</div>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="p-3 rounded-3 bg-light h-100">
+                                        <div class="text-muted small mb-1">Promedio por partido</div>
+                                        <div class="fs-3 fw-semibold">{{ tournament_stats.avg_goals|floatformat:2 }}</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-12">
+                    <div class="card shadow-sm h-100">
+                        <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0">Partidos del día</h5>
+                            <span class="text-muted small">{{ matches|length }} registros</span>
+                        </div>
+                        <div class="card-body">
+                            {% for match in matches %}
+                                <div class="py-2 border-bottom">
+                                    <div class="fw-semibold">{{ match.home_team }} vs {{ match.away_team }}</div>
+                                    <div class="d-flex justify-content-between align-items-center mt-1">
+                                        <div>
+                                            <span class="text-muted small">{{ match.kickoff_at|date:"d/m/Y H:i" }}</span>
+                                            <span class="badge {{ match.phase|phase_color }} ms-2">{{ match.get_phase_display }}</span>
+                                        </div>
+                                        <span class="badge text-bg-light border">
+                                            {% if match.finished %}
+                                                {{ match.home_score }} - {{ match.away_score }}
+                                            {% else %}
+                                                -
+                                            {% endif %}
+                                        </span>
+                                    </div>
+                                </div>
+                            {% empty %}
+                                <p class="text-muted mb-0">No hay partidos programados para hoy.</p>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+<script>
+    // Inicializar tooltips de Bootstrap
+    const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+</script>
+{% endblock %}
