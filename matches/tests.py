@@ -63,3 +63,12 @@ class MatchListViewTests(TestCase):
 		self.assertEqual(response_page_2.status_code, 200)
 		self.assertEqual(len(response_page_2.context["matches"]), 1)
 		self.assertEqual(response_page_2.context["page_obj"].number, 2)
+
+	def test_match_list_shows_en_juego_when_kickoff_has_passed(self):
+		self._create_match(kickoff_at=timezone.now() - timedelta(minutes=10), finished=False)
+
+		response = self.client.get(reverse("match_list"))
+
+		self.assertEqual(response.status_code, 200)
+		self.assertContains(response, "En juego")
+

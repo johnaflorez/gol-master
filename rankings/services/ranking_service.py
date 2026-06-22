@@ -1,44 +1,37 @@
 from django.db import models
 from django.contrib.auth.models import User
-from predictions.models import Prediction
-from matches.models import Match
+from django.db.models.functions import Coalesce
 
 
 class RankingService:
 
     def get_ranking(self):
-        users = User.objects.all()
+        users = User.objects.select_related("profile").annotate(
+            points=Coalesce(models.Sum("prediction__points"), 0),
+            total_predictions=models.Count(
+                "prediction",
+                filter=models.Q(prediction__match__finished=True)
+            ),
+            correct_predictions=models.Count(
+                "prediction",
+                filter=models.Q(
+                    prediction__match__finished=True,
+                    prediction__points__gte=2,
+                ),
+            ),
+        ).order_by("-points", "username")
+
         ranking = []
-
         for user in users:
-            points = Prediction.objects.filter(
-                user=user
-            ).aggregate(
-                total=models.Sum("points")
-            )["total"] or 0
-
-            # Calcular porcentaje de acierto (hit_rate)
-            # Acierto = predicción donde puntos >= 2 (acertó al menos el ganador)
-            predictions_completed = Prediction.objects.filter(
-                user=user,
-                match__finished=True
+            hit_rate = (user.correct_predictions / user.total_predictions * 100) if user.total_predictions else 0
+            ranking.append(
+                {
+                    "user": user,
+                    "points": user.points,
+                    "hit_rate": hit_rate,
+                    "total_predictions": user.total_predictions,
+                    "correct_predictions": user.correct_predictions,
+                }
             )
-            total_completed = predictions_completed.count()
-            correct_predictions = predictions_completed.filter(
-                points__gte=2
-            ).count()
-            hit_rate = (correct_predictions / total_completed * 100) if total_completed > 0 else 0
 
-            ranking.append({
-                "user": user,
-                "points": points,
-                "hit_rate": hit_rate,
-                "total_predictions": total_completed,
-                "correct_predictions": correct_predictions
-            })
-
-        ranking.sort(
-            key=lambda x: x["points"],
-            reverse=True
-        )
         return ranking

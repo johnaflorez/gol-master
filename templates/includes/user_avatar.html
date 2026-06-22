@@ -1,0 +1,10 @@
+{% load user_extras %}
+{% user_avatar_url user as avatar_url %}
+<span class="table-user-avatar" aria-hidden="true">
+    {% if avatar_url %}
+        <img src="{{ avatar_url }}" alt="Avatar de {{ user.username }}">
+    {% else %}
+        <i class="fas fa-user"></i>
+    {% endif %}
+</span>
+

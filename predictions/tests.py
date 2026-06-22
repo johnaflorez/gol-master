@@ -187,6 +187,129 @@ class MyPredictionsViewTests(TestCase):
 		self.assertEqual(len(response_page_2.context["predictions"]), 1)
 		self.assertEqual(response_page_2.context["page_obj"].number, 2)
 
+	def test_my_predictions_includes_phase_stats(self):
+		match_pr_winner = Match.objects.create(
+			home_team=self.team_a,
+			away_team=self.team_b,
+			kickoff_at=timezone.now() - timedelta(days=2),
+			finished=True,
+			home_score=2,
+			away_score=1,
+			phase="PR",
+		)
+		Prediction.objects.create(
+			user=self.user,
+			match=match_pr_winner,
+			predicted_home_score=1,
+			predicted_away_score=0,
+			points=2,
+		)
+
+		match_pr_exact = Match.objects.create(
+			home_team=self.team_a,
+			away_team=self.team_b,
+			kickoff_at=timezone.now() - timedelta(days=1),
+			finished=True,
+			home_score=1,
+			away_score=1,
+			phase="PR",
+		)
+		Prediction.objects.create(
+			user=self.user,
+			match=match_pr_exact,
+			predicted_home_score=1,
+			predicted_away_score=1,
+			points=5,
+		)
+
+		match_of_winner = Match.objects.create(
+			home_team=self.team_a,
+			away_team=self.team_b,
+			kickoff_at=timezone.now() - timedelta(hours=5),
+			finished=True,
+			home_score=0,
+			away_score=2,
+			phase="OF",
+		)
+		Prediction.objects.create(
+			user=self.user,
+			match=match_of_winner,
+			predicted_home_score=0,
+			predicted_away_score=1,
+			points=2,
+		)
+
+		match_pr_pending = Match.objects.create(
+			home_team=self.team_a,
+			away_team=self.team_b,
+			kickoff_at=timezone.now() + timedelta(hours=5),
+			finished=False,
+			phase="PR",
+		)
+		Prediction.objects.create(
+			user=self.user,
+			match=match_pr_pending,
+			predicted_home_score=0,
+			predicted_away_score=0,
+			points=0,
+		)
+
+		response = self.client.get(reverse("my_predictions"))
+
+		self.assertEqual(response.status_code, 200)
+		stats = {row["phase"]: row for row in response.context["phase_stats"]}
+
+		self.assertIn("PR", stats)
+		self.assertIn("OF", stats)
+
+		self.assertEqual(stats["PR"]["points_total"], 7)
+		self.assertEqual(stats["PR"]["winner_or_draw_hits"], 2)
+		self.assertEqual(stats["PR"]["exact_hits"], 1)
+		self.assertEqual(stats["PR"]["finished_predictions"], 2)
+		self.assertEqual(stats["PR"]["total_predictions"], 3)
+
+		self.assertEqual(stats["OF"]["points_total"], 2)
+		self.assertEqual(stats["OF"]["winner_or_draw_hits"], 1)
+		self.assertEqual(stats["OF"]["exact_hits"], 0)
+
+		totals = response.context["phase_stats_totals"]
+		self.assertEqual(totals["points_total"], 9)
+		self.assertEqual(totals["winner_or_draw_hits"], 3)
+		self.assertEqual(totals["exact_hits"], 1)
+
+	def test_my_predictions_status_changes_to_en_juego_after_kickoff(self):
+		live_match = Match.objects.create(
+			home_team=self.team_a,
+			away_team=self.team_b,
+			kickoff_at=timezone.now() - timedelta(minutes=10),
+			finished=False,
+		)
+		Prediction.objects.create(
+			user=self.user,
+			match=live_match,
+			predicted_home_score=1,
+			predicted_away_score=0,
+		)
+
+		upcoming_match = Match.objects.create(
+			home_team=self.team_a,
+			away_team=self.team_b,
+			kickoff_at=timezone.now() + timedelta(minutes=45),
+			finished=False,
+		)
+		Prediction.objects.create(
+			user=self.user,
+			match=upcoming_match,
+			predicted_home_score=0,
+			predicted_away_score=0,
+		)
+
+		response = self.client.get(reverse("my_predictions"))
+
+		self.assertEqual(response.status_code, 200)
+		self.assertContains(response, "En juego")
+		self.assertContains(response, "Pendiente")
+
 
 class ScoreCalculatorTests(TestCase):
 

@@ -5,7 +5,7 @@ from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
 
-from matches.models import Match
+from matches.models import Match, MatchEvent
 from predictions.models import Prediction
 from teams.models import Team
 
@@ -75,4 +75,53 @@ class DashboardViewTests(TestCase):
 		self.assertContains(response, reverse("prediction_create", args=[available.id]))
 		self.assertNotContains(response, reverse("prediction_create", args=[finished.id]))
 		self.assertNotContains(response, reverse("prediction_create", args=[already_predicted.id]))
+
+	def test_dashboard_marks_match_as_live_after_kickoff(self):
+		now = timezone.now()
+		self._create_match(now - timedelta(minutes=5))
+
+		response = self.client.get(reverse("dashboard"))
+
+		self.assertEqual(response.status_code, 200)
+		self.assertContains(response, "En juego")
+		self.assertContains(response, "text-bg-success")
+
+	def test_live_snapshot_requires_login(self):
+		self.client.logout()
+
+		response = self.client.get(reverse("dashboard_live_snapshot"))
+
+		self.assertEqual(response.status_code, 302)
+
+	def test_live_snapshot_returns_live_fields_and_events(self):
+		match = self._create_match(timezone.now() - timedelta(minutes=12))
+		match.live_status = "LIVE"
+		match.live_minute = 12
+		match.home_score = 1
+		match.away_score = 0
+		match.save()
+
+		MatchEvent.objects.create(
+			match=match,
+			team=self.team_a,
+			minute=9,
+			event_type="GOAL",
+			player_name="Jugador A",
+		)
+
+		response = self.client.get(reverse("dashboard_live_snapshot"))
+
+		self.assertEqual(response.status_code, 200)
+		payload = response.json()
+		self.assertIn("matches", payload)
+		self.assertEqual(len(payload["matches"]), 1)
+
+		first = payload["matches"][0]
+		self.assertEqual(first["id"], match.id)
+		self.assertEqual(first["status"], "LIVE")
+		self.assertEqual(first["live_minute"], 12)
+		self.assertEqual(first["home_score"], 1)
+		self.assertEqual(first["away_score"], 0)
+		self.assertEqual(len(first["events"]), 1)
+		self.assertIn("Gol", first["events"][0]["text"])
 

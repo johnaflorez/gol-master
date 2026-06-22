@@ -1,5 +1,5 @@
 from django.contrib import admin
-from matches.models import Match
+from matches.models import Match, MatchEvent
 
 
 @admin.action(description="Finalizar partido")
@@ -18,13 +18,25 @@ class MatchAdmin(admin.ModelAdmin):
         "home_score",
         "away_team",
         "away_score",
+        "live_status",
+        "live_minute",
         "phase",
         "kickoff_at",
         "finished"
     )
-    list_filter = ("finished", "phase", "kickoff_at")
+    list_filter = ("finished", "live_status", "phase", "kickoff_at")
     autocomplete_fields = [
         "home_team",
         "away_team",
     ]
+    search_fields = ("home_team__name", "away_team__name")
     actions = [finish_matches]
+
+
+@admin.register(MatchEvent)
+class MatchEventAdmin(admin.ModelAdmin):
+    list_display = ("match", "minute", "event_type", "team", "player_name", "created_at")
+    list_filter = ("event_type", "match__phase", "match__kickoff_at")
+    search_fields = ("player_name", "description", "team__name", "match__home_team__name", "match__away_team__name")
+    autocomplete_fields = ("match", "team")
+

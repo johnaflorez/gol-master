@@ -58,6 +58,8 @@
                                 <span class="badge text-bg-primary">
                                     <i class="fas fa-check-circle me-1"></i>{{ match.home_score }} - {{ match.away_score }}
                                 </span>
+                            {% elif match.kickoff_at <= now %}
+                                <span class="badge text-bg-success"><i class="fas fa-circle-play me-1"></i>En juego</span>
                             {% else %}
                                 <span class="badge text-bg-light border"><i class="fas fa-hourglass-half me-1"></i>Por jugar</span>
                             {% endif %}

@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% load static %}
+{% load user_extras %}
 
 {% block title %}🏆 Ranking Completo - Mundial Familiar 2026{% endblock %}
 
@@ -86,8 +87,13 @@
                             </div>
                         </td>
                         <td>
-                            <div class="fw-semibold">{{ item.user.get_full_name|default:item.user.username }}</div>
-                            <small class="text-muted">@{{ item.user.username }}</small>
+                            <div class="d-flex align-items-center gap-2">
+                                {% include "includes/user_avatar.html" with user=item.user %}
+                                <div>
+                                    <div class="fw-semibold">{{ item.user.get_full_name|default:item.user.username }}</div>
+                                    <small class="text-muted">{{ item.user|user_bio_or_username }}</small>
+                                </div>
+                            </div>
                         </td>
                         <td>
                             <div class="d-flex align-items-center gap-2">

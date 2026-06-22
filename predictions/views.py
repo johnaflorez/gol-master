@@ -1,5 +1,5 @@
 from django.contrib.auth.mixins import LoginRequiredMixin
-from django.db.models import Q
+from django.db.models import Count, F, Q, Sum
 from django.shortcuts import redirect, get_object_or_404
 from django.utils import timezone
 from django.views import View
@@ -70,10 +70,81 @@ class MyPredictionsView(LoginRequiredMixin, ListView):
         return Prediction.objects.filter(
             user=self.request.user
         ).select_related(
+            "user",
+            "user__profile",
             "match",
             "match__home_team",
             "match__away_team"
         ).order_by("-match__kickoff_at", "-created_at")
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        phase_stats = self._get_phase_stats()
+
+        context["phase_stats"] = phase_stats
+        context["phase_stats_totals"] = {
+            "points_total": sum(item["points_total"] for item in phase_stats),
+            "winner_or_draw_hits": sum(item["winner_or_draw_hits"] for item in phase_stats),
+            "exact_hits": sum(item["exact_hits"] for item in phase_stats),
+            "finished_predictions": sum(item["finished_predictions"] for item in phase_stats),
+            "total_predictions": sum(item["total_predictions"] for item in phase_stats),
+        }
+        context["now"] = timezone.now()
+        return context
+
+    def _get_phase_stats(self):
+        winner_or_draw_condition = (
+            Q(
+                predicted_home_score__gt=F("predicted_away_score"),
+                match__home_score__gt=F("match__away_score"),
+            )
+            | Q(
+                predicted_home_score=F("predicted_away_score"),
+                match__home_score=F("match__away_score"),
+            )
+            | Q(
+                predicted_home_score__lt=F("predicted_away_score"),
+                match__home_score__lt=F("match__away_score"),
+            )
+        )
+
+        rows = Prediction.objects.filter(user=self.request.user).values("match__phase").annotate(
+            total_predictions=Count("id"),
+            finished_predictions=Count("id", filter=Q(match__finished=True)),
+            points_total=Sum("points", filter=Q(match__finished=True)),
+            winner_or_draw_hits=Count(
+                "id",
+                filter=Q(match__finished=True) & winner_or_draw_condition,
+            ),
+            exact_hits=Count(
+                "id",
+                filter=Q(
+                    match__finished=True,
+                    predicted_home_score=F("match__home_score"),
+                    predicted_away_score=F("match__away_score"),
+                ),
+            ),
+        )
+
+        phase_names = dict(Match.PHASE_CHOICES)
+        phase_order = {code: index for index, (code, _) in enumerate(Match.PHASE_CHOICES)}
+
+        phase_stats = []
+        for row in rows:
+            phase_code = row["match__phase"]
+            phase_stats.append(
+                {
+                    "phase": phase_code,
+                    "phase_label": phase_names.get(phase_code, phase_code),
+                    "points_total": row["points_total"] or 0,
+                    "winner_or_draw_hits": row["winner_or_draw_hits"],
+                    "exact_hits": row["exact_hits"],
+                    "finished_predictions": row["finished_predictions"],
+                    "total_predictions": row["total_predictions"],
+                }
+            )
+
+        return sorted(phase_stats, key=lambda item: phase_order.get(item["phase"], 999))
 
 
 class PredictionDashboardView(LoginRequiredMixin, TemplateView):
@@ -138,6 +209,7 @@ class AllPredictionsView(LoginRequiredMixin, TemplateView):
             match__in=matches
         ).select_related(
             "user",
+            "user__profile",
             "match",
             "match__home_team",
             "match__away_team"

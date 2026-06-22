@@ -18,6 +18,11 @@
             --mundial-gold: #F77F00;
             --mundial-cyan: #06B6D4;
             --mundial-green: #10B981;
+            --fifa-purple: #FF5E78;
+            --fifa-lavender: #CDB4F5;
+            --fifa-yellow: #FDE68A;
+            --fifa-teal-dark: #059669;
+            --fifa-wine: #D42B3C;
             --light-bg: #F5F7FA;
             --border-color: #E0E7FF;
         }
@@ -40,8 +45,8 @@
 
         /* ===== NAVBAR MEJORADA ===== */
         .navbar {
-            background: linear-gradient(135deg, var(--mundial-blue) 0%, var(--mundial-navy) 100%);
-            box-shadow: 0 8px 24px rgba(29, 53, 87, 0.25);
+            background: var(--mundial-blue);
+            box-shadow: 0 8px 24px rgba(57, 73, 171, 0.28);
             backdrop-filter: blur(16px);
             padding: 0.85rem 0 !important;
             border-bottom: 3px solid var(--mundial-red);
@@ -68,13 +73,13 @@
             border-radius: 0.7rem;
             background: rgba(255, 255, 255, 0.15);
             backdrop-filter: blur(8px);
-            border: 2px solid var(--mundial-gold);
-            box-shadow: 0 4px 12px rgba(247, 127, 0, 0.15);
+            border: 2px solid var(--fifa-yellow);
+            box-shadow: 0 4px 12px rgba(203, 185, 237, 0.25);
             transition: all 0.3s ease;
         }
 
         .brand-mark:hover {
-            background: rgba(247, 127, 0, 0.2);
+            background: rgba(203, 185, 237, 0.28);
             transform: rotate(-5deg) scale(1.1);
         }
 
@@ -125,7 +130,7 @@
 
         .nav-link.active {
             color: #fff !important;
-            background: linear-gradient(135deg, var(--mundial-red) 0%, #FF5E78 100%);
+            background: var(--mundial-red);
             font-weight: 700;
             box-shadow: 0 4px 12px rgba(230, 57, 70, 0.3);
         }
@@ -136,7 +141,7 @@
         }
 
         .navbar-toggler:focus {
-            box-shadow: 0 0 0 0.25rem rgba(230, 57, 70, 0.5);
+            box-shadow: 0 0 0 0.25rem rgba(126, 107, 181, 0.35);
         }
 
         .user-chip {
@@ -156,8 +161,8 @@
 
         .user-chip:hover {
             background: rgba(255, 255, 255, 0.18);
-            border-color: var(--mundial-gold);
-            box-shadow: 0 4px 12px rgba(247, 127, 0, 0.2);
+            border-color: var(--fifa-yellow);
+            box-shadow: 0 4px 12px rgba(203, 185, 237, 0.3);
         }
 
         @media (max-width: 576px) {
@@ -182,13 +187,33 @@
             min-width: 2rem;
             min-height: 2rem;
             border-radius: 50%;
-            background: linear-gradient(135deg, var(--mundial-red) 0%, var(--mundial-gold) 100%);
+            background: var(--mundial-red);
             overflow: hidden;
             border: 2px solid rgba(255, 255, 255, 0.4);
-            box-shadow: 0 4px 12px rgba(230, 57, 70, 0.2);
+            box-shadow: 0 4px 12px rgba(242, 138, 46, 0.28);
         }
 
         .user-avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .table-user-avatar {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 2rem;
+            height: 2rem;
+            border-radius: 50%;
+            overflow: hidden;
+            background: var(--mundial-blue);
+            color: #fff;
+            border: 1.5px solid rgba(255, 255, 255, 0.45);
+            flex-shrink: 0;
+        }
+
+        .table-user-avatar img {
             width: 100%;
             height: 100%;
             object-fit: cover;
@@ -213,7 +238,7 @@
             border-radius: 1.2rem;
             padding: 1.5rem;
             backdrop-filter: blur(10px);
-            box-shadow: 0 8px 32px rgba(29, 53, 87, 0.08);
+            box-shadow: 0 8px 32px rgba(57, 73, 171, 0.11);
         }
 
         @media (max-width: 576px) {
@@ -227,7 +252,7 @@
         .card {
             border: 1.5px solid var(--border-color);
             border-radius: 1.1rem;
-            box-shadow: 0 4px 16px rgba(29, 53, 87, 0.08);
+            box-shadow: 0 4px 16px rgba(57, 73, 171, 0.12);
             margin-bottom: 1.5rem;
             overflow: hidden;
             background: rgba(255, 255, 255, 0.95);
@@ -235,12 +260,12 @@
         }
 
         .card:hover {
-            box-shadow: 0 12px 32px rgba(29, 53, 87, 0.12);
+            box-shadow: 0 12px 32px rgba(126, 107, 181, 0.16);
             transform: translateY(-2px);
         }
 
         .card-header {
-            background: linear-gradient(135deg, rgba(29, 53, 87, 0.04) 0%, rgba(247, 127, 0, 0.04) 100%);
+            background: var(--fifa-lavender);
             border-bottom: 2px solid var(--border-color);
             padding: 1.25rem;
             font-weight: 600;
@@ -284,13 +309,13 @@
         }
 
         .btn-primary {
-            background: linear-gradient(135deg, var(--mundial-red) 0%, #FF5E78 100%);
+            background: var(--mundial-red);
             color: #fff;
             border: none;
         }
 
         .btn-primary:hover {
-            background: linear-gradient(135deg, #D42B3C 0%, #E63946 100%);
+            background: var(--fifa-wine);
             color: #fff;
         }
 
@@ -299,22 +324,22 @@
         }
 
         .btn-secondary {
-            background: linear-gradient(135deg, var(--mundial-blue) 0%, #0F1B2E 100%);
+            background: var(--mundial-blue);
             color: #fff;
         }
 
         .btn-secondary:hover {
-            background: linear-gradient(135deg, #0F1B2E 0%, #050C16 100%);
+            background: #1F2C75;
             color: #fff;
         }
 
         .btn-success {
-            background: linear-gradient(135deg, var(--mundial-green) 0%, #059669 100%);
+            background: var(--mundial-green);
             color: #fff;
         }
 
         .btn-success:hover {
-            background: linear-gradient(135deg, #059669 0%, #047857 100%);
+            background: var(--fifa-teal-dark);
             color: #fff;
         }
 
@@ -327,7 +352,7 @@
 
         .btn-outline-light:hover {
             background: rgba(255, 255, 255, 0.15);
-            border-color: var(--mundial-gold);
+            border-color: var(--fifa-yellow);
             color: #fff;
         }
 
@@ -338,7 +363,7 @@
         }
 
         .btn-outline-primary:hover {
-            background: rgba(230, 57, 70, 0.1);
+            background: rgba(242, 138, 46, 0.15);
             border-color: var(--mundial-red);
             color: var(--mundial-red);
         }
@@ -362,7 +387,7 @@
         }
 
         .table thead {
-            background: linear-gradient(135deg, var(--mundial-blue) 0%, #0F1B2E 100%);
+            background: var(--mundial-blue);
             color: #fff;
         }
 
@@ -381,8 +406,8 @@
         }
 
         .table tbody tr:hover {
-            background: rgba(230, 57, 70, 0.04);
-            box-shadow: inset 0 0 8px rgba(29, 53, 87, 0.05);
+            background: rgba(126, 107, 181, 0.06);
+            box-shadow: inset 0 0 8px rgba(57, 73, 171, 0.08);
         }
 
         .table tbody td {
@@ -392,7 +417,7 @@
         }
 
         .table-hover tbody tr:hover {
-            background-color: rgba(29, 53, 87, 0.04);
+            background-color: rgba(57, 73, 171, 0.06);
         }
 
         @media (max-width: 768px) {
@@ -429,27 +454,27 @@
         }
 
         .text-bg-primary {
-            background: linear-gradient(135deg, var(--mundial-red) 0%, #FF5E78 100%) !important;
+            background: var(--mundial-red) !important;
             color: #fff !important;
         }
 
         .text-bg-success {
-            background: linear-gradient(135deg, var(--mundial-green) 0%, #059669 100%) !important;
+            background: var(--mundial-green) !important;
             color: #fff !important;
         }
 
         .text-bg-info {
-            background: linear-gradient(135deg, var(--mundial-cyan) 0%, #0EA5E9 100%) !important;
-            color: #fff !important;
+            background: var(--mundial-cyan) !important;
+            color: #1f2937 !important;
         }
 
         .text-bg-warning {
-            background: linear-gradient(135deg, var(--mundial-gold) 0%, #F97316 100%) !important;
-            color: #fff !important;
+            background: var(--mundial-gold) !important;
+            color: #1f2937 !important;
         }
 
         .text-bg-dark {
-            background: linear-gradient(135deg, var(--mundial-blue) 0%, #0F1B2E 100%) !important;
+            background: var(--mundial-navy) !important;
             color: #fff !important;
         }
 
@@ -460,7 +485,7 @@
         }
 
         .text-bg-secondary {
-            background: linear-gradient(135deg, #6B7280 0%, #4B5563 100%) !important;
+            background: #6B7280 !important;
             color: #fff !important;
         }
 
@@ -543,7 +568,7 @@
 
         .form-control:focus, .form-select:focus {
             border-color: var(--mundial-red);
-            box-shadow: 0 0 0 0.25rem rgba(230, 57, 70, 0.15);
+            box-shadow: 0 0 0 0.25rem rgba(126, 107, 181, 0.2);
             background: #fff;
         }
 
@@ -573,7 +598,7 @@
         }
 
         .stat-box {
-            background: linear-gradient(135deg, var(--light-bg) 0%, rgba(255, 255, 255, 0.5) 100%);
+            background: var(--light-bg);
             border: 1.5px solid var(--border-color);
             border-radius: 1rem;
             padding: 1.5rem;
@@ -582,10 +607,10 @@
         }
 
         .stat-box:hover {
-            background: linear-gradient(135deg, rgba(230, 57, 70, 0.05) 0%, rgba(247, 127, 0, 0.05) 100%);
+            background: rgba(203, 185, 237, 0.28);
             border-color: var(--mundial-red);
             transform: translateY(-3px);
-            box-shadow: 0 8px 20px rgba(230, 57, 70, 0.1);
+            box-shadow: 0 8px 20px rgba(126, 107, 181, 0.16);
         }
 
         .stat-box .stat-value {
@@ -618,13 +643,13 @@
         }
 
         .page-link:hover {
-            background: rgba(230, 57, 70, 0.15);
+            background: rgba(126, 107, 181, 0.12);
             border-color: var(--mundial-red);
             color: var(--mundial-red);
         }
 
         .page-item.active .page-link {
-            background: linear-gradient(135deg, var(--mundial-red) 0%, #FF5E78 100%);
+            background: var(--mundial-red);
             border-color: var(--mundial-red);
             color: #fff;
             box-shadow: 0 4px 12px rgba(230, 57, 70, 0.3);
@@ -684,12 +709,12 @@
         }
 
         ::-webkit-scrollbar-thumb {
-            background: linear-gradient(180deg, var(--mundial-red) 0%, var(--mundial-blue) 100%);
+            background: var(--mundial-blue);
             border-radius: 10px;
         }
 
         ::-webkit-scrollbar-thumb:hover {
-            background: linear-gradient(180deg, #FF5E78 0%, #2D4A73 100%);
+            background: var(--fifa-purple);
         }
     </style>
 
@@ -744,8 +769,8 @@
 
                 <li class="nav-item">
                     <a class="nav-link {% if request.resolver_match.url_name == 'all_predictions' %}active{% endif %}"
-                       href="{% url 'all_predictions' %}" title="Ver todos los pronósticos">
-                        <i class="fas fa-chart-bar me-2"></i>Todos
+                       href="{% url 'all_predictions' %}" title="Ver pronósticos de hoy">
+                        <i class="fas fa-chart-bar me-2"></i>De hoy
                     </a>
                 </li>
             </ul>

@@ -2,6 +2,7 @@
 {% load static %}
 {% load dict_extras %}
 {% load team_flags %}
+{% load user_extras %}
 
 {% block title %}📊 Dashboard - Mundial Familiar 2026{% endblock %}
 
@@ -27,10 +28,11 @@
                                 <div class="badge text-bg-primary rounded-circle" style="width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; font-weight: 800;">
                                     {{ forloop.counter }}
                                 </div>
+                                {% include "includes/user_avatar.html" with user=item.user %}
                                 <div>
                                     <div class="d-none d-sm-block fw-semibold">{{ item.user.get_full_name|default:item.user.username }}</div>
                                     <div class="d-sm-none text-truncate fw-semibold" style="max-width: 120px;" title="{{ item.user.get_full_name|default:item.user.username }}">{{ item.user.get_full_name|default:item.user.username|truncatewords:2 }}</div>
-                                    <small class="text-muted d-block">@{{ item.user.username }}</small>
+                                    <small class="text-muted d-block">{{ item.user|user_bio_or_username }}</small>
                                 </div>
                             </div>
                             <div>
@@ -74,7 +76,7 @@
                     <div class="card">
                         <div class="card-header d-flex flex-column flex-sm-row justify-content-between align-items-start align-items-sm-center">
                             <h5 class="mb-2 mb-sm-0"><i class="fas fa-bar-chart me-2" style="color: var(--mundial-green);"></i>Estadísticas del torneo</h5>
-                            <span class="badge text-bg-info"><i class="fas fa-sync-alt me-1"></i>En vivo</span>
+                            <span class="badge text-bg-info">En vivo</span>
                         </div>
                         <div class="card-body">
                             <div class="row g-3">
@@ -115,7 +117,7 @@
                         </div>
                         <div class="card-body">
                             {% for match in matches %}
-                                <div class="py-3 border-bottom">
+                                <div class="py-3 border-bottom" id="live-match-{{ match.id }}">
                                     <div class="d-flex justify-content-between align-items-start mb-2">
                                         <div class="fw-semibold">{{ match.home_team|team_with_flag }} vs {{ match.away_team|team_with_flag }}</div>
                                         <span class="badge {{ match.phase|phase_color }}">
@@ -126,11 +128,16 @@
                                         <div class="small">
                                             <i class="far fa-clock me-1" style="color: var(--mundial-blue);"></i>
                                             <span class="text-muted">{{ match.kickoff_at|date:"d/m/Y H:i" }}</span>
+                                            <span class="text-muted ms-2" id="live-minute-{{ match.id }}">
+                                                {% if match.live_minute %}{{ match.live_minute }}'{% endif %}
+                                            </span>
                                         </div>
                                         <div class="d-flex gap-2 align-items-center flex-wrap">
-                                            <span class="badge text-bg-dark">
+                                            <span class="badge {% if match.finished %}text-bg-dark{% elif match.kickoff_at <= now %}text-bg-success{% else %}text-bg-dark{% endif %}" id="live-status-{{ match.id }}">
                                                 {% if match.finished %}
                                                     <i class="fas fa-check-circle me-1"></i>{{ match.home_score }} - {{ match.away_score }}
+                                                {% elif match.kickoff_at <= now %}
+                                                    <i class="fas fa-circle-play me-1"></i>En juego
                                                 {% else %}
                                                     <i class="fas fa-hourglass-half me-1"></i>Por jugar
                                                 {% endif %}
@@ -147,6 +154,7 @@
                                             {% endif %}
                                         </div>
                                     </div>
+                                    <div class="small text-muted mt-2" id="live-events-{{ match.id }}"></div>
                                 </div>
                             {% empty %}
                                 <div class="text-center py-4">
@@ -167,6 +175,65 @@
     tooltipTriggerList.map(function (tooltipTriggerEl) {
         return new bootstrap.Tooltip(tooltipTriggerEl);
     });
+
+    function renderLiveStatus(match) {
+        const statusEl = document.getElementById(`live-status-${match.id}`);
+        const minuteEl = document.getElementById(`live-minute-${match.id}`);
+        const eventsEl = document.getElementById(`live-events-${match.id}`);
+
+        if (!statusEl) {
+            return;
+        }
+
+        if (match.status === "FT") {
+            statusEl.className = "badge text-bg-dark";
+            statusEl.innerHTML = `<i class="fas fa-check-circle me-1"></i>${match.home_score} - ${match.away_score}`;
+            minuteEl.textContent = "";
+        } else if (match.status === "HT") {
+            statusEl.className = "badge text-bg-warning";
+            statusEl.innerHTML = `<i class="fas fa-pause me-1"></i>Descanso ${match.home_score} - ${match.away_score}`;
+            minuteEl.textContent = "";
+        } else if (match.status === "LIVE") {
+            statusEl.className = "badge text-bg-success";
+            statusEl.innerHTML = `<i class="fas fa-circle-play me-1"></i>En juego ${match.home_score} - ${match.away_score}`;
+            minuteEl.textContent = match.live_minute ? `${match.live_minute}'` : "";
+        } else {
+            statusEl.className = "badge text-bg-dark";
+            statusEl.innerHTML = `<i class="fas fa-hourglass-half me-1"></i>Por jugar`;
+            minuteEl.textContent = "";
+        }
+
+        if (eventsEl) {
+            if (match.events && match.events.length) {
+                eventsEl.innerHTML = `<i class="fas fa-bolt me-1"></i>${match.events.map((event) => event.text).join(" | ")}`;
+            } else {
+                eventsEl.textContent = "";
+            }
+        }
+    }
+
+    async function refreshLiveMatches() {
+        try {
+            const response = await fetch("{% url 'dashboard_live_snapshot' %}", {
+                headers: {
+                    "X-Requested-With": "XMLHttpRequest"
+                }
+            });
+
+            if (!response.ok) {
+                return;
+            }
+
+            const payload = await response.json();
+            (payload.matches || []).forEach(renderLiveStatus);
+        } catch (error) {
+            // Keep UI stable if network requests fail intermittently.
+            console.debug("Live refresh failed", error);
+        }
+    }
+
+    refreshLiveMatches();
+    setInterval(refreshLiveMatches, 15000);
 </script>
 {% endblock %}
 
