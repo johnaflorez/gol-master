@@ -1,18 +1,54 @@
 {% extends "base.html" %}
+{% load static %}
 
-{% block title %}Inicio | Mundial Familiar{% endblock %}
+{% block title %}🌍 Inicio - Mundial Familiar 2026{% endblock %}
 
 {% block content %}
-    <div class="row justify-content-center py-4">
+    <div class="row justify-content-center py-2">
         <div class="col-lg-8">
             <div class="text-center py-5">
-                <span class="badge text-bg-success-subtle text-success-emphasis rounded-pill px-3 py-2 mb-3">Bienvenido</span>
-                <h1 class="display-5 fw-semibold page-title mb-3">Mundial Familiar</h1>
-                <p class="lead text-muted mb-4">
-                    Consulta los partidos, realiza tus pronósticos y sigue el ranking de forma rápida y visual.
+                <div class="mb-4">
+                    <img src="{% static 'images/world-cup.png' %}" alt="Copa del mundo" class="wc-icon wc-icon-xl">
+                </div>
+                <span class="badge text-bg-info rounded-pill px-3 py-2 mb-4 d-inline-block">
+                    <i class="fas fa-star me-1"></i>Bienvenido a tu plataforma
+                </span>
+                <h1 class="display-4 fw-bold page-title mb-3">🌍 Mundial Familiar 2026</h1>
+                <p class="lead text-muted mb-5">
+                    Consulta los partidos en vivo, realiza tus pronósticos y compite con tu familia en la tabla de posiciones del torneo mundial.
                 </p>
-                <div class="d-flex justify-content-center gap-2 flex-wrap">
-                    <a href="{% url 'match_list' %}" class="btn btn-primary btn-lg">Ver partidos</a>
+                <div class="d-flex justify-content-center gap-3 flex-wrap mb-5">
+                    <a href="{% url 'match_list' %}" class="btn btn-primary btn-lg">
+                        <i class="fas fa-futbol me-2"></i>Ver Partidos
+                    </a>
+                    <a href="{% url 'ranking' %}" class="btn btn-outline-primary btn-lg">
+                        <img src="{% static 'images/world-cup.png' %}" alt="Copa del mundo" class="wc-icon me-2">Ver Ranking
+                    </a>
+                </div>
+
+                <!-- Feature cards -->
+                <div class="row g-4 mt-5">
+                    <div class="col-md-4">
+                        <div class="stat-box" style="height: 100%;">
+                            <i class="fas fa-futbol mb-3" style="font-size: 2rem; color: var(--mundial-red);"></i>
+                            <h6 class="fw-bold mb-2">Partidos</h6>
+                            <p class="text-muted small mb-0">Sigue todos los partidos del mundial en vivo</p>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="stat-box" style="height: 100%;">
+                            <i class="fas fa-crystal-ball mb-3" style="font-size: 2rem; color: var(--mundial-blue);"></i>
+                            <h6 class="fw-bold mb-2">Pronósticos</h6>
+                            <p class="text-muted small mb-0">Crea y gestiona tus predicciones</p>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="stat-box" style="height: 100%;">
+                            <i class="fas fa-medal mb-3" style="font-size: 2rem; color: var(--mundial-gold);"></i>
+                            <h6 class="fw-bold mb-2">Ranking</h6>
+                            <p class="text-muted small mb-0">Compite con tu familia por puntos</p>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>

@@ -18,14 +18,14 @@ class RankingService:
             )["total"] or 0
 
             # Calcular porcentaje de acierto (hit_rate)
-            # Acierto = predicción donde puntos >= 3 (acertó al menos el ganador)
+            # Acierto = predicción donde puntos >= 2 (acertó al menos el ganador)
             predictions_completed = Prediction.objects.filter(
                 user=user,
                 match__finished=True
             )
             total_completed = predictions_completed.count()
             correct_predictions = predictions_completed.filter(
-                points__gte=3
+                points__gte=2
             ).count()
             hit_rate = (correct_predictions / total_completed * 100) if total_completed > 0 else 0
 

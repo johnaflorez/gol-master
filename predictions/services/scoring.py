@@ -1,6 +1,6 @@
 class ScoreCalculator:
-    WINNER_POINTS = 3
-    EXACT_SCORE_POINTS = 2
+    WINNER_POINTS = 2
+    EXACT_SCORE_POINTS = 3
 
     def calculate(self, prediction, match):
         if match.home_score is None or match.away_score is None:

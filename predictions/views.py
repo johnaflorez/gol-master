@@ -1,4 +1,5 @@
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.db.models import Q
 from django.shortcuts import redirect, get_object_or_404
 from django.utils import timezone
 from django.views import View
@@ -24,7 +25,32 @@ class PredictionCreateView(LoginRequiredMixin, FormView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
+        previous_team_results = Match.objects.filter(
+            finished=True,
+            kickoff_at__lt=self.match.kickoff_at
+        ).filter(
+            Q(home_team=self.match.home_team) |
+            Q(away_team=self.match.home_team) |
+            Q(home_team=self.match.away_team) |
+            Q(away_team=self.match.away_team)
+        ).exclude(
+            id=self.match.id
+        ).select_related(
+            "home_team",
+            "away_team"
+        ).order_by("-kickoff_at")[:6]
+
+        previous_match_ids = [m.id for m in previous_team_results]
+        user_predictions = Prediction.objects.filter(
+            user=self.request.user,
+            match_id__in=previous_match_ids
+        ).values_list("match_id", "predicted_home_score", "predicted_away_score", "points")
+        prediction_map = {match_id: {"home": home, "away": away, "points": points}
+                          for match_id, home, away, points in user_predictions}
+
         context["match"] = self.match
+        context["previous_team_results"] = previous_team_results
+        context["prediction_map"] = prediction_map
         return context
 
     def form_valid(self, form):
@@ -32,7 +58,7 @@ class PredictionCreateView(LoginRequiredMixin, FormView):
         prediction.user = self.request.user
         prediction.match = self.match
         prediction.save()
-        return redirect("match_list")
+        return redirect("dashboard")
 
 
 class MyPredictionsView(LoginRequiredMixin, ListView):

@@ -1,37 +1,88 @@
 {% extends "base.html" %}
 {% load dict_extras %}
+{% load team_flags %}
+
+{% block title %}📋 Gestionar Pronósticos - Mundial Familiar 2026{% endblock %}
 
 {% block content %}
-    <h2>⚽ Mis Pronósticos</h2>
-    <form method="post">
-        {% csrf_token %}
+    <div class="mb-5">
+        <h1 class="page-title mb-1">
+            <i class="fas fa-list-check" style="color: var(--mundial-red);"></i> Gestionar Pronósticos
+        </h1>
+        <p class="text-muted mb-0">Edita todos tus pronósticos en una vista rápida</p>
+    </div>
 
-        <table class="table">
-            {% for match in matches %}
-                {% with pred=prediction_map|get_item:match.id %}
-                <tr>
-                    <td>{{ match.home_team }}</td>
-                    <td style="width: 120px;">
-                        <input type="number"
-                               name="home_{{ match.id }}"
-                               value="{{ pred.predicted_home_score|default:'' }}"
-                               class="form-control">
+    <div class="card">
+        <div class="card-header">
+            <h5 class="mb-0"><i class="fas fa-edit me-2" style="color: var(--mundial-blue);"></i>Mis pronósticos</h5>
+        </div>
+        <div class="card-body p-0">
+            <form method="post" novalidate>
+                {% csrf_token %}
 
-                    </td>
-                    <td style="width: 120px;">
-                        <input type="number"
-                               name="away_{{ match.id }}"
-                               value="{{ pred.predicted_away_score|default:'' }}"
-                               class="form-control">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0 align-middle">
+                        <thead>
+                        <tr>
+                            <th><i class="fas fa-handshake me-2"></i>Equipo Local</th>
+                            <th style="width: 120px;"><i class="fas fa-arrow-right me-1"></i>Goles</th>
+                            <th style="width: 120px;"><i class="fas fa-arrow-left me-1"></i>Goles</th>
+                            <th><i class="fas fa-handshake me-2"></i>Equipo Visitante</th>
+                            <th><i class="far fa-calendar me-2"></i>Fecha</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        {% for match in matches %}
+                            {% with pred=prediction_map|get_item:match.id %}
+                            <tr>
+                                <td>
+                                    <div class="fw-semibold">{{ match.home_team|team_with_flag }}</div>
+                                </td>
+                                <td>
+                                    <input type="number"
+                                           name="home_{{ match.id }}"
+                                           value="{{ pred.predicted_home_score|default:'' }}"
+                                           min="0"
+                                           max="99"
+                                           class="form-control form-control-sm"
+                                           placeholder="0">
+                                </td>
+                                <td>
+                                    <input type="number"
+                                           name="away_{{ match.id }}"
+                                           value="{{ pred.predicted_away_score|default:'' }}"
+                                           min="0"
+                                           max="99"
+                                           class="form-control form-control-sm"
+                                           placeholder="0">
+                                </td>
+                                <td>
+                                    <div class="fw-semibold">{{ match.away_team|team_with_flag }}</div>
+                                </td>
+                                <td class="text-muted small"><i class="far fa-clock me-1"></i>{{ match.kickoff_at|date:"d/m/Y H:i" }}</td>
+                            </tr>
+                            {% endwith %}
+                        {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </form>
 
-                    </td>
-                    <td>{{ match.away_team }}</td>
-                    <td>{{ match.kickoff_at }}</td>
-                </tr>
-                {% endwith %}
-            {% endfor %}
-        </table>
-
-        <button class="btn btn-success">Guardar pronósticos</button>
-    </form>
+            {% if matches %}
+                <div class="p-4 border-top d-flex justify-content-end gap-2">
+                    <a href="{% url 'my_predictions' %}" class="btn btn-outline-primary">
+                        <i class="fas fa-times me-1"></i>Cancelar
+                    </a>
+                    <button form="prediction-form" class="btn btn-success" type="submit">
+                        <i class="fas fa-save me-1"></i>Guardar cambios
+                    </button>
+                </div>
+            {% else %}
+                <div class="text-center py-5 text-muted">
+                    <i class="fas fa-inbox" style="font-size: 2rem;"></i>
+                    <p class="mt-3 mb-0">No hay pronósticos para editar</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
 {% endblock %}

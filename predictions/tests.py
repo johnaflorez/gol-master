@@ -7,6 +7,7 @@ from django.utils import timezone
 
 from matches.models import Match
 from predictions.models import Prediction
+from predictions.services.scoring import ScoreCalculator
 from teams.models import Team
 
 
@@ -57,7 +58,7 @@ class PredictionCreateViewTests(TestCase):
 			},
 		)
 
-		self.assertRedirects(response, reverse("my_predictions"))
+		self.assertRedirects(response, reverse("dashboard"))
 		self.assertTrue(
 			Prediction.objects.filter(
 				user=self.user,
@@ -78,7 +79,7 @@ class PredictionCreateViewTests(TestCase):
 			},
 		)
 
-		self.assertRedirects(response, reverse("my_predictions"))
+		self.assertRedirects(response, reverse("dashboard"))
 		self.assertTrue(
 			Prediction.objects.filter(
 				user=self.user,
@@ -87,6 +88,54 @@ class PredictionCreateViewTests(TestCase):
 				predicted_away_score=0,
 			).exists()
 		)
+
+	def test_prediction_form_includes_previous_results_for_match_teams(self):
+		target_match = self._match(days_offset=2, finished=False)
+
+		recent_related = self._match(days_offset=-1, finished=True)
+		recent_related.home_score = 2
+		recent_related.away_score = 1
+		recent_related.save()
+
+		older_related = self._match(days_offset=-4, finished=True)
+		older_related.home_score = 0
+		older_related.away_score = 0
+		older_related.save()
+
+		third_team = Team.objects.create(name="Team Three", code="THR")
+		unrelated = Match.objects.create(
+			home_team=third_team,
+			away_team=third_team,
+			kickoff_at=timezone.now() - timedelta(days=2),
+			finished=True,
+			home_score=1,
+			away_score=1,
+		)
+
+		recent_pred = Prediction.objects.create(
+			user=self.user,
+			match=recent_related,
+			predicted_home_score=2,
+			predicted_away_score=0,
+			points=2,
+		)
+
+		response = self.client.get(reverse("prediction_create", args=[target_match.id]))
+
+		self.assertEqual(response.status_code, 200)
+		previous_team_results = list(response.context["previous_team_results"])
+		prediction_map = response.context["prediction_map"]
+
+		self.assertEqual(len(previous_team_results), 2)
+		self.assertEqual(previous_team_results[0].id, recent_related.id)
+		self.assertEqual(previous_team_results[1].id, older_related.id)
+		self.assertNotIn(unrelated.id, [match.id for match in previous_team_results])
+
+		self.assertIn(recent_related.id, prediction_map)
+		self.assertEqual(prediction_map[recent_related.id]["home"], 2)
+		self.assertEqual(prediction_map[recent_related.id]["away"], 0)
+		self.assertEqual(prediction_map[recent_related.id]["points"], 2)
+		self.assertNotIn(older_related.id, prediction_map)
 
 
 class MyPredictionsViewTests(TestCase):
@@ -137,5 +186,51 @@ class MyPredictionsViewTests(TestCase):
 		self.assertEqual(response_page_2.status_code, 200)
 		self.assertEqual(len(response_page_2.context["predictions"]), 1)
 		self.assertEqual(response_page_2.context["page_obj"].number, 2)
+
+
+class ScoreCalculatorTests(TestCase):
+
+	def setUp(self):
+		self.team_a = Team.objects.create(name="Score Alpha", code="SCA")
+		self.team_b = Team.objects.create(name="Score Bravo", code="SCB")
+		self.user = User.objects.create_user(username="score-user", password="secret123")
+		self.calculator = ScoreCalculator()
+
+	def _build_match_and_prediction(self, *, real_home, real_away, pred_home, pred_away):
+		match = Match.objects.create(
+			home_team=self.team_a,
+			away_team=self.team_b,
+			kickoff_at=timezone.now(),
+			home_score=real_home,
+			away_score=real_away,
+			finished=True,
+		)
+		prediction = Prediction(
+			user=self.user,
+			match=match,
+			predicted_home_score=pred_home,
+			predicted_away_score=pred_away,
+		)
+		return prediction, match
+
+	def test_correct_winner_gives_two_points(self):
+		prediction, match = self._build_match_and_prediction(
+			real_home=2,
+			real_away=1,
+			pred_home=3,
+			pred_away=0,
+		)
+
+		self.assertEqual(self.calculator.calculate(prediction, match), 2)
+
+	def test_exact_score_gives_five_points_total(self):
+		prediction, match = self._build_match_and_prediction(
+			real_home=1,
+			real_away=1,
+			pred_home=1,
+			pred_away=1,
+		)
+
+		self.assertEqual(self.calculator.calculate(prediction, match), 5)
 
 

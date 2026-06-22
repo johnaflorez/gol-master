@@ -1,18 +1,200 @@
 {% extends "base.html" %}
+{% load static %}
+
+{% block title %}🔑 Iniciar Sesión - Mundial Familiar 2026{% endblock %}
 
 {% block content %}
-    <div class="row justify-content-center">
-        <div class="col-md-4">
-            <div class="card">
-                <div class="card-body">
-                    <h3>Iniciar sesión</h3>
+    <style>
+        .auth-shell {
+            min-height: calc(100vh - 180px);
+            display: grid;
+            place-items: center;
+            padding: 2rem 1rem;
+        }
 
-                    <form method="post">
-                        {% csrf_token %}
-                        {{ form.as_p }}
-                        <button class="btn btn-primary">Entrar</button>
-                    </form>
+        .auth-card {
+            max-width: 1000px;
+            width: 100%;
+            border: 1.5px solid var(--border-color);
+            border-radius: 1.2rem;
+            overflow: hidden;
+            box-shadow: 0 20px 50px rgba(29, 53, 87, 0.15);
+            background: rgba(255, 255, 255, 0.95);
+        }
 
+        .auth-aside {
+            background: linear-gradient(135deg, var(--mundial-blue) 0%, var(--mundial-navy) 100%);
+            color: #fff;
+            padding: 3rem 2rem;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            min-height: 400px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .auth-aside::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -50%;
+            width: 500px;
+            height: 500px;
+            background: rgba(230, 57, 70, 0.1);
+            border-radius: 50%;
+        }
+
+        .auth-aside::after {
+            content: '';
+            position: absolute;
+            bottom: -50%;
+            left: -50%;
+            width: 500px;
+            height: 500px;
+            background: rgba(247, 127, 0, 0.1);
+            border-radius: 50%;
+        }
+
+        .auth-aside-content {
+            position: relative;
+            z-index: 1;
+        }
+
+        .auth-form-wrap {
+            padding: 3rem 2rem;
+        }
+
+         .auth-form-wrap .auth-field {
+            margin-bottom: 1.2rem;
+        }
+
+        .auth-form-wrap .auth-field:last-of-type {
+            margin-bottom: 1.8rem;
+        }
+
+        .auth-form-wrap .form-control {
+            border: 1.5px solid var(--border-color);
+            border-radius: 0.7rem;
+            padding: 0.85rem 1rem;
+            font-size: 0.95rem;
+            margin-top: 0;
+            transition: all 0.3s ease;
+        }
+
+        .auth-form-wrap .form-control:focus {
+            border-color: var(--mundial-red);
+            box-shadow: 0 0 0 0.25rem rgba(230, 57, 70, 0.15);
+        }
+
+        .auth-form-wrap .form-label {
+            font-weight: 700;
+            color: var(--mundial-blue);
+            margin-bottom: 0.6rem;
+        }
+
+        .auth-form-wrap .btn {
+            padding: 0.9rem 1.5rem;
+            font-weight: 700;
+            font-size: 1rem;
+            border-radius: 0.7rem;
+            transition: all 0.3s ease;
+        }
+
+        @media (max-width: 768px) {
+            .auth-aside {
+                padding: 2rem;
+                min-height: auto;
+            }
+            .auth-form-wrap {
+                padding: 2rem;
+            }
+        }
+    </style>
+
+    <div class="auth-shell">
+        <div class="card auth-card">
+            <div class="row g-0">
+                <div class="col-lg-5 d-none d-lg-block">
+                    <div class="auth-aside">
+                        <div class="auth-aside-content">
+                            <div class="mb-4">
+                                <img src="{% static 'images/world-cup.png' %}" alt="Copa del mundo" class="wc-icon wc-icon-lg d-block">
+                            </div>
+                            <h2 class="h3 fw-bold mb-3">🌍 Bienvenido de nuevo</h2>
+                            <p class="opacity-85 mb-0" style="line-height: 1.6;">
+                                Ingresa para seguir los partidos en vivo, enviar tus pronósticos y compite con tu familia en la tabla de posiciones del mundial 2026.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-lg-7">
+                    <div class="auth-form-wrap">
+                        <h1 class="h4 fw-bold mb-1" style="color: var(--mundial-blue);">
+                            <i class="fas fa-sign-in-alt me-2" style="color: var(--mundial-red);"></i>Iniciar Sesión
+                        </h1>
+                        <p class="text-muted small mb-5">Usa tu usuario y contraseña para continuar.</p>
+
+                        {% if form.non_field_errors %}
+                            <div class="alert alert-danger" role="alert">
+                                <i class="fas fa-exclamation-circle me-2"></i>
+                                {% for error in form.non_field_errors %}
+                                    <div>{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+
+                        <form method="post" novalidate>
+                            {% csrf_token %}
+
+                            <div class="auth-field">
+                                <label for="{{ form.username.id_for_label }}" class="form-label">
+                                    <i class="fas fa-user me-2" style="color: var(--mundial-blue);"></i>Usuario
+                                </label>
+                                <input
+                                    type="text"
+                                    name="{{ form.username.html_name }}"
+                                    id="{{ form.username.id_for_label }}"
+                                    class="form-control"
+                                    autocomplete="username"
+                                    value="{{ form.username.value|default_if_none:'' }}"
+                                    {% if form.username.field.required %}required{% endif %}
+                                    {% if form.username.field.widget.attrs.autofocus %}autofocus{% endif %}
+                                >
+                                {% if form.username.errors %}
+                                    <div class="text-danger small mt-2"><i class="fas fa-circle-exclamation me-1"></i>{{ form.username.errors|striptags }}</div>
+                                {% endif %}
+                            </div>
+
+                            <div class="auth-field">
+                                <label for="{{ form.password.id_for_label }}" class="form-label">
+                                    <i class="fas fa-lock me-2" style="color: var(--mundial-blue);"></i>Contraseña
+                                </label>
+                                <input
+                                    type="password"
+                                    name="{{ form.password.html_name }}"
+                                    id="{{ form.password.id_for_label }}"
+                                    class="form-control"
+                                    autocomplete="current-password"
+                                    {% if form.password.field.required %}required{% endif %}
+                                >
+                                {% if form.password.errors %}
+                                    <div class="text-danger small mt-2"><i class="fas fa-circle-exclamation me-1"></i>{{ form.password.errors|striptags }}</div>
+                                {% endif %}
+                            </div>
+
+                            <div class="d-grid">
+                                <button class="btn btn-primary btn-lg" type="submit">
+                                    <i class="fas fa-sign-in-alt me-2"></i>Entrar
+                                </button>
+                            </div>
+                        </form>
+
+                        <div class="text-center mt-4">
+                            <p class="text-muted small">¿No tienes cuenta? Contacta con el administrador</p>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>

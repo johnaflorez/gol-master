@@ -1,48 +1,122 @@
 {% extends "base.html" %}
+{% load static %}
 
-{% block title %}Ranking | Mundial Familiar{% endblock %}
+{% block title %}🏆 Ranking Completo - Mundial Familiar 2026{% endblock %}
 
 {% block content %}
-    <h2 class="mb-3">Ranking</h2>
-
-    <div class="alert alert-info mt-3 shadow-sm border-0">
-        <h5>📊 Sistema de puntuación</h5>
-
-        <ul class="mb-0">
-            <li>✔ 3 puntos por acertar el ganador o empate</li>
-            <li>✔ +2 puntos adicionales si aciertas el marcador exacto</li>
-            <li>✔ Los puntos se calculan automáticamente al finalizar cada partido</li>
-        </ul>
-
+    <div class="mb-5">
+        <h1 class="page-title mb-1">
+            <img src="{% static 'images/world-cup.png' %}" alt="Copa del mundo" class="wc-icon wc-icon-md me-1"> Ranking Completo
+        </h1>
+        <p class="text-muted mb-0">Tabla de posiciones del torneo</p>
     </div>
 
-    <div class="card shadow-sm border-0">
+    <div class="alert alert-info mb-5">
+        <div class="fw-semibold mb-2"><i class="fas fa-lightbulb me-2"></i>Sistema de puntuación</div>
+        <div class="row">
+            <div class="col-md-4">
+                <div class="d-flex gap-2 mb-2">
+                    <i class="fas fa-check-circle text-success"></i>
+                    <div>
+                        <strong>+2 puntos</strong>
+                        <div class="small text-muted">Por acertar ganador o empate</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="d-flex gap-2 mb-2">
+                    <i class="fas fa-star text-warning"></i>
+                    <div>
+                        <strong>+3 puntos adicionales</strong>
+                        <div class="small text-muted">Por acertar marcador exacto</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="d-flex gap-2 mb-2">
+                    <i class="fas fa-sync-alt text-info"></i>
+                    <div>
+                        <strong>Automático</strong>
+                        <div class="small text-muted">Al finalizar cada partido</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0"><i class="fas fa-medal me-2" style="color: var(--mundial-red);"></i>Posiciones finales</h5>
+            <span class="badge text-bg-primary">Tabla actualizada</span>
+        </div>
         <div class="table-responsive">
             <table class="table table-hover mb-0 align-middle">
-                <thead class="table-light">
+                <thead>
                 <tr>
-                    <th>Posición</th>
-                    <th>Jugador</th>
-                    <th>Puntos</th>
+                    <th style="width: 80px;"><i class="fas fa-hashtag me-2"></i>Posición</th>
+                    <th><i class="fas fa-user me-2"></i>Jugador</th>
+                    <th style="width: 150px;"><i class="fas fa-percent me-2"></i>Acierto</th>
+                    <th style="width: 120px;"><i class="fas fa-star me-2"></i>Puntos</th>
                 </tr>
                 </thead>
                 <tbody>
                 {% for item in ranking %}
-                    <tr>
-                        <td>{{ forloop.counter }}</td>
-                        <td>{{ item.user.get_full_name|default:item.user.username }}</td>
+                    <tr {% if forloop.counter <= 3 %}class="border-start" style="border-left: 3px solid {% if forloop.counter == 1 %}var(--mundial-gold){% elif forloop.counter == 2 %}#C0C0C0{% else %}#CD7F32{% endif %};"{% endif %}>
                         <td>
-                            <span class="badge {% if item.points == 0 %}text-bg-light text-secondary border{% else %}text-bg-primary{% endif %} rounded-pill"
+                            <div class="badge text-bg-{{ forloop.counter|add:'0'|stringformat:'d' }}" style="
+                                {% if forloop.counter == 1 %}
+                                    background: linear-gradient(135deg, var(--mundial-gold) 0%, #F97316 100%) !important;
+                                {% elif forloop.counter == 2 %}
+                                    background: #C0C0C0 !important;
+                                {% elif forloop.counter == 3 %}
+                                    background: #CD7F32 !important;
+                                {% else %}
+                                    background: var(--mundial-blue) !important;
+                                {% endif %}
+                            " style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 1.1rem;">
+                                {% if forloop.counter == 1 %}
+                                    🥇
+                                {% elif forloop.counter == 2 %}
+                                    🥈
+                                {% elif forloop.counter == 3 %}
+                                    🥉
+                                {% else %}
+                                    {{ forloop.counter }}
+                                {% endif %}
+                            </div>
+                        </td>
+                        <td>
+                            <div class="fw-semibold">{{ item.user.get_full_name|default:item.user.username }}</div>
+                            <small class="text-muted">@{{ item.user.username }}</small>
+                        </td>
+                        <td>
+                            <div class="d-flex align-items-center gap-2">
+                                <div class="progress" style="flex: 1; height: 6px;">
+                                    <div class="progress-bar bg-success" role="progressbar"
+                                         style="width: {{ item.hit_rate|floatformat:0 }}%;"
+                                         aria-valuenow="{{ item.hit_rate|floatformat:0 }}"
+                                         aria-valuemin="0"
+                                         aria-valuemax="100"></div>
+                                </div>
+                                <span class="badge text-bg-info text-nowrap">{{ item.hit_rate|floatformat:1 }}%</span>
+                            </div>
+                            <small class="text-muted">{{ item.correct_predictions }}/{{ item.total_predictions }}</small>
+                        </td>
+                        <td>
+                            <span class="badge {% if item.points == 0 %}text-bg-light border{% else %}text-bg-primary{% endif %} rounded-pill"
                                   data-bs-toggle="tooltip"
-                                  data-bs-placement="top"
-                                  title="Acierto: {{ item.hit_rate|floatformat:1 }}% ({{ item.correct_predictions }}/{{ item.total_predictions }}) pronósticos">
-                                {{ item.points }}
+                                  data-bs-placement="left"
+                                  title="Aciertos: {{ item.correct_predictions }} | Tasa: {{ item.hit_rate|floatformat:1 }}%">
+                                <i class="fas fa-star me-1"></i><strong>{{ item.points }}</strong>
                             </span>
                         </td>
                     </tr>
                 {% empty %}
                     <tr>
-                        <td colspan="3" class="text-center text-muted py-4">Aun no hay datos de ranking.</td>
+                        <td colspan="4" class="text-center text-muted py-5">
+                            <i class="fas fa-inbox" style="font-size: 2rem;"></i>
+                            <p class="mt-3 mb-0">Aun no hay datos de ranking</p>
+                        </td>
                     </tr>
                 {% endfor %}
                 </tbody>

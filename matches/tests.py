@@ -6,7 +6,6 @@ from django.urls import reverse
 from django.utils import timezone
 
 from matches.models import Match
-from predictions.models import Prediction
 from teams.models import Team
 
 
@@ -38,32 +37,15 @@ class MatchListViewTests(TestCase):
 		self.assertEqual(matches[0].id, newer.id)
 		self.assertEqual(matches[1].id, older.id)
 
-	def test_hides_predict_button_for_finished_or_predicted_matches(self):
-		available = self._create_match(kickoff_at=timezone.now() + timedelta(days=3), finished=False)
-		finished = self._create_match(kickoff_at=timezone.now() + timedelta(days=2), finished=True)
-		already_predicted = self._create_match(kickoff_at=timezone.now() + timedelta(days=1), finished=False)
-
-		Prediction.objects.create(
-			user=self.user,
-			match=already_predicted,
-			predicted_home_score=1,
-			predicted_away_score=0,
-		)
+	def test_match_list_does_not_show_predict_button(self):
+		self._create_match(kickoff_at=timezone.now() + timedelta(days=3), finished=False)
+		self._create_match(kickoff_at=timezone.now() + timedelta(days=2), finished=True)
+		self._create_match(kickoff_at=timezone.now() - timedelta(minutes=5), finished=False)
 
 		response = self.client.get(reverse("match_list"))
 
 		self.assertEqual(response.status_code, 200)
-		self.assertContains(response, reverse("prediction_create", args=[available.id]))
-		self.assertNotContains(response, reverse("prediction_create", args=[finished.id]))
-		self.assertNotContains(response, reverse("prediction_create", args=[already_predicted.id]))
-
-	def test_shows_predict_button_when_kickoff_has_passed_if_not_finished(self):
-		started_match = self._create_match(kickoff_at=timezone.now() - timedelta(minutes=5), finished=False)
-
-		response = self.client.get(reverse("match_list"))
-
-		self.assertEqual(response.status_code, 200)
-		self.assertContains(response, reverse("prediction_create", args=[started_match.id]))
+		self.assertNotContains(response, "Pronosticar")
 
 	def test_match_list_is_paginated(self):
 		now = timezone.now()

@@ -1,0 +1,235 @@
+/*
+ * =============================================================================
+ * MUNDIAL FAMILIAR 2026 - SISTEMA DE ESTILOS
+ * =============================================================================
+ *
+ * Este archivo contiene todos los estilos CSS del proyecto
+ * Colores del Mundial 2026: Rojo (México), Azul (Canadá/USA), Oro (FIFA)
+ *
+ * IMPORTANTE: Estos estilos están incrustados en templates/base.html
+ * Este archivo es solo para referencia y desarrollo
+ *
+ * Autor: Diseño Mejorado
+ * Fecha: 2026
+ * =============================================================================
+ */
+
+/* ===== PALETA DE COLORES DEL MUNDIAL 2026 ===== */
+:root {
+    --mundial-red: #E63946;        /* 🇲🇽 Rojo de México */
+    --mundial-blue: #1D3557;       /* 🇨🇦🇺🇸 Azul de Canadá/USA */
+    --mundial-navy: #0F1B2E;       /* Azul marino profundo */
+    --mundial-gold: #F77F00;       /* 🏆 Oro FIFA */
+    --mundial-cyan: #06B6D4;       /* 🌊 Cyan - Adidas */
+    --mundial-green: #10B981;      /* 🌳 Verde */
+    --light-bg: #F5F7FA;           /* Fondo claro */
+    --border-color: #E0E7FF;       /* Bordes suaves */
+}
+
+/* ===== FUENTES Y TAMAÑOS ===== */
+/*
+ * Sistema de tipografía moderno:
+ * - Titulares: -apple-system, BlinkMacSystemFont, Roboto
+ * - Cuerpo: Segoe UI, Helvetica Neue
+ * - Tamaño base: 16px (escalable en móviles)
+ */
+
+/* ===== COMPONENTES PRINCIPALES ===== */
+
+/* NAVBAR */
+/*
+ * Gradiente azul oscuro a azul más claro
+ * Borde rojo inferior para el toque del mundial
+ * Iconografía con Font Awesome
+ */
+
+/* TARJETAS */
+/*
+ * Bordes suaves (1.1rem)
+ * Sombras elevadas
+ * Hover effects con translateY(-2px)
+ * Colores de encabezado con gradiente
+ */
+
+/* BOTONES */
+/*
+ * Gradientes de colores del mundial
+ * Efectos hover y active
+ * Iconos integrados
+ * Mínimo 44px en móviles
+ */
+
+/* BADGES */
+/*
+ * Colores temáticos
+ * Gradientes para estados importantes
+ * Padding y border-radius mejorados
+ * Sombras sutiles
+ */
+
+/* TABLAS */
+/*
+ * Encabezados azul oscuro con texto blanco
+ * Filas hover con fondo rojo suave
+ * Iconos en headers
+ * Responsive con scroll horizontal
+ */
+
+/* ===== ANIMACIONES ===== */
+/*
+ * Transiciones suaves (0.3s ease)
+ * Transformaciones translateY
+ * Fade-in animations
+ * Rotaciones en elementos interactivos
+ */
+
+/* ===== ESTADOS VISUALES ===== */
+/*
+ * Éxito: Verde (10B981)
+ * Error: Rojo (E63946)
+ * Advertencia: Oro (F77F00)
+ * Información: Cyan (06B6D4)
+ */
+
+/* ===== RESPONSIVE ===== */
+/*
+ * Desktop: 1200px+
+ * Tablet: 768px - 1199px
+ * Móvil: < 768px
+ *
+ * Breakpoints:
+ * @media (max-width: 991px) - Tablets
+ * @media (max-width: 768px) - Tablet pequeño
+ * @media (max-width: 576px) - Móvil
+ */
+
+/* ===== EFECTOS ESPECIALES ===== */
+
+/* Scrollbar personalizado con gradiente mundial */
+::-webkit-scrollbar {
+    width: 10px;
+}
+
+::-webkit-scrollbar-track {
+    background: #F5F7FA;
+}
+
+::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg, #E63946 0%, #1D3557 100%);
+    border-radius: 10px;
+}
+
+/* ===== ESTRUCTURA DE COLORES ===== */
+
+/* Primario (Rojo) - Botones principales, enlaces */
+.btn-primary {
+    background: linear-gradient(135deg, #E63946 0%, #FF5E78 100%);
+}
+
+/* Secundario (Azul) - Estructura, encabezados */
+.btn-secondary {
+    background: linear-gradient(135deg, #1D3557 0%, #0F1B2E 100%);
+}
+
+/* Éxito (Verde) - Confirmaciones, checks */
+.btn-success {
+    background: linear-gradient(135deg, #10B981 0%, #059669 100%);
+}
+
+/* Info (Cyan) - Información, badges */
+.btn-info {
+    background: linear-gradient(135deg, #06B6D4 0%, #0EA5E9 100%);
+}
+
+/* Warning (Oro) - Advertencias */
+.btn-warning {
+    background: linear-gradient(135deg, #F77F00 0%, #F97316 100%);
+}
+
+/* ===== PATRONES DE DISEÑO ===== */
+
+/* Stat Box: Caja de estadísticas */
+.stat-box {
+    background: linear-gradient(135deg, #F5F7FA 0%, rgba(255, 255, 255, 0.5) 100%);
+    border: 1.5px solid #E0E7FF;
+    border-radius: 1rem;
+    padding: 1.5rem;
+    text-align: center;
+    transition: all 0.3s ease;
+}
+
+.stat-box:hover {
+    background: linear-gradient(135deg, rgba(230, 57, 70, 0.05) 0%, rgba(247, 127, 0, 0.05) 100%);
+    border-color: #E63946;
+    transform: translateY(-3px);
+    box-shadow: 0 8px 20px rgba(230, 57, 70, 0.1);
+}
+
+/* Content Wrap: Contenedor principal */
+.content-wrap {
+    background: rgba(255, 255, 255, 0.8);
+    border: 1.5px solid #E0E7FF;
+    border-radius: 1.2rem;
+    padding: 1.5rem;
+    backdrop-filter: blur(10px);
+    box-shadow: 0 8px 32px rgba(29, 53, 87, 0.08);
+}
+
+/* ===== INTERACTIVIDAD ===== */
+
+/*
+ * El sistema implementa:
+ * - Hover effects en elementos interactivos
+ * - Focus states para accesibilidad
+ * - Active states para retroalimentación
+ * - Tooltips para ayuda contextual
+ * - Transiciones suaves
+ */
+
+/* ===== ACCESIBILIDAD ===== */
+
+/*
+ * ✅ Contraste > 4.5:1
+ * ✅ Labels asociados a inputs
+ * ✅ Aria-labels donde sea necesario
+ * ✅ Focus visible en navegación por teclado
+ * ✅ Tamaños mínimos de click (44px)
+ * ✅ Texto alternativo en imágenes
+ */
+
+/* ===== PERFORMANCE ===== */
+
+/*
+ * CSS incrustado en base.html para:
+ * - Reducir peticiones HTTP
+ * - Mejorar tiempo de carga inicial
+ * - Evitar FOUC (Flash of Unstyled Content)
+ *
+ * Se utiliza:
+ * - Variables CSS para fácil mantenimiento
+ * - Transiciones GPU-aceleradas
+ * - Media queries eficientes
+ * - Selectores optimizados
+ */
+
+/* ===== GUÍA DE MANTENIMIENTO ===== */
+
+/*
+ * Para cambiar colores:
+ * 1. Actualizar las variables :root
+ * 2. Buscar referencias en templates
+ * 3. Probar en todos los navegadores
+ *
+ * Para agregar nuevos componentes:
+ * 1. Seguir el patrón de naming
+ * 2. Usar los colores del :root
+ * 3. Mantener responsividad
+ * 4. Agregar transiciones suaves
+ *
+ * Para optimizar:
+ * 1. Usar flexbox/grid en lugar de float
+ * 2. Minimizar especificidad de selectores
+ * 3. Reutilizar clases
+ * 4. Evitar !important
+ */
+
