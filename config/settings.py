@@ -17,7 +17,11 @@ SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-8i66z6vc1(72i$09$v^6n
 
 DEBUG = os.environ.get('DEBUG', 'True') == 'True'
 
-ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
+def _split_env_list(var_name, default=""):
+    raw = os.environ.get(var_name, default)
+    return [item.strip() for item in raw.split(',') if item.strip()]
+
+ALLOWED_HOSTS = _split_env_list('ALLOWED_HOSTS', 'localhost,127.0.0.1')
 
 # Application definition
 LOCAL_APPS = [
@@ -121,10 +125,14 @@ REST_FRAMEWORK = {
 }
 
 # CORS
-CORS_ALLOWED_ORIGINS = os.environ.get(
-    'CORS_ALLOWED_ORIGINS', 'http://localhost:5173'
-).split(',')
+CORS_ALLOWED_ORIGINS = _split_env_list('CORS_ALLOWED_ORIGINS', 'http://localhost:5173')
 CORS_ALLOW_CREDENTIALS = True
+
+# Accept HTTPS form posts from Render/custom domains when DEBUG=False
+CSRF_TRUSTED_ORIGINS = _split_env_list(
+    'CSRF_TRUSTED_ORIGINS',
+    'https://localhost,https://127.0.0.1'
+)
 
 # Auth redirects
 LOGIN_REDIRECT_URL = '/'
