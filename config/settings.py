@@ -116,6 +116,16 @@ STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 # Media files
 MEDIA_URL = '/media/'
+CLOUDINARY_URL = os.environ.get('CLOUDINARY_URL', '')
+CLOUDINARY_CLOUD_NAME = os.environ.get('CLOUDINARY_CLOUD_NAME', '')
+CLOUDINARY_API_KEY = os.environ.get('CLOUDINARY_API_KEY', '')
+CLOUDINARY_API_SECRET = os.environ.get('CLOUDINARY_API_SECRET', '')
+CLOUDINARY_MEDIA_FOLDER = os.environ.get('CLOUDINARY_MEDIA_FOLDER', 'gol_master')
+CLOUDINARY_STORAGE_ENABLED = (
+    os.environ.get('CLOUDINARY_STORAGE_ENABLED', '').lower() == 'true'
+    or bool(CLOUDINARY_URL)
+    or bool(CLOUDINARY_CLOUD_NAME and CLOUDINARY_API_KEY and CLOUDINARY_API_SECRET)
+)
 _default_media_root = BASE_DIR / 'media'
 if os.environ.get('RENDER', '').lower() == 'true':
     _default_media_root = Path('/tmp/media')
@@ -138,6 +148,16 @@ except OSError:
             _ensure_writable_media_root(MEDIA_ROOT)
         except OSError:
             pass
+
+if CLOUDINARY_STORAGE_ENABLED:
+    STORAGES = {
+        'default': {
+            'BACKEND': 'users.storage.CloudinaryMediaStorage',
+        },
+        'staticfiles': {
+            'BACKEND': STATICFILES_STORAGE,
+        },
+    }
 
 # REST Framework
 REST_FRAMEWORK = {

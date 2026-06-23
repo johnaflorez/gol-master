@@ -28,7 +28,8 @@ class UserProfileUpdateView(LoginRequiredMixin, UpdateView):
 
     def form_valid(self, form):
         try:
-            Path(settings.MEDIA_ROOT).mkdir(parents=True, exist_ok=True)
+            if not getattr(settings, "CLOUDINARY_STORAGE_ENABLED", False):
+                Path(settings.MEDIA_ROOT).mkdir(parents=True, exist_ok=True)
             return super().form_valid(form)
         except Exception as exc:
             logger.exception(

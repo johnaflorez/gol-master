@@ -10,6 +10,7 @@ from django.urls import reverse
 from PIL import Image
 
 from users.models import UserProfile
+from users.storage import CloudinaryMediaStorage
 
 
 def make_image_file(name="avatar.png", image_format="PNG", content_type="image/png"):
@@ -138,4 +139,48 @@ class UserProfileUpdateViewTests(TestCase):
 		self.assertTrue(payload["exists"])
 		self.assertTrue(payload["is_dir"])
 		self.assertTrue(payload["writable"])
+
+
+class CloudinaryMediaStorageTests(TestCase):
+
+	@patch("cloudinary.config")
+	@patch("cloudinary.uploader.upload")
+	def test_storage_uploads_file_and_returns_normalized_name(self, upload, config):
+		storage = CloudinaryMediaStorage(folder="test_folder")
+		file = make_image_file()
+
+		saved_name = storage._save("avatars/avatar.png", file)
+
+		self.assertEqual(saved_name, "avatars/avatar.png")
+		upload.assert_called_once()
+		self.assertEqual(upload.call_args.kwargs["public_id"], "test_folder/avatars/avatar")
+		self.assertEqual(upload.call_args.kwargs["resource_type"], "image")
+
+	@patch("cloudinary.config")
+	@patch("cloudinary.utils.cloudinary_url", return_value=("https://res.cloudinary.com/demo/image/upload/test_folder/avatars/avatar", {}))
+	def test_storage_builds_cloudinary_url(self, cloudinary_url, config):
+		storage = CloudinaryMediaStorage(folder="test_folder")
+
+		url = storage.url("avatars/avatar.png")
+
+		self.assertEqual(url, "https://res.cloudinary.com/demo/image/upload/test_folder/avatars/avatar")
+		cloudinary_url.assert_called_once_with(
+			"test_folder/avatars/avatar",
+			resource_type="image",
+			secure=True,
+		)
+
+	@patch("cloudinary.config")
+	@patch("cloudinary.uploader.destroy")
+	def test_storage_deletes_cloudinary_resource(self, destroy, config):
+		storage = CloudinaryMediaStorage(folder="test_folder")
+
+		storage.delete("avatars/avatar.png")
+
+		destroy.assert_called_once_with(
+			"test_folder/avatars/avatar",
+			resource_type="image",
+			invalidate=True,
+		)
+
 
