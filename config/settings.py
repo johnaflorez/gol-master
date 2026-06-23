@@ -120,6 +120,12 @@ _default_media_root = BASE_DIR / 'media'
 if os.environ.get('RENDER', '').lower() == 'true':
     _default_media_root = Path('/var/data/media')
 MEDIA_ROOT = Path(os.environ.get('MEDIA_ROOT', str(_default_media_root)))
+try:
+    MEDIA_ROOT.mkdir(parents=True, exist_ok=True)
+except OSError:
+    # Some environments may not allow creating folders during settings import.
+    # Upload views handle storage errors and show a form-level message.
+    pass
 
 # REST Framework
 REST_FRAMEWORK = {

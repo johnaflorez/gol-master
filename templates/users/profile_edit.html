@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load user_extras %}
 
 {% block title %}👤 Editar Perfil - Mundial Familiar 2026{% endblock %}
 
@@ -39,10 +40,11 @@
                                 <div class="text-danger small mt-2"><i class="fas fa-circle-exclamation me-1"></i>{{ form.avatar.errors|striptags }}</div>
                             {% endif %}
 
-                            {% if object.avatar %}
+                            {% user_avatar_url request.user as current_avatar_url %}
+                            {% if current_avatar_url %}
                                 <div class="mt-3 p-3 rounded-2" style="background: linear-gradient(135deg, rgba(230, 57, 70, 0.05) 0%, rgba(247, 127, 0, 0.05) 100%);">
                                     <small class="text-muted d-block mb-2"><i class="fas fa-check-circle text-success me-1"></i>Foto actual:</small>
-                                    <img src="{{ object.avatar.url }}" alt="Avatar actual" style="max-width: 150px; height: 150px; border-radius: 0.7rem; object-fit: cover; border: 3px solid var(--mundial-gold);">
+                                    <img src="{{ current_avatar_url }}" alt="Avatar actual" style="max-width: 150px; height: 150px; border-radius: 0.7rem; object-fit: cover; border: 3px solid var(--mundial-gold);">
                                 </div>
                             {% endif %}
 

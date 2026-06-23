@@ -17,7 +17,10 @@ def user_avatar_url(user):
         return ""
 
     if profile and profile.avatar:
-        return profile.avatar.url
+        try:
+            return profile.avatar.url
+        except (OSError, ValueError):
+            return ""
 
     return ""
 
