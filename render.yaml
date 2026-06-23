@@ -30,6 +30,8 @@ services:
         value: "/tmp/media"
       - key: SERVE_MEDIA
         value: "True"
+      - key: CLOUDINARY_URL
+        sync: false
       - key: CLOUDINARY_CLOUD_NAME
         sync: false
       - key: CLOUDINARY_API_KEY

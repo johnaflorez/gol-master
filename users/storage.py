@@ -3,6 +3,7 @@ from pathlib import PurePosixPath
 from uuid import uuid4
 
 from django.conf import settings
+from django.core.exceptions import ImproperlyConfigured
 from django.core.files.storage import Storage
 from django.utils.deconstruct import deconstructible
 
@@ -28,6 +29,16 @@ class CloudinaryMediaStorage(Storage):
             os.environ["CLOUDINARY_URL"] = cloudinary_url
             cloudinary.config(secure=True)
             return
+
+        if not (
+            getattr(settings, "CLOUDINARY_CLOUD_NAME", "")
+            and getattr(settings, "CLOUDINARY_API_KEY", "")
+            and getattr(settings, "CLOUDINARY_API_SECRET", "")
+        ):
+            raise ImproperlyConfigured(
+                "Cloudinary storage is enabled, but CLOUDINARY_URL or the three "
+                "CLOUDINARY_CLOUD_NAME/CLOUDINARY_API_KEY/CLOUDINARY_API_SECRET variables are missing."
+            )
 
         cloudinary.config(
             cloud_name=getattr(settings, "CLOUDINARY_CLOUD_NAME", ""),

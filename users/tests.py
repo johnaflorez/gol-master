@@ -2,8 +2,10 @@ import shutil
 import tempfile
 from io import BytesIO
 from unittest.mock import patch
+import json
 
 from django.contrib.auth.models import User
+from django.core.management import call_command
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, override_settings
 from django.urls import reverse
@@ -139,10 +141,13 @@ class UserProfileUpdateViewTests(TestCase):
 		self.assertTrue(payload["exists"])
 		self.assertTrue(payload["is_dir"])
 		self.assertTrue(payload["writable"])
+		self.assertIn("storage_backend", payload)
+		self.assertIn("cloudinary_enabled", payload)
 
 
 class CloudinaryMediaStorageTests(TestCase):
 
+	@override_settings(CLOUDINARY_CLOUD_NAME="demo", CLOUDINARY_API_KEY="key", CLOUDINARY_API_SECRET="secret")
 	@patch("cloudinary.config")
 	@patch("cloudinary.uploader.upload")
 	def test_storage_uploads_file_and_returns_normalized_name(self, upload, config):
@@ -156,6 +161,7 @@ class CloudinaryMediaStorageTests(TestCase):
 		self.assertEqual(upload.call_args.kwargs["public_id"], "test_folder/avatars/avatar")
 		self.assertEqual(upload.call_args.kwargs["resource_type"], "image")
 
+	@override_settings(CLOUDINARY_CLOUD_NAME="demo", CLOUDINARY_API_KEY="key", CLOUDINARY_API_SECRET="secret")
 	@patch("cloudinary.config")
 	@patch("cloudinary.utils.cloudinary_url", return_value=("https://res.cloudinary.com/demo/image/upload/test_folder/avatars/avatar", {}))
 	def test_storage_builds_cloudinary_url(self, cloudinary_url, config):
@@ -170,6 +176,7 @@ class CloudinaryMediaStorageTests(TestCase):
 			secure=True,
 		)
 
+	@override_settings(CLOUDINARY_CLOUD_NAME="demo", CLOUDINARY_API_KEY="key", CLOUDINARY_API_SECRET="secret")
 	@patch("cloudinary.config")
 	@patch("cloudinary.uploader.destroy")
 	def test_storage_deletes_cloudinary_resource(self, destroy, config):
@@ -182,5 +189,30 @@ class CloudinaryMediaStorageTests(TestCase):
 			resource_type="image",
 			invalidate=True,
 		)
+
+
+class CheckMediaStorageCommandTests(TestCase):
+
+	def test_check_media_storage_outputs_diagnostics(self):
+		out = BytesIO()
+		text_out = _TextBuffer(out)
+
+		call_command("check_media_storage", stdout=text_out)
+
+		payload = json.loads(out.getvalue().decode("utf-8"))
+		self.assertIn("storage_backend", payload)
+		self.assertIn("cloudinary_enabled", payload)
+		self.assertIn("local_writable", payload)
+
+
+class _TextBuffer:
+	def __init__(self, buffer):
+		self.buffer = buffer
+
+	def write(self, value):
+		self.buffer.write(value.encode("utf-8"))
+
+	def flush(self):
+		pass
 
 

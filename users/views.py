@@ -4,6 +4,7 @@ from pathlib import Path
 from django import forms
 from django.conf import settings
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
+from django.core.files.storage import default_storage
 from django.http import JsonResponse
 from django.urls import reverse_lazy
 from django.views import View
@@ -60,6 +61,13 @@ class MediaDiagnosticsView(LoginRequiredMixin, UserPassesTestMixin, View):
             "is_dir": media_root.is_dir(),
             "writable": False,
             "error": "",
+            "storage_backend": f"{default_storage.__class__.__module__}.{default_storage.__class__.__name__}",
+            "cloudinary_configured": getattr(settings, "CLOUDINARY_CONFIGURED", False),
+            "cloudinary_enabled": getattr(settings, "CLOUDINARY_STORAGE_ENABLED", False),
+            "cloudinary_cloud_name_present": bool(getattr(settings, "CLOUDINARY_CLOUD_NAME", "")),
+            "cloudinary_api_key_present": bool(getattr(settings, "CLOUDINARY_API_KEY", "")),
+            "cloudinary_api_secret_present": bool(getattr(settings, "CLOUDINARY_API_SECRET", "")),
+            "cloudinary_url_present": bool(getattr(settings, "CLOUDINARY_URL", "")),
         }
 
         try:
