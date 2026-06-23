@@ -112,23 +112,10 @@ USE_TZ = True
 STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 STATICFILES_DIRS = [BASE_DIR / 'static'] if (BASE_DIR / 'static').exists() else []
-STATICFILES_STORAGE = (
-    'whitenoise.storage.CompressedManifestStaticFilesStorage'
-    if not DEBUG else 'django.contrib.staticfiles.storage.StaticFilesStorage'
-)
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 # Media files
 MEDIA_URL = '/media/'
-CLOUDINARY_URL = os.environ.get('CLOUDINARY_URL', '')
-CLOUDINARY_CLOUD_NAME = os.environ.get('CLOUDINARY_CLOUD_NAME', '')
-CLOUDINARY_API_KEY = os.environ.get('CLOUDINARY_API_KEY', '')
-CLOUDINARY_API_SECRET = os.environ.get('CLOUDINARY_API_SECRET', '')
-CLOUDINARY_MEDIA_FOLDER = os.environ.get('CLOUDINARY_MEDIA_FOLDER', 'gol_master')
-CLOUDINARY_CONFIGURED = bool(CLOUDINARY_URL) or bool(CLOUDINARY_CLOUD_NAME and CLOUDINARY_API_KEY and CLOUDINARY_API_SECRET)
-CLOUDINARY_STORAGE_ENABLED = (
-    CLOUDINARY_CONFIGURED
-    and os.environ.get('CLOUDINARY_STORAGE_ENABLED', 'true').lower() != 'false'
-)
 _default_media_root = BASE_DIR / 'media'
 if os.environ.get('RENDER', '').lower() == 'true':
     _default_media_root = Path('/tmp/media')
@@ -152,14 +139,6 @@ except OSError:
         except OSError:
             pass
 
-STORAGES = {
-    'default': {
-        'BACKEND': 'users.storage.CloudinaryMediaStorage' if CLOUDINARY_STORAGE_ENABLED else 'django.core.files.storage.FileSystemStorage',
-    },
-    'staticfiles': {
-        'BACKEND': STATICFILES_STORAGE,
-    },
-}
 
 # REST Framework
 REST_FRAMEWORK = {
