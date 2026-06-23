@@ -146,18 +146,30 @@ class MyPredictionsViewTests(TestCase):
 		self.team_a = Team.objects.create(name="Alpha", code="ALP")
 		self.team_b = Team.objects.create(name="Bravo", code="BRV")
 
-	def _create_prediction(self, *, days_offset, home_score=1, away_score=1):
+	def _create_prediction(
+		self,
+		*,
+		days_offset,
+		home_score=1,
+		away_score=1,
+		phase="PR",
+		points=0,
+		home_team=None,
+		away_team=None,
+	):
 		match = Match.objects.create(
-			home_team=self.team_a,
-			away_team=self.team_b,
+			home_team=home_team or self.team_a,
+			away_team=away_team or self.team_b,
 			kickoff_at=timezone.now() + timedelta(days=days_offset),
 			finished=False,
+			phase=phase,
 		)
 		return Prediction.objects.create(
 			user=self.user,
 			match=match,
 			predicted_home_score=home_score,
 			predicted_away_score=away_score,
+			points=points,
 		)
 
 	def test_my_predictions_orders_by_recent_match_first(self):
@@ -309,6 +321,181 @@ class MyPredictionsViewTests(TestCase):
 		self.assertEqual(response.status_code, 200)
 		self.assertContains(response, "En juego")
 		self.assertContains(response, "Pendiente")
+
+	def test_my_predictions_filters_by_country(self):
+		colombia = Team.objects.create(name="Colombia", code="COL", country_code="")
+		brasil = Team.objects.create(name="Brasil", code="BRA", country_code="")
+		argentina = Team.objects.create(name="Argentina", code="ARG", country_code="AR")
+
+		prediction_col = self._create_prediction(
+			days_offset=1,
+			home_team=colombia,
+			away_team=brasil,
+		)
+		self._create_prediction(
+			days_offset=2,
+			home_team=argentina,
+			away_team=brasil,
+		)
+
+		response = self.client.get(reverse("my_predictions"), {"country": "COL - Colombia"})
+
+		self.assertEqual(response.status_code, 200)
+		self.assertContains(response, 'list="country-options"')
+		self.assertContains(response, "COL - Colombia")
+		items = list(response.context["predictions"])
+		self.assertEqual(len(items), 1)
+		self.assertEqual(items[0].id, prediction_col.id)
+
+	def test_my_predictions_filters_by_phase(self):
+		prediction_final = self._create_prediction(days_offset=1, phase="F")
+		self._create_prediction(days_offset=2, phase="PR")
+
+		response = self.client.get(reverse("my_predictions"), {"phase": "F"})
+
+		self.assertEqual(response.status_code, 200)
+		items = list(response.context["predictions"])
+		self.assertEqual(len(items), 1)
+		self.assertEqual(items[0].id, prediction_final.id)
+		self.assertEqual(response.context["selected_phase"], "F")
+
+	def test_my_predictions_filters_by_points(self):
+		prediction_exact = self._create_prediction(days_offset=1, points=5)
+		self._create_prediction(days_offset=2, points=2)
+
+		response = self.client.get(reverse("my_predictions"), {"points": "5"})
+
+		self.assertEqual(response.status_code, 200)
+		items = list(response.context["predictions"])
+		self.assertEqual(len(items), 1)
+		self.assertEqual(items[0].id, prediction_exact.id)
+		self.assertEqual(response.context["selected_points"], "5")
+
+	def test_my_predictions_pagination_preserves_filters(self):
+		for index in range(11):
+			self._create_prediction(days_offset=index, phase="PR", points=0)
+
+		response = self.client.get(reverse("my_predictions"), {"country": "ALP", "phase": "PR", "points": "0"})
+
+		self.assertEqual(response.status_code, 200)
+		self.assertContains(response, "?country=ALP&amp;phase=PR&amp;points=0&amp;page=2")
+
+
+class AllPredictionsViewTests(TestCase):
+
+	def setUp(self):
+		self.user = User.objects.create_user(username="all-viewer", password="secret123")
+		self.other_user = User.objects.create_user(username="other-viewer", password="secret123")
+		self.client.login(username="all-viewer", password="secret123")
+		self.colombia = Team.objects.create(name="Colombia", code="COL", country_code="")
+		self.brasil = Team.objects.create(name="Brasil", code="BRA", country_code="")
+		self.argentina = Team.objects.create(name="Argentina", code="ARG", country_code="AR")
+
+	def _prediction(self, *, user=None, kickoff_at=None, phase="PR", points=0, finished=False, home_team=None, away_team=None):
+		match = Match.objects.create(
+			home_team=home_team or self.colombia,
+			away_team=away_team or self.brasil,
+			kickoff_at=kickoff_at or timezone.now(),
+			finished=finished,
+			home_score=2 if finished else 0,
+			away_score=1 if finished else 0,
+			phase=phase,
+		)
+		return Prediction.objects.create(
+			user=user or self.user,
+			match=match,
+			predicted_home_score=2,
+			predicted_away_score=1,
+			points=points,
+		)
+
+	def test_all_predictions_today_tab_includes_finished_today_matches(self):
+		prediction = self._prediction(
+			kickoff_at=timezone.now() - timedelta(hours=1),
+			finished=True,
+			phase="F",
+			points=5,
+		)
+
+		response = self.client.get(reverse("all_predictions"))
+
+		self.assertEqual(response.status_code, 200)
+		self.assertContains(response, "Del día")
+		self.assertContains(response, "Histórico")
+		self.assertContains(response, "Final:")
+		self.assertContains(response, "Final")
+		self.assertContains(response, "5 pts")
+		self.assertContains(response, "col-lg-6")
+		groups = list(response.context["today_grouped"])
+		self.assertEqual(groups[0]["predictions"][0].id, prediction.id)
+
+	def test_all_predictions_historical_filters_by_country_phase_and_points(self):
+		wanted = self._prediction(
+			kickoff_at=timezone.now() - timedelta(days=2),
+			phase="F",
+			points=5,
+			home_team=self.colombia,
+			away_team=self.brasil,
+		)
+		self._prediction(
+			kickoff_at=timezone.now() - timedelta(days=1),
+			phase="PR",
+			points=2,
+			home_team=self.argentina,
+			away_team=self.brasil,
+		)
+
+		response = self.client.get(
+			reverse("all_predictions"),
+			{"country": "COL - Colombia", "phase": "F", "points": "5"},
+		)
+
+		self.assertEqual(response.status_code, 200)
+		self.assertContains(response, 'list="country-options"')
+		self.assertContains(response, "COL - Colombia")
+		self.assertContains(response, "Todas las fases")
+		self.assertContains(response, "Puntos")
+		items = list(response.context["historical_predictions"])
+		self.assertEqual(len(items), 1)
+		self.assertEqual(items[0].id, wanted.id)
+		self.assertTrue(response.context["history_active"])
+
+	def test_all_predictions_historical_is_paginated_and_preserves_filters(self):
+		for index in range(11):
+			self._prediction(
+				kickoff_at=timezone.now() - timedelta(days=index + 1),
+				phase="PR",
+				points=0,
+				home_team=self.colombia,
+				away_team=self.brasil,
+			)
+
+		response = self.client.get(reverse("all_predictions"), {"country": "COL", "phase": "PR", "points": "0"})
+
+		self.assertEqual(response.status_code, 200)
+		self.assertTrue(response.context["history_is_paginated"])
+		self.assertEqual(len(response.context["historical_predictions"]), 10)
+		self.assertEqual(response.context["history_page_obj"].number, 1)
+		self.assertContains(response, "?country=COL&amp;phase=PR&amp;points=0&amp;page=2")
+
+	def test_all_predictions_keeps_history_tab_active_without_filters(self):
+		for index in range(11):
+			self._prediction(kickoff_at=timezone.now() - timedelta(days=index + 1))
+
+		response = self.client.get(reverse("all_predictions"), {"tab": "history"})
+
+		self.assertEqual(response.status_code, 200)
+		self.assertTrue(response.context["history_active"])
+		self.assertContains(response, 'name="tab" value="history"')
+		self.assertContains(response, 'href="?tab=history"')
+		self.assertContains(response, "?tab=history&amp;page=2")
+
+	def test_all_predictions_uses_general_page_name(self):
+		response = self.client.get(reverse("all_predictions"))
+
+		self.assertEqual(response.status_code, 200)
+		self.assertContains(response, "Pronósticos")
+		self.assertContains(response, "Pronósticos del día e histórico general")
 
 
 class ScoreCalculatorTests(TestCase):

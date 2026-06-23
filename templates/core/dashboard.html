@@ -7,14 +7,105 @@
 {% block title %}📊 Dashboard - Mundial Familiar 2026{% endblock %}
 
 {% block content %}
-    <div class="mb-5">
+    <style>
+        .dashboard-compact-header {
+            margin-bottom: 1rem;
+        }
+
+        .dashboard-compact .card {
+            margin-bottom: 1rem;
+        }
+
+        .dashboard-compact .card-body {
+            padding: 1rem;
+        }
+
+        .dashboard-ranking-item {
+            padding-top: 0.7rem !important;
+            padding-bottom: 0.7rem !important;
+        }
+
+        .dashboard-score-alert {
+            padding: 0.85rem 1rem;
+        }
+
+        .dashboard-score-alert .fw-semibold {
+            margin-bottom: 0.35rem !important;
+        }
+
+        .dashboard-score-alert ul {
+            line-height: 1.35;
+        }
+
+        .dashboard-ranking-link {
+            margin-top: 0.75rem !important;
+        }
+
+        .dashboard-stat-box {
+            padding: 1rem;
+        }
+
+        .dashboard-stat-box .stat-value {
+            font-size: 1.85rem;
+            margin: 0.25rem 0;
+        }
+
+        .dashboard-match-row {
+            padding-top: 0.75rem !important;
+            padding-bottom: 0.75rem !important;
+        }
+
+        .today-match-title {
+            font-size: 1.08rem;
+            font-weight: 700;
+            line-height: 1.3;
+        }
+
+        .today-phase-tag {
+            font-size: 0.72rem;
+            padding: 0.35em 0.55em;
+        }
+
+        .today-meta-left {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+
+        .today-status-left .badge {
+            font-size: 0.78rem;
+            padding: 0.36em 0.62em;
+        }
+
+        .today-right-tags {
+            display: flex;
+            gap: 0.4rem;
+            align-items: center;
+            flex-wrap: wrap;
+            justify-content: flex-start;
+        }
+
+        .today-right-tags .badge {
+            font-size: 0.72rem;
+            padding: 0.32em 0.55em;
+        }
+
+        .today-right-tags .btn.btn-sm {
+            min-height: 34px;
+            padding: 0.36rem 0.7rem;
+            font-size: 0.76rem;
+        }
+    </style>
+
+    <div class="dashboard-compact-header">
         <h1 class="page-title mb-1">
             <i class="fas fa-chart-line" style="color: var(--mundial-red);"></i> Dashboard del Torneo
         </h1>
         <p class="text-muted mb-0">Bienvenido a tu panel de control - Seguimiento en tiempo real de los partidos y pronósticos</p>
     </div>
 
-    <div class="row g-4">
+    <div class="row g-3 dashboard-compact">
         <!-- Ranking (Full width en móviles, 1/3 en desktop) -->
         <div class="col-lg-4 order-lg-1 order-2">
             <div class="card h-100">
@@ -23,7 +114,7 @@
                 </div>
                 <div class="card-body">
                     {% for item in ranking %}
-                        <div class="d-flex justify-content-between align-items-center py-3 border-bottom">
+                        <div class="d-flex justify-content-between align-items-center dashboard-ranking-item border-bottom">
                             <div class="d-flex align-items-center gap-2">
                                 <div class="badge text-bg-primary rounded-circle" style="width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; font-weight: 800;">
                                     {{ forloop.counter }}
@@ -48,9 +139,9 @@
                         </div>
                     {% endfor %}
 
-                    <hr class="my-3">
+                    <hr class="my-2">
 
-                    <div class="alert alert-info mb-0">
+                    <div class="alert alert-info mb-0 dashboard-score-alert">
                         <div class="fw-semibold mb-2"><i class="fas fa-info-circle me-2"></i>Sistema de puntuación</div>
                         <ul class="mb-0 ps-3 small">
                             <li><strong>+2 puntos</strong> por acertar el ganador o empate</li>
@@ -59,7 +150,7 @@
                         </ul>
                     </div>
 
-                    <div class="d-grid mt-3">
+                    <div class="d-grid dashboard-ranking-link">
                         <a href="{% url 'ranking' %}" class="btn btn-primary btn-sm">
                             <img src="{% static 'images/world-cup.png' %}" alt="Copa del mundo" class="wc-icon me-2">Ver ranking completo
                         </a>
@@ -70,7 +161,7 @@
 
         <!-- Contenido principal (2/3 en desktop, full width en móviles) -->
         <div class="col-lg-8 order-lg-2 order-1">
-            <div class="row g-4 h-100">
+            <div class="row g-3 h-100">
                 <!-- Estadísticas -->
                 <div class="col-12">
                     <div class="card">
@@ -79,9 +170,9 @@
                             <span class="badge text-bg-info">En vivo</span>
                         </div>
                         <div class="card-body">
-                            <div class="row g-3">
+                            <div class="row g-2">
                                 <div class="col-6 col-md-4">
-                                    <div class="stat-box">
+                                    <div class="stat-box dashboard-stat-box">
                                         <div class="stat-label"><i class="fas fa-futbol me-1"></i>Partidos</div>
                                         <div class="stat-value">{{ tournament_stats.total_matches }}</div>
                                         <small class="text-muted">Finalizados</small>
@@ -89,7 +180,7 @@
                                 </div>
 
                                 <div class="col-6 col-md-4">
-                                    <div class="stat-box">
+                                    <div class="stat-box dashboard-stat-box">
                                         <div class="stat-label"><i class="fas fa-fire me-1"></i>Goles</div>
                                         <div class="stat-value">{{ tournament_stats.total_goals }}</div>
                                         <small class="text-muted">En total</small>
@@ -97,7 +188,7 @@
                                 </div>
 
                                 <div class="col-6 col-md-4">
-                                    <div class="stat-box">
+                                    <div class="stat-box dashboard-stat-box">
                                         <div class="stat-label"><i class="fas fa-calculator me-1"></i>Promedio</div>
                                         <div class="stat-value">{{ tournament_stats.avg_goals|floatformat:2 }}</div>
                                         <small class="text-muted">Goles/partido</small>
@@ -117,32 +208,35 @@
                         </div>
                         <div class="card-body">
                             {% for match in matches %}
-                                <div class="py-3 border-bottom" id="live-match-{{ match.id }}">
+                                <div class="dashboard-match-row border-bottom" id="live-match-{{ match.id }}">
                                     <div class="d-flex justify-content-between align-items-start mb-2">
-                                        <div class="fw-semibold">{{ match.home_team|team_with_flag }} vs {{ match.away_team|team_with_flag }}</div>
-                                        <span class="badge {{ match.phase|phase_color }}">
+                                        <div class="today-match-title">{{ match.home_team|team_with_flag }} vs {{ match.away_team|team_with_flag }}</div>
+                                        <span class="badge {{ match.phase|phase_color }} today-phase-tag">
                                             <i class="fas fa-layer-group me-1"></i>{{ match.get_phase_display }}
                                         </span>
                                     </div>
                                     <div class="d-flex flex-column flex-sm-row justify-content-sm-between align-items-sm-center gap-2">
-                                        <div class="small">
-                                            <i class="far fa-clock me-1" style="color: var(--mundial-blue);"></i>
-                                            <span class="text-muted">{{ match.kickoff_at|date:"d/m/Y H:i" }}</span>
-                                            <span class="text-muted ms-2" id="live-minute-{{ match.id }}">
-                                                {% if match.live_minute %}{{ match.live_minute }}'{% endif %}
-                                            </span>
+                                        <div class="today-meta-left">
+                                            <div class="small">
+                                                <i class="far fa-clock me-1" style="color: var(--mundial-blue);"></i>
+                                                <span class="text-muted">{{ match.kickoff_at|date:"d/m/Y H:i" }}</span>
+                                                <span class="text-muted ms-2" id="live-minute-{{ match.id }}">
+                                                    {% if match.live_minute %}{{ match.live_minute }}'{% endif %}
+                                                </span>
+                                            </div>
+                                            <div class="today-status-left">
+                                                <span class="badge {% if match.finished %}text-bg-dark{% elif match.kickoff_at <= now %}text-bg-success{% else %}text-bg-dark{% endif %}" id="live-status-{{ match.id }}">
+                                                    {% if match.finished %}
+                                                        <i class="fas fa-check-circle me-1"></i>{{ match.home_score }} - {{ match.away_score }}
+                                                    {% elif match.kickoff_at <= now %}
+                                                        <i class="fas fa-circle-play me-1"></i>En juego
+                                                    {% else %}
+                                                        <i class="fas fa-hourglass-half me-1"></i>Por jugar
+                                                    {% endif %}
+                                                </span>
+                                            </div>
                                         </div>
-                                        <div class="d-flex gap-2 align-items-center flex-wrap">
-                                            <span class="badge {% if match.finished %}text-bg-dark{% elif match.kickoff_at <= now %}text-bg-success{% else %}text-bg-dark{% endif %}" id="live-status-{{ match.id }}">
-                                                {% if match.finished %}
-                                                    <i class="fas fa-check-circle me-1"></i>{{ match.home_score }} - {{ match.away_score }}
-                                                {% elif match.kickoff_at <= now %}
-                                                    <i class="fas fa-circle-play me-1"></i>En juego
-                                                {% else %}
-                                                    <i class="fas fa-hourglass-half me-1"></i>Por jugar
-                                                {% endif %}
-                                            </span>
-
+                                        <div class="today-right-tags">
                                             {% if not match.finished and not match.has_prediction %}
                                                 <a href="{% url 'prediction_create' match.id %}" class="btn btn-primary btn-sm">
                                                     <i class="fas fa-edit me-1"></i>Pronosticar
@@ -236,4 +330,3 @@
     setInterval(refreshLiveMatches, 15000);
 </script>
 {% endblock %}
-

@@ -8,6 +8,12 @@ class Team(models.Model):
         max_length=2, blank=True, default="",
         help_text="ISO 3166-1 alpha-2 code (e.g., AR, BR)"
     )
+    api_football_team_id = models.PositiveIntegerField(
+        blank=True,
+        null=True,
+        unique=True,
+        help_text="ID externo del equipo en API-Football/API-SPORTS",
+    )
 
     def __str__(self):
         return self.name

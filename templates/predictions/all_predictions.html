@@ -1,79 +1,262 @@
 {% extends "base.html" %}
+{% load dict_extras %}
 {% load team_flags %}
 {% load user_extras %}
 
-{% block title %}📊 Pronósticos de hoy - Mundial Familiar 2026{% endblock %}
+{% block title %}📊 Pronósticos - Mundial Familiar 2026{% endblock %}
 
 {% block content %}
-    <div class="mb-5">
+    <style>
+        .all-predictions-toolbar {
+            background: rgba(255, 255, 255, 0.82);
+            border: 1px solid var(--border-color);
+            border-radius: 0.85rem;
+            padding: 0.55rem 0.7rem;
+            width: fit-content;
+            max-width: 100%;
+        }
+
+        .today-prediction-card .card-header {
+            padding: 0.75rem 1rem;
+        }
+
+        .prediction-mini-row {
+            border-top: 1px solid var(--border-color);
+            padding: 0.7rem 0;
+        }
+
+        .prediction-mini-row:first-child {
+            border-top: 0;
+            padding-top: 0;
+        }
+
+        .history-pagination {
+            border-top: 1px solid var(--border-color);
+            padding: 0.75rem 1rem;
+        }
+    </style>
+
+    <div class="mb-3">
         <h1 class="page-title mb-1">
-            <i class="fas fa-chart-bar" style="color: var(--mundial-red);"></i> Pronósticos de hoy
+            <i class="fas fa-chart-bar" style="color: var(--mundial-red);"></i> Pronósticos
         </h1>
-        <p class="text-muted mb-0">Vista general de los pronósticos de hoy por partido</p>
+        <p class="text-muted mb-0">Pronósticos del día e histórico general</p>
     </div>
 
-    {% for group in grouped %}
-        <div class="card mb-4">
-            <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
-                <div>
-                    <h5 class="mb-1 fw-bold">
-                        <i class="fas fa-handshake me-2" style="color: var(--mundial-blue);"></i>{{ group.match.home_team|team_with_flag }} vs {{ group.match.away_team|team_with_flag }}
-                    </h5>
-                    <span class="text-muted small">
-                        <i class="far fa-clock me-1"></i>{{ group.match.kickoff_at|date:"d/m/Y H:i" }}
-                        {% if group.match.finished %}
-                            <span class="badge text-bg-success ms-2"><i class="fas fa-check-circle me-1"></i>Final: {{ group.match.home_score }}-{{ group.match.away_score }}</span>
-                        {% endif %}
-                    </span>
-                </div>
-                <span class="badge text-bg-info">
-                    <i class="fas fa-users me-1"></i>{{ group.predictions|length }} pronósticos
-                </span>
-            </div>
+    <ul class="nav nav-tabs mb-3" id="predictions-tabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link {% if not history_active %}active{% endif %}" id="today-tab" data-bs-toggle="tab"
+                    data-bs-target="#today-pane" type="button" role="tab" aria-controls="today-pane"
+                    aria-selected="{% if not history_active %}true{% else %}false{% endif %}">
+                <i class="fas fa-calendar-day me-1"></i>Del día
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link {% if history_active %}active{% endif %}" id="history-tab" data-bs-toggle="tab"
+                    data-bs-target="#history-pane" type="button" role="tab" aria-controls="history-pane"
+                    aria-selected="{% if history_active %}true{% else %}false{% endif %}">
+                <i class="fas fa-clock-rotate-left me-1"></i>Histórico
+            </button>
+        </li>
+    </ul>
 
-            <div class="table-responsive">
-                <table class="table table-hover mb-0 align-middle">
-                    <thead>
-                    <tr>
-                        <th><i class="fas fa-user me-2"></i>Jugador</th>
-                        <th><i class="fas fa-dice me-2"></i>Pronóstico</th>
-                    </tr>
-                    </thead>
-                    <tbody>
-                    {% for p in group.predictions %}
-                        <tr>
-                            <td>
-                                <div class="d-flex align-items-center gap-2">
-                                    {% include "includes/user_avatar.html" with user=p.user %}
-                                    <div>
-                                        <div class="fw-semibold">{{ p.user.get_full_name|default:p.user.username }}</div>
-                                        <small class="text-muted">{{ p.user|user_bio_or_username }}</small>
+    <div class="tab-content" id="predictions-tabs-content">
+        <div class="tab-pane fade {% if not history_active %}show active{% endif %}" id="today-pane" role="tabpanel" aria-labelledby="today-tab" tabindex="0">
+            <div class="row g-3">
+                {% for group in today_grouped %}
+                    <div class="col-lg-6">
+                        <div class="card h-100 today-prediction-card">
+                            <div class="card-header d-flex justify-content-between align-items-start gap-2 flex-wrap">
+                                <div>
+                                    <h5 class="mb-1 fw-bold">
+                                        <i class="fas fa-handshake me-2" style="color: var(--mundial-blue);"></i>{{ group.match.home_team|team_with_flag }} vs {{ group.match.away_team|team_with_flag }}
+                                    </h5>
+                                    <div class="d-flex align-items-center gap-2 flex-wrap small text-muted">
+                                        <span><i class="far fa-clock me-1"></i>{{ group.match.kickoff_at|date:"d/m/Y H:i" }}</span>
+                                        <span class="badge {{ group.match.phase|phase_color }}">{{ group.match.get_phase_display }}</span>
+                                        {% if group.match.finished %}
+                                            <span class="badge text-bg-success"><i class="fas fa-check-circle me-1"></i>Final: {{ group.match.home_score }}-{{ group.match.away_score }}</span>
+                                        {% elif group.match.kickoff_at <= now %}
+                                            <span class="badge text-bg-success"><i class="fas fa-circle-play me-1"></i>En juego</span>
+                                        {% else %}
+                                            <span class="badge text-bg-light border"><i class="fas fa-hourglass-half me-1"></i>Pendiente</span>
+                                        {% endif %}
                                     </div>
                                 </div>
-                            </td>
-                            <td>
-                                <span class="badge text-bg-primary">
-                                    <i class="fas fa-dice me-1"></i>{{ p.predicted_home_score }} - {{ p.predicted_away_score }}
-                                </span>
-                            </td>
-                        </tr>
-                    {% empty %}
+                                <span class="badge text-bg-info"><i class="fas fa-users me-1"></i>{{ group.predictions|length }}</span>
+                            </div>
+                            <div class="card-body">
+                                {% for p in group.predictions %}
+                                    <div class="prediction-mini-row d-flex justify-content-between align-items-center gap-2">
+                                        <div class="d-flex align-items-center gap-2 min-w-0">
+                                            {% include "includes/user_avatar.html" with user=p.user %}
+                                            <div>
+                                                <div class="fw-semibold">{{ p.user.get_full_name|default:p.user.username }}</div>
+                                                <small class="text-muted">{{ p.user|user_bio_or_username }}</small>
+                                            </div>
+                                        </div>
+                                        <div class="d-flex align-items-center gap-2 flex-wrap justify-content-end">
+                                            <span class="badge text-bg-primary"><i class="fas fa-dice me-1"></i>{{ p.predicted_home_score }} - {{ p.predicted_away_score }}</span>
+                                            <span class="badge {% if p.points == 0 %}text-bg-light border{% else %}text-bg-success{% endif %} rounded-pill"><i class="fas fa-star me-1"></i>{{ p.points }} pts</span>
+                                        </div>
+                                    </div>
+                                {% empty %}
+                                    <div class="text-center text-muted py-4">
+                                        <i class="fas fa-inbox me-2"></i>Aun no hay pronósticos para este partido de hoy
+                                    </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                {% empty %}
+                    <div class="col-12">
+                        <div class="card">
+                            <div class="card-body text-center text-muted py-5">
+                                <i class="fas fa-inbox" style="font-size: 2.5rem;"></i>
+                                <p class="mt-3 mb-0">No hay partidos de hoy para mostrar pronósticos</p>
+                            </div>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="tab-pane fade {% if history_active %}show active{% endif %}" id="history-pane" role="tabpanel" aria-labelledby="history-tab" tabindex="0">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+                    <h5 class="mb-0"><i class="fas fa-table me-2" style="color: var(--mundial-blue);"></i>Histórico de pronósticos</h5>
+                    <form method="get" class="all-predictions-toolbar d-flex align-items-center gap-2 flex-wrap">
+                        <input type="hidden" name="tab" value="history">
+                        <label for="country-filter" class="visually-hidden">País</label>
+                        <input id="country-filter" name="country" list="country-options" class="form-control form-control-sm"
+                               placeholder="País..." value="{{ selected_country_label }}" style="width: 180px;">
+                        <datalist id="country-options">
+                            {% for country in country_options %}
+                                <option value="{{ country.code|upper }} - {{ country.name }}"></option>
+                            {% endfor %}
+                        </datalist>
+
+                        <label for="phase-filter" class="visually-hidden">Fase</label>
+                        <select id="phase-filter" name="phase" class="form-select form-select-sm" style="width: 165px;">
+                            <option value="">Todas las fases</option>
+                            {% for phase_code, phase_label in phase_options %}
+                                <option value="{{ phase_code }}" {% if selected_phase == phase_code %}selected{% endif %}>{{ phase_label }}</option>
+                            {% endfor %}
+                        </select>
+
+                        <label for="points-filter" class="visually-hidden">Puntos</label>
+                        <select id="points-filter" name="points" class="form-select form-select-sm" style="width: 120px;">
+                            <option value="">Puntos</option>
+                            {% for points in points_options %}
+                                <option value="{{ points }}" {% if selected_points == points|stringformat:'s' %}selected{% endif %}>{{ points }} pts</option>
+                            {% endfor %}
+                        </select>
+
+                        <button type="submit" class="btn btn-primary btn-sm"><i class="fas fa-filter me-1"></i>Aplicar</button>
+                        {% if filters_query %}
+                            <a href="?tab=history" class="btn btn-outline-primary btn-sm">Limpiar</a>
+                        {% endif %}
+                    </form>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0 align-middle">
+                        <thead>
                         <tr>
-                            <td colspan="2" class="text-center text-muted py-4">
-                                <i class="fas fa-inbox me-2"></i>Aun no hay pronósticos para este partido de hoy
-                            </td>
+                            <th><i class="fas fa-user me-2"></i>Jugador</th>
+                            <th><i class="fas fa-handshake me-2"></i>Partido</th>
+                            <th><i class="fas fa-layer-group me-2"></i>Fase</th>
+                            <th><i class="far fa-calendar me-2"></i>Fecha</th>
+                            <th><i class="fas fa-dice me-2"></i>Pronóstico</th>
+                            <th><i class="fas fa-star me-2"></i>Puntos</th>
                         </tr>
-                    {% endfor %}
-                    </tbody>
-                </table>
+                        </thead>
+                        <tbody>
+                        {% for p in historical_predictions %}
+                            <tr>
+                                <td>
+                                    <div class="d-flex align-items-center gap-2">
+                                        {% include "includes/user_avatar.html" with user=p.user %}
+                                        <div>
+                                            <div class="fw-semibold">{{ p.user.get_full_name|default:p.user.username }}</div>
+                                            <small class="text-muted">{{ p.user|user_bio_or_username }}</small>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td>
+                                    <div class="fw-semibold">{{ p.match.home_team|team_with_flag }} vs {{ p.match.away_team|team_with_flag }}</div>
+                                    <div class="text-muted small">
+                                        {% if p.match.finished %}
+                                            <i class="fas fa-flag-checkered me-1" style="color: var(--mundial-green);"></i>Final: {{ p.match.home_score }} - {{ p.match.away_score }}
+                                        {% elif p.match.kickoff_at <= now %}
+                                            <i class="fas fa-circle-play me-1" style="color: var(--mundial-green);"></i>En juego
+                                        {% else %}
+                                            <i class="fas fa-hourglass-half me-1" style="color: var(--mundial-gold);"></i>Pendiente
+                                        {% endif %}
+                                    </div>
+                                </td>
+                                <td><span class="badge {{ p.match.phase|phase_color }}">{{ p.match.get_phase_display }}</span></td>
+                                <td><small class="text-muted"><i class="far fa-clock me-1"></i>{{ p.match.kickoff_at|date:"d/m/Y H:i" }}</small></td>
+                                <td><span class="badge text-bg-primary"><i class="fas fa-dice me-1"></i>{{ p.predicted_home_score }} - {{ p.predicted_away_score }}</span></td>
+                                <td><span class="badge {% if p.points == 0 %}text-bg-light border{% else %}text-bg-success{% endif %} rounded-pill"><i class="fas fa-star me-1"></i>{{ p.points }} pts</span></td>
+                            </tr>
+                        {% empty %}
+                            <tr>
+                                <td colspan="6" class="text-center text-muted py-5">
+                                    <i class="fas fa-inbox" style="font-size: 2.5rem;"></i>
+                                    <p class="mt-3 mb-0">No hay pronósticos históricos para mostrar</p>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% if history_is_paginated %}
+                    <div class="history-pagination d-flex justify-content-between align-items-center flex-wrap gap-3">
+                        <span class="text-muted small">
+                            <i class="fas fa-bookmark me-1"></i>Página {{ history_page_obj.number }} de {{ history_page_obj.paginator.num_pages }}
+                        </span>
+                        <nav aria-label="Paginación de histórico de pronósticos">
+                            <ul class="pagination pagination-sm mb-0">
+                                {% if history_page_obj.has_previous %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="?{% if filters_query %}{{ filters_query }}&amp;{% endif %}page=1" title="Primera página">
+                                            <i class="fas fa-chevron-double-left me-1"></i>Primera
+                                        </a>
+                                    </li>
+                                    <li class="page-item">
+                                        <a class="page-link" href="?{% if filters_query %}{{ filters_query }}&amp;{% endif %}page={{ history_page_obj.previous_page_number }}" title="Página anterior">
+                                            <i class="fas fa-chevron-left me-1"></i>Anterior
+                                        </a>
+                                    </li>
+                                {% else %}
+                                    <li class="page-item disabled"><span class="page-link"><i class="fas fa-chevron-double-left me-1"></i>Primera</span></li>
+                                    <li class="page-item disabled"><span class="page-link"><i class="fas fa-chevron-left me-1"></i>Anterior</span></li>
+                                {% endif %}
+
+                                <li class="page-item active" aria-current="page">
+                                    <span class="page-link">{{ history_page_obj.number }}</span>
+                                </li>
+
+                                {% if history_page_obj.has_next %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="?{% if filters_query %}{{ filters_query }}&amp;{% endif %}page={{ history_page_obj.next_page_number }}" title="Siguiente página">
+                                            Siguiente<i class="fas fa-chevron-right ms-1"></i>
+                                        </a>
+                                    </li>
+                                    <li class="page-item">
+                                        <a class="page-link" href="?{% if filters_query %}{{ filters_query }}&amp;{% endif %}page={{ history_page_obj.paginator.num_pages }}" title="Última página">
+                                            Última<i class="fas fa-chevron-double-right ms-1"></i>
+                                        </a>
+                                    </li>
+                                {% else %}
+                                    <li class="page-item disabled"><span class="page-link">Siguiente<i class="fas fa-chevron-right ms-1"></i></span></li>
+                                    <li class="page-item disabled"><span class="page-link">Última<i class="fas fa-chevron-double-right ms-1"></i></span></li>
+                                {% endif %}
+                            </ul>
+                        </nav>
+                    </div>
+                {% endif %}
             </div>
         </div>
-    {% empty %}
-        <div class="card">
-            <div class="card-body text-center text-muted py-5">
-                <i class="fas fa-inbox" style="font-size: 2.5rem;"></i>
-                <p class="mt-3 mb-0">No hay partidos de hoy para mostrar pronósticos</p>
-            </div>
-        </div>
-    {% endfor %}
+    </div>
 {% endblock %}

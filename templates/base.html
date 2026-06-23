@@ -1,4 +1,5 @@
 {% load static %}
+{% load user_extras %}
 <!DOCTYPE html>
 <html lang="es">
 
@@ -112,7 +113,7 @@
             display: block;
         }
 
-        .nav-link {
+        .navbar .nav-link {
             color: rgba(255, 255, 255, 0.85) !important;
             font-weight: 500;
             font-size: 0.95rem;
@@ -122,13 +123,13 @@
             position: relative;
         }
 
-        .nav-link:hover {
+        .navbar .nav-link:hover {
             color: #fff !important;
             background: rgba(255, 255, 255, 0.15);
             transform: translateY(-2px);
         }
 
-        .nav-link.active {
+        .navbar .nav-link.active {
             color: #fff !important;
             background: var(--mundial-red);
             font-weight: 700;
@@ -267,7 +268,7 @@
         .card-header {
             background: var(--fifa-lavender);
             border-bottom: 2px solid var(--border-color);
-            padding: 1.25rem;
+            padding: 0.85rem 1.25rem;
             font-weight: 600;
             color: var(--mundial-blue);
         }
@@ -769,8 +770,8 @@
 
                 <li class="nav-item">
                     <a class="nav-link {% if request.resolver_match.url_name == 'all_predictions' %}active{% endif %}"
-                       href="{% url 'all_predictions' %}" title="Ver pronósticos de hoy">
-                        <i class="fas fa-chart-bar me-2"></i>De hoy
+                       href="{% url 'all_predictions' %}" title="Ver pronósticos del día e histórico">
+                        <i class="fas fa-chart-bar me-2"></i>Pronósticos
                     </a>
                 </li>
             </ul>
@@ -778,11 +779,12 @@
             <!-- RIGHT USER SECTION -->
             <ul class="navbar-nav">
                 {% if request.user.is_authenticated %}
+                    {% user_avatar_url request.user as navbar_avatar_url %}
                     <li class="nav-item">
                         <span class="navbar-text user-chip me-3">
                             <span class="user-avatar">
-                                {% if request.user.profile.avatar %}
-                                    <img src="{{ request.user.profile.avatar.url }}" alt="Avatar de {{ request.user.username }}">
+                                {% if navbar_avatar_url %}
+                                    <img src="{{ navbar_avatar_url }}" alt="Avatar de {{ request.user.username }}">
                                 {% else %}
                                     <i class="fas fa-user"></i>
                                 {% endif %}

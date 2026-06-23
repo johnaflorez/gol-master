@@ -21,6 +21,7 @@ class MatchAdmin(admin.ModelAdmin):
         "live_status",
         "live_minute",
         "phase",
+        "api_football_fixture_id",
         "kickoff_at",
         "finished"
     )
@@ -29,14 +30,21 @@ class MatchAdmin(admin.ModelAdmin):
         "home_team",
         "away_team",
     ]
-    search_fields = ("home_team__name", "away_team__name")
+    search_fields = ("home_team__name", "away_team__name", "api_football_fixture_id")
     actions = [finish_matches]
 
 
 @admin.register(MatchEvent)
 class MatchEventAdmin(admin.ModelAdmin):
-    list_display = ("match", "minute", "event_type", "team", "player_name", "created_at")
+    list_display = ("match", "minute", "event_type", "team", "player_name", "api_football_event_key", "created_at")
     list_filter = ("event_type", "match__phase", "match__kickoff_at")
-    search_fields = ("player_name", "description", "team__name", "match__home_team__name", "match__away_team__name")
+    search_fields = (
+        "player_name",
+        "description",
+        "api_football_event_key",
+        "team__name",
+        "match__home_team__name",
+        "match__away_team__name",
+    )
     autocomplete_fields = ("match", "team")
 

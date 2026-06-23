@@ -14,6 +14,8 @@ Including another URLconf
     1. Import the include() function: from django.urls import include, path
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
+import os
+
 from django.contrib import admin
 from django.urls import path, include
 from django.conf import settings
@@ -30,7 +32,6 @@ urlpatterns = [
     path('admin/', admin.site.urls),
 ]
 
-# Servir media files en desarrollo
-if settings.DEBUG:
+# Servir media files en desarrollo o cuando se habilite explicitamente (Render)
+if settings.DEBUG or os.environ.get('SERVE_MEDIA', 'False').lower() == 'true':
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
-

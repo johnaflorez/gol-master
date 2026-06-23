@@ -11,6 +11,10 @@ services:
     runtime: python
     buildCommand: "./build.sh"
     startCommand: "gunicorn config.wsgi:application --bind 0.0.0.0:$PORT"
+    disks:
+      - name: media-disk
+        mountPath: /var/data
+        sizeGB: 1
     envVars:
       - key: DATABASE_URL
         fromDatabase:
@@ -26,3 +30,37 @@ services:
         value: "https://*.onrender.com"
       - key: PYTHON_VERSION
         value: "3.12.0"
+      - key: MEDIA_ROOT
+        value: "/var/data/media"
+      - key: SERVE_MEDIA
+        value: "True"
+      - key: API_FOOTBALL_KEY
+        sync: false
+      - key: API_FOOTBALL_BASE_URL
+        value: "https://v3.football.api-sports.io"
+
+  - type: cron
+    name: gol-master-live-sync
+    runtime: python
+    schedule: "*/5 * * * *"
+    buildCommand: "./build.sh"
+    startCommand: "python manage.py sync_live_matches --days-back 1 --days-forward 1"
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: gol-master-db
+          property: connectionString
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DEBUG
+        value: "False"
+      - key: ALLOWED_HOSTS
+        value: ".onrender.com"
+      - key: PYTHON_VERSION
+        value: "3.12.0"
+      - key: API_FOOTBALL_KEY
+        sync: false
+      - key: API_FOOTBALL_BASE_URL
+        value: "https://v3.football.api-sports.io"
+      - key: API_FOOTBALL_TIMEOUT
+        value: "15"

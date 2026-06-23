@@ -5,77 +5,157 @@
 {% block title %}⚽ Partidos - Mundial Familiar 2026{% endblock %}
 
 {% block content %}
-    <div class="mb-5">
-        <h1 class="page-title mb-1">
-            <i class="fas fa-futbol" style="color: var(--mundial-red);"></i> Todos los Partidos
-        </h1>
-        <p class="text-muted mb-0">{{ page_obj.paginator.count }} partidos registrados en el torneo</p>
+    <style>
+        .matches-toolbar {
+            background: rgba(255, 255, 255, 0.82);
+            border: 1px solid var(--border-color);
+            border-radius: 0.85rem;
+            padding: 0.55rem 0.7rem;
+            width: fit-content;
+            max-width: 100%;
+        }
+
+        .phase-tabs {
+            gap: 0.35rem;
+            overflow-x: auto;
+            overflow-y: hidden;
+            flex-wrap: nowrap;
+            padding-bottom: 0.35rem;
+        }
+
+        .phase-tabs .nav-link {
+            border: 0;
+            border-radius: 0.75rem;
+            font-size: 0.86rem;
+            font-weight: 700;
+            padding: 0.45rem 0.7rem !important;
+            white-space: nowrap;
+            opacity: 0.78;
+        }
+
+        .phase-tabs .nav-link.active {
+            opacity: 1;
+            box-shadow: 0 0 0 3px rgba(42, 30, 92, 0.18);
+            transform: translateY(-1px);
+        }
+
+        .phase-tabs .phase-count {
+            background: rgba(255, 255, 255, 0.9);
+            color: #1f2937;
+        }
+
+        .matches-table th,
+        .matches-table td {
+            padding-top: 0.65rem;
+            padding-bottom: 0.65rem;
+        }
+    </style>
+
+    <div class="mb-3 d-flex flex-column gap-2">
+        <div>
+            <h1 class="page-title mb-1">
+                <i class="fas fa-futbol" style="color: var(--mundial-red);"></i> Todos los Partidos
+            </h1>
+            <p class="text-muted mb-0">{{ matches_count }} partidos registrados en el torneo</p>
+        </div>
+
+        <form method="get" class="matches-toolbar d-flex align-items-center gap-2 flex-wrap">
+            <label for="country-filter" class="small fw-semibold text-muted mb-0">
+                <i class="fas fa-search me-1"></i>País
+            </label>
+            <input id="country-filter" name="country" list="country-options" class="form-control form-control-sm"
+                   placeholder="Escribe un país..." value="{{ selected_country_label }}" style="width: 220px; max-width: 100%;">
+            <datalist id="country-options">
+                {% for country in country_options %}
+                    <option value="{{ country.code|upper }} - {{ country.name }}"></option>
+                {% endfor %}
+            </datalist>
+            <button type="submit" class="btn btn-primary btn-sm">
+                <i class="fas fa-filter me-1"></i>Aplicar
+            </button>
+            {% if selected_country %}
+                <a href="?" class="btn btn-outline-primary btn-sm">Limpiar</a>
+            {% endif %}
+        </form>
     </div>
 
     <div class="card">
         <div class="card-header d-flex justify-content-between align-items-center">
-            <h5 class="mb-0"><i class="fas fa-list me-2" style="color: var(--mundial-blue);"></i>Listado de partidos</h5>
-            <span class="badge text-bg-info">{{ page_obj.paginator.count }} total</span>
+            <h5 class="mb-0"><i class="fas fa-list me-2" style="color: var(--mundial-blue);"></i>Listado por fase</h5>
+            <span class="badge text-bg-info">{{ matches_count }} total</span>
         </div>
-        <div class="table-responsive">
-            <table class="table table-hover mb-0 align-middle">
-                <thead>
-                <tr>
-                    <th><i class="fas fa-handshake me-2"></i>Partido</th>
-                    <th><i class="fas fa-layer-group me-2"></i>Fase</th>
-                    <th><i class="far fa-calendar me-2"></i>Fecha</th>
-                    <th><i class="fas fa-score me-2"></i>Marcador</th>
-                </tr>
-                </thead>
-                <tbody>
-                {% for match in matches %}
-                    <tr class="align-middle">
-                        <td>
-                            <div class="fw-semibold">
-                                {% if match.finished and match.home_score > match.away_score %}
-                                    <span class="badge text-bg-success me-2"><i class="fas fa-chess-queen me-1"></i>Ganador</span>{{ match.home_team|team_with_flag }}
-                                {% else %}
-                                    <span>{{ match.home_team|team_with_flag }}</span>
-                                {% endif %}
-                                <span class="text-muted mx-2">vs</span>
-                                {% if match.finished and match.away_score > match.home_score %}
-                                    {{ match.away_team|team_with_flag }}<span class="badge text-bg-success ms-2"><i class="fas fa-chess-queen me-1"></i>Ganador</span>
-                                {% else %}
-                                    <span>{{ match.away_team|team_with_flag }}</span>
-                                {% endif %}
-                            </div>
-                        </td>
-                        <td>
-                            <span class="badge {{ match.phase|phase_color }}">
-                                <i class="fas fa-layer-group me-1"></i>{{ match.get_phase_display }}
-                            </span>
-                        </td>
-                        <td>
-                            <small class="text-muted"><i class="far fa-clock me-1"></i>{{ match.kickoff_at|date:"d/m/Y H:i" }}</small>
-                        </td>
-                        <td>
-                            {% if match.finished %}
-                                <span class="badge text-bg-primary">
-                                    <i class="fas fa-check-circle me-1"></i>{{ match.home_score }} - {{ match.away_score }}
-                                </span>
-                            {% elif match.kickoff_at <= now %}
-                                <span class="badge text-bg-success"><i class="fas fa-circle-play me-1"></i>En juego</span>
-                            {% else %}
-                                <span class="badge text-bg-light border"><i class="fas fa-hourglass-half me-1"></i>Por jugar</span>
-                            {% endif %}
-                        </td>
-                    </tr>
-                {% empty %}
-                    <tr>
-                        <td colspan="4" class="text-center text-muted py-5">
-                            <i class="fas fa-inbox" style="font-size: 2.5rem;"></i>
-                            <p class="mt-3 mb-0">No hay partidos para mostrar</p>
-                        </td>
-                    </tr>
+
+        {% if grouped_matches %}
+            <ul class="nav nav-tabs phase-tabs px-3 pt-2" id="phase-tabs" role="tablist">
+                {% for group in grouped_matches %}
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link {{ group.code|phase_color }} {% if forloop.first %}active{% endif %}" id="tab-{{ group.code }}"
+                                data-bs-toggle="tab" data-bs-target="#pane-{{ group.code }}" type="button"
+                                role="tab" aria-controls="pane-{{ group.code }}" aria-selected="{% if forloop.first %}true{% else %}false{% endif %}">
+                            {{ group.label }} <span class="badge phase-count ms-1">{{ group.matches|length }}</span>
+                        </button>
+                    </li>
                 {% endfor %}
-                </tbody>
-            </table>
-        </div>
+            </ul>
+            <div class="tab-content" id="phase-tabs-content">
+                {% for group in grouped_matches %}
+                    <div class="tab-pane fade {% if forloop.first %}show active{% endif %}" id="pane-{{ group.code }}"
+                         role="tabpanel" aria-labelledby="tab-{{ group.code }}" tabindex="0">
+                        <div class="table-responsive">
+                            <table class="table table-hover mb-0 align-middle matches-table">
+                                <thead>
+                                <tr>
+                                    <th><i class="fas fa-handshake me-2"></i>Partido</th>
+                                    <th><i class="far fa-calendar me-2"></i>Fecha</th>
+                                    <th><i class="fas fa-score me-2"></i>Marcador</th>
+                                </tr>
+                                </thead>
+                                <tbody>
+                                {% for match in group.matches %}
+                                    <tr class="align-middle">
+                                        <td>
+                                            <div class="fw-semibold">
+                                                {% if match.finished and match.home_score > match.away_score %}
+                                                    <span class="badge text-bg-success me-2"><i class="fas fa-chess-queen me-1"></i>Ganador</span>{{ match.home_team|team_with_flag }}
+                                                {% else %}
+                                                    <span>{{ match.home_team|team_with_flag }}</span>
+                                                {% endif %}
+                                                <span class="text-muted mx-2">vs</span>
+                                                {% if match.finished and match.away_score > match.home_score %}
+                                                    {{ match.away_team|team_with_flag }}<span class="badge text-bg-success ms-2"><i class="fas fa-chess-queen me-1"></i>Ganador</span>
+                                                {% else %}
+                                                    <span>{{ match.away_team|team_with_flag }}</span>
+                                                {% endif %}
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <small class="text-muted"><i class="far fa-clock me-1"></i>{{ match.kickoff_at|date:"d/m/Y H:i" }}</small>
+                                        </td>
+                                        <td>
+                                            {% if match.finished %}
+                                                <span class="badge text-bg-primary">
+                                                    <i class="fas fa-check-circle me-1"></i>{{ match.home_score }} - {{ match.away_score }}
+                                                </span>
+                                            {% elif match.kickoff_at <= now %}
+                                                <span class="badge text-bg-success"><i class="fas fa-circle-play me-1"></i>En juego</span>
+                                            {% else %}
+                                                <span class="badge text-bg-light border"><i class="fas fa-hourglass-half me-1"></i>Por jugar</span>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="text-center text-muted py-5">
+                <i class="fas fa-inbox" style="font-size: 2.5rem;"></i>
+                <p class="mt-3 mb-0">No hay partidos para mostrar</p>
+            </div>
+        {% endif %}
     </div>
 
     {% if is_paginated %}
@@ -87,12 +167,12 @@
                 <ul class="pagination pagination-sm mb-0">
                     {% if page_obj.has_previous %}
                         <li class="page-item">
-                            <a class="page-link" href="?page=1" title="Primera página">
+                            <a class="page-link" href="?{% if filters_query %}{{ filters_query }}&amp;{% endif %}page=1" title="Primera página">
                                 <i class="fas fa-chevron-double-left me-1"></i>Primera
                             </a>
                         </li>
                         <li class="page-item">
-                            <a class="page-link" href="?page={{ page_obj.previous_page_number }}" title="Página anterior">
+                            <a class="page-link" href="?{% if filters_query %}{{ filters_query }}&amp;{% endif %}page={{ page_obj.previous_page_number }}" title="Página anterior">
                                 <i class="fas fa-chevron-left me-1"></i>Anterior
                             </a>
                         </li>
@@ -107,12 +187,12 @@
 
                     {% if page_obj.has_next %}
                         <li class="page-item">
-                            <a class="page-link" href="?page={{ page_obj.next_page_number }}" title="Siguiente página">
+                            <a class="page-link" href="?{% if filters_query %}{{ filters_query }}&amp;{% endif %}page={{ page_obj.next_page_number }}" title="Siguiente página">
                                 Siguiente<i class="fas fa-chevron-right ms-1"></i>
                             </a>
                         </li>
                         <li class="page-item">
-                            <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}" title="Última página">
+                            <a class="page-link" href="?{% if filters_query %}{{ filters_query }}&amp;{% endif %}page={{ page_obj.paginator.num_pages }}" title="Última página">
                                 Última<i class="fas fa-chevron-double-right ms-1"></i>
                             </a>
                         </li>

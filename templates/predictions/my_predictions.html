@@ -6,11 +6,63 @@
 {% block title %}🔮 Mis Pronósticos - Mundial Familiar 2026{% endblock %}
 
 {% block content %}
-    <div class="mb-5">
+    <style>
+        .my-predictions-toolbar {
+            background: rgba(255, 255, 255, 0.82);
+            border: 1px solid var(--border-color);
+            border-radius: 0.85rem;
+            padding: 0.55rem 0.7rem;
+            width: fit-content;
+            max-width: 100%;
+        }
+
+        .my-predictions-toolbar .form-control,
+        .my-predictions-toolbar .form-select {
+            min-width: 150px;
+        }
+    </style>
+
+    <div class="mb-3 d-flex flex-column gap-2">
         <h1 class="page-title mb-1">
             <i class="fas fa-crystal-ball" style="color: var(--mundial-red);"></i> Mis Pronósticos
         </h1>
         <p class="text-muted mb-0">Total de pronósticos realizados: <strong>{{ page_obj.paginator.count }}</strong></p>
+
+        <form method="get" class="my-predictions-toolbar d-flex align-items-center gap-2 flex-wrap">
+            <span class="small fw-semibold text-muted"><i class="fas fa-filter me-1"></i>Filtros</span>
+
+            <label for="country-filter" class="visually-hidden">País</label>
+            <input id="country-filter" name="country" list="country-options" class="form-control form-control-sm"
+                   placeholder="País..." value="{{ selected_country_label }}" style="width: 190px;">
+            <datalist id="country-options">
+                {% for country in country_options %}
+                    <option value="{{ country.code|upper }} - {{ country.name }}"></option>
+                {% endfor %}
+            </datalist>
+
+            <label for="phase-filter" class="visually-hidden">Fase</label>
+            <select id="phase-filter" name="phase" class="form-select form-select-sm" style="width: 170px;">
+                <option value="">Todas las fases</option>
+                {% for phase_code, phase_label in phase_options %}
+                    <option value="{{ phase_code }}" {% if selected_phase == phase_code %}selected{% endif %}>{{ phase_label }}</option>
+                {% endfor %}
+            </select>
+
+            <label for="points-filter" class="visually-hidden">Puntos</label>
+            <select id="points-filter" name="points" class="form-select form-select-sm" style="width: 135px;">
+                <option value="">Puntos</option>
+                {% for points in points_options %}
+                    <option value="{{ points }}" {% if selected_points == points|stringformat:'s' %}selected{% endif %}>{{ points }} pts</option>
+                {% endfor %}
+            </select>
+
+            <button type="submit" class="btn btn-primary btn-sm">
+                <i class="fas fa-filter me-1"></i>Aplicar
+            </button>
+            {% if filters_query %}
+                <a href="?" class="btn btn-outline-primary btn-sm">Limpiar</a>
+            {% endif %}
+        </form>
     </div>
 
     <div class="card">
@@ -156,12 +208,12 @@
                 <ul class="pagination pagination-sm mb-0">
                     {% if page_obj.has_previous %}
                         <li class="page-item">
-                            <a class="page-link" href="?page=1" title="Primera página">
+                            <a class="page-link" href="?{% if filters_query %}{{ filters_query }}&amp;{% endif %}page=1" title="Primera página">
                                 <i class="fas fa-chevron-double-left me-1"></i>Primera
                             </a>
                         </li>
                         <li class="page-item">
-                            <a class="page-link" href="?page={{ page_obj.previous_page_number }}" title="Página anterior">
+                            <a class="page-link" href="?{% if filters_query %}{{ filters_query }}&amp;{% endif %}page={{ page_obj.previous_page_number }}" title="Página anterior">
                                 <i class="fas fa-chevron-left me-1"></i>Anterior
                             </a>
                         </li>
@@ -176,12 +228,12 @@
 
                     {% if page_obj.has_next %}
                         <li class="page-item">
-                            <a class="page-link" href="?page={{ page_obj.next_page_number }}" title="Siguiente página">
+                            <a class="page-link" href="?{% if filters_query %}{{ filters_query }}&amp;{% endif %}page={{ page_obj.next_page_number }}" title="Siguiente página">
                                 Siguiente<i class="fas fa-chevron-right ms-1"></i>
                             </a>
                         </li>
                         <li class="page-item">
-                            <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}" title="Última página">
+                            <a class="page-link" href="?{% if filters_query %}{{ filters_query }}&amp;{% endif %}page={{ page_obj.paginator.num_pages }}" title="Última página">
                                 Última<i class="fas fa-chevron-double-right ms-1"></i>
                             </a>
                         </li>

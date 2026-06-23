@@ -5,18 +5,37 @@
 {% block title %}🏆 Ranking Completo - Mundial Familiar 2026{% endblock %}
 
 {% block content %}
-    <div class="mb-5">
+    <style>
+        .ranking-compact-header {
+            margin-bottom: 1rem;
+        }
+
+        .ranking-score-alert {
+            margin-bottom: 1rem !important;
+            padding: 0.85rem 1rem;
+        }
+
+        .ranking-score-alert .row {
+            row-gap: 0.35rem;
+        }
+
+        .ranking-score-item {
+            margin-bottom: 0 !important;
+        }
+    </style>
+
+    <div class="ranking-compact-header">
         <h1 class="page-title mb-1">
             <img src="{% static 'images/world-cup.png' %}" alt="Copa del mundo" class="wc-icon wc-icon-md me-1"> Ranking Completo
         </h1>
         <p class="text-muted mb-0">Tabla de posiciones del torneo</p>
     </div>
 
-    <div class="alert alert-info mb-5">
-        <div class="fw-semibold mb-2"><i class="fas fa-lightbulb me-2"></i>Sistema de puntuación</div>
+    <div class="alert alert-info ranking-score-alert">
+        <div class="fw-semibold mb-1"><i class="fas fa-lightbulb me-2"></i>Sistema de puntuación</div>
         <div class="row">
             <div class="col-md-4">
-                <div class="d-flex gap-2 mb-2">
+                <div class="d-flex gap-2 ranking-score-item">
                     <i class="fas fa-check-circle text-success"></i>
                     <div>
                         <strong>+2 puntos</strong>
@@ -25,7 +44,7 @@
                 </div>
             </div>
             <div class="col-md-4">
-                <div class="d-flex gap-2 mb-2">
+                <div class="d-flex gap-2 ranking-score-item">
                     <i class="fas fa-star text-warning"></i>
                     <div>
                         <strong>+3 puntos adicionales</strong>
@@ -34,7 +53,7 @@
                 </div>
             </div>
             <div class="col-md-4">
-                <div class="d-flex gap-2 mb-2">
+                <div class="d-flex gap-2 ranking-score-item">
                     <i class="fas fa-sync-alt text-info"></i>
                     <div>
                         <strong>Automático</strong>

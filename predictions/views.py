@@ -1,4 +1,7 @@
+from urllib.parse import urlencode
+
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.core.paginator import Paginator
 from django.db.models import Count, F, Q, Sum
 from django.shortcuts import redirect, get_object_or_404
 from django.utils import timezone
@@ -8,6 +11,7 @@ from django.views.generic import FormView, ListView, TemplateView
 from matches.models import Match
 from predictions.forms import PredictionForm
 from predictions.models import Prediction
+from teams.models import Team
 
 
 class PredictionCreateView(LoginRequiredMixin, FormView):
@@ -66,8 +70,36 @@ class MyPredictionsView(LoginRequiredMixin, ListView):
     context_object_name = "predictions"
     paginate_by = 10
 
+    def _get_selected_country(self):
+        raw_country = (self.request.GET.get("country") or "").strip()
+        if not raw_country:
+            return ""
+
+        if " - " in raw_country:
+            raw_country = raw_country.split(" - ", 1)[0].strip()
+
+        team_by_name = Team.objects.filter(name__iexact=raw_country).first()
+        if team_by_name:
+            return team_by_name.code.upper()
+
+        return raw_country.upper()
+
+    def _get_selected_phase(self):
+        selected_phase = (self.request.GET.get("phase") or "").strip().upper()
+        valid_phases = {phase for phase, _ in Match.PHASE_CHOICES}
+        return selected_phase if selected_phase in valid_phases else ""
+
+    def _get_selected_points(self):
+        selected_points = (self.request.GET.get("points") or "").strip()
+        if selected_points == "":
+            return ""
+        try:
+            return str(int(selected_points))
+        except ValueError:
+            return ""
+
     def get_queryset(self):
-        return Prediction.objects.filter(
+        queryset = Prediction.objects.filter(
             user=self.request.user
         ).select_related(
             "user",
@@ -77,9 +109,58 @@ class MyPredictionsView(LoginRequiredMixin, ListView):
             "match__away_team"
         ).order_by("-match__kickoff_at", "-created_at")
 
+        selected_country = self._get_selected_country()
+        selected_phase = self._get_selected_phase()
+        selected_points = self._get_selected_points()
+
+        if selected_country:
+            queryset = queryset.filter(
+                Q(match__home_team__country_code__iexact=selected_country)
+                | Q(match__away_team__country_code__iexact=selected_country)
+                | Q(match__home_team__code__iexact=selected_country)
+                | Q(match__away_team__code__iexact=selected_country)
+            )
+
+        if selected_phase:
+            queryset = queryset.filter(match__phase=selected_phase)
+
+        if selected_points != "":
+            queryset = queryset.filter(points=int(selected_points))
+
+        return queryset
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         phase_stats = self._get_phase_stats()
+        selected_country = self._get_selected_country()
+        selected_phase = self._get_selected_phase()
+        selected_points = self._get_selected_points()
+
+        country_map = {}
+        for team in Team.objects.order_by("name"):
+            if team.code and team.code not in country_map:
+                country_map[team.code] = team.name
+        country_options = [
+            {"code": code, "name": name}
+            for code, name in country_map.items()
+        ]
+
+        points_options = list(
+            Prediction.objects.filter(user=self.request.user)
+            .order_by("points")
+            .values_list("points", flat=True)
+            .distinct()
+        )
+
+        query_params = {}
+        if self.request.GET.get("tab") == "history":
+            query_params["tab"] = "history"
+        if selected_country:
+            query_params["country"] = selected_country
+        if selected_phase:
+            query_params["phase"] = selected_phase
+        if selected_points != "":
+            query_params["points"] = selected_points
 
         context["phase_stats"] = phase_stats
         context["phase_stats_totals"] = {
@@ -90,6 +171,21 @@ class MyPredictionsView(LoginRequiredMixin, ListView):
             "total_predictions": sum(item["total_predictions"] for item in phase_stats),
         }
         context["now"] = timezone.now()
+        context["phase_options"] = Match.PHASE_CHOICES
+        context["country_options"] = country_options
+        context["points_options"] = points_options
+        context["selected_country"] = selected_country
+        context["selected_phase"] = selected_phase
+        context["selected_points"] = selected_points
+        context["selected_country_label"] = next(
+            (
+                f"{country['code']} - {country['name']}"
+                for country in country_options
+                if country["code"].upper() == selected_country
+            ),
+            selected_country,
+        )
+        context["filters_query"] = urlencode(query_params)
         return context
 
     def _get_phase_stats(self):
@@ -193,11 +289,57 @@ class PredictionDashboardView(LoginRequiredMixin, TemplateView):
 
 class AllPredictionsView(LoginRequiredMixin, TemplateView):
     template_name = "predictions/all_predictions.html"
+    historical_paginate_by = 10
+
+    def _get_selected_country(self):
+        raw_country = (self.request.GET.get("country") or "").strip()
+        if not raw_country:
+            return ""
+
+        if " - " in raw_country:
+            raw_country = raw_country.split(" - ", 1)[0].strip()
+
+        team_by_name = Team.objects.filter(name__iexact=raw_country).first()
+        if team_by_name:
+            return team_by_name.code.upper()
+
+        return raw_country.upper()
+
+    def _get_selected_phase(self):
+        selected_phase = (self.request.GET.get("phase") or "").strip().upper()
+        valid_phases = {phase for phase, _ in Match.PHASE_CHOICES}
+        return selected_phase if selected_phase in valid_phases else ""
+
+    def _get_selected_points(self):
+        selected_points = (self.request.GET.get("points") or "").strip()
+        if selected_points == "":
+            return ""
+        try:
+            return str(int(selected_points))
+        except ValueError:
+            return ""
+
+    def _group_predictions_by_match(self, predictions):
+        grouped = {}
+        for prediction in predictions:
+            if prediction.match_id not in grouped:
+                grouped[prediction.match_id] = {
+                    "match": prediction.match,
+                    "predictions": []
+                }
+            grouped[prediction.match_id]["predictions"].append(prediction)
+
+        return grouped.values()
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        matches = Match.objects.filter(
-            finished=False
+        today = timezone.localdate()
+        selected_country = self._get_selected_country()
+        selected_phase = self._get_selected_phase()
+        selected_points = self._get_selected_points()
+
+        today_matches = Match.objects.filter(
+            kickoff_at__date=today
         ).select_related(
             "home_team",
             "away_team"
@@ -205,8 +347,8 @@ class AllPredictionsView(LoginRequiredMixin, TemplateView):
             "kickoff_at"
         )
 
-        predictions = Prediction.objects.filter(
-            match__in=matches
+        today_predictions = Prediction.objects.filter(
+            match__in=today_matches
         ).select_related(
             "user",
             "user__profile",
@@ -220,14 +362,83 @@ class AllPredictionsView(LoginRequiredMixin, TemplateView):
             "user__username"
         )
 
-        grouped = {}
-        for prediction in predictions:
-            if prediction.match_id not in grouped:
-                grouped[prediction.match_id] = {
-                    "match": prediction.match,
-                    "predictions": []
-                }
-            grouped[prediction.match_id]["predictions"].append(prediction)
+        historical_predictions = Prediction.objects.select_related(
+            "user",
+            "user__profile",
+            "match",
+            "match__home_team",
+            "match__away_team"
+        ).order_by(
+            "-match__kickoff_at",
+            "user__first_name",
+            "user__last_name",
+            "user__username"
+        )
 
-        context["grouped"] = grouped.values()
+        if selected_country:
+            historical_predictions = historical_predictions.filter(
+                Q(match__home_team__country_code__iexact=selected_country)
+                | Q(match__away_team__country_code__iexact=selected_country)
+                | Q(match__home_team__code__iexact=selected_country)
+                | Q(match__away_team__code__iexact=selected_country)
+            )
+
+        if selected_phase:
+            historical_predictions = historical_predictions.filter(match__phase=selected_phase)
+
+        if selected_points != "":
+            historical_predictions = historical_predictions.filter(points=int(selected_points))
+
+        country_map = {}
+        for team in Team.objects.order_by("name"):
+            if team.code and team.code not in country_map:
+                country_map[team.code] = team.name
+        country_options = [
+            {"code": code, "name": name}
+            for code, name in country_map.items()
+        ]
+
+        points_options = list(
+            Prediction.objects.order_by("points")
+            .values_list("points", flat=True)
+            .distinct()
+        )
+
+        history_paginator = Paginator(historical_predictions, self.historical_paginate_by)
+        history_page_obj = history_paginator.get_page(self.request.GET.get("page"))
+
+        query_params = {}
+        if self.request.GET.get("tab") == "history":
+            query_params["tab"] = "history"
+        if selected_country:
+            query_params["country"] = selected_country
+        if selected_phase:
+            query_params["phase"] = selected_phase
+        if selected_points != "":
+            query_params["points"] = selected_points
+
+        context["today_grouped"] = self._group_predictions_by_match(today_predictions)
+        context["historical_predictions"] = history_page_obj.object_list
+        context["history_page_obj"] = history_page_obj
+        context["history_is_paginated"] = history_page_obj.has_other_pages()
+        context["country_options"] = country_options
+        context["phase_options"] = Match.PHASE_CHOICES
+        context["points_options"] = points_options
+        context["selected_country"] = selected_country
+        context["selected_phase"] = selected_phase
+        context["selected_points"] = selected_points
+        context["selected_country_label"] = next(
+            (
+                f"{country['code']} - {country['name']}"
+                for country in country_options
+                if country["code"].upper() == selected_country
+            ),
+            selected_country,
+        )
+        context["filters_query"] = urlencode(query_params)
+        context["history_active"] = self.request.GET.get("tab") == "history" or bool(
+            selected_country or selected_phase or selected_points != "" or self.request.GET.get("page")
+        )
+        context["today"] = today
+        context["now"] = timezone.now()
         return context

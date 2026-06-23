@@ -116,7 +116,10 @@ STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 # Media files
 MEDIA_URL = '/media/'
-MEDIA_ROOT = BASE_DIR / 'media'
+_default_media_root = BASE_DIR / 'media'
+if os.environ.get('RENDER', '').lower() == 'true':
+    _default_media_root = Path('/var/data/media')
+MEDIA_ROOT = Path(os.environ.get('MEDIA_ROOT', str(_default_media_root)))
 
 # REST Framework
 REST_FRAMEWORK = {
@@ -131,6 +134,11 @@ REST_FRAMEWORK = {
 # CORS
 CORS_ALLOWED_ORIGINS = _split_env_list('CORS_ALLOWED_ORIGINS', 'http://localhost:5173')
 CORS_ALLOW_CREDENTIALS = True
+
+# API-Football / API-SPORTS integration
+API_FOOTBALL_KEY = os.environ.get('API_FOOTBALL_KEY', '')
+API_FOOTBALL_BASE_URL = os.environ.get('API_FOOTBALL_BASE_URL', 'https://v3.football.api-sports.io')
+API_FOOTBALL_TIMEOUT = int(os.environ.get('API_FOOTBALL_TIMEOUT', '15'))
 
 # Accept HTTPS form posts from Render/custom domains when DEBUG=False
 CSRF_TRUSTED_ORIGINS = _split_env_list(
