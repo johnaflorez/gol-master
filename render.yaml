@@ -11,10 +11,6 @@ services:
     runtime: python
     buildCommand: "./build.sh"
     startCommand: "gunicorn config.wsgi:application --bind 0.0.0.0:$PORT"
-    disk:
-      name: media-disk
-      mountPath: /var/data
-      sizeGB: 1
     envVars:
       - key: DATABASE_URL
         fromDatabase:
@@ -31,7 +27,7 @@ services:
       - key: PYTHON_VERSION
         value: "3.12.0"
       - key: MEDIA_ROOT
-        value: "/var/data/media"
+        value: "/tmp/media"
       - key: SERVE_MEDIA
         value: "True"
       - key: API_FOOTBALL_KEY
