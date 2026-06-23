@@ -18,11 +18,14 @@ class PredictionCreateView(LoginRequiredMixin, FormView):
     template_name = "predictions/form.html"
     form_class = PredictionForm
 
+    def _match_is_predictable(self):
+        return not self.match.finished and self.match.kickoff_at > timezone.now()
+
     def dispatch(self, request, *args, **kwargs):
         self.match = get_object_or_404(Match, id=kwargs["match_id"])
         prediction_exists = Prediction.objects.filter(user=request.user, match=self.match).exists()
 
-        if self.match.finished or prediction_exists:
+        if not self._match_is_predictable() or prediction_exists:
             return redirect("match_list")
 
         return super().dispatch(request, *args, **kwargs)
@@ -58,6 +61,10 @@ class PredictionCreateView(LoginRequiredMixin, FormView):
         return context
 
     def form_valid(self, form):
+        prediction_exists = Prediction.objects.filter(user=self.request.user, match=self.match).exists()
+        if not self._match_is_predictable() or prediction_exists:
+            return redirect("match_list")
+
         prediction = form.save(commit=False)
         prediction.user = self.request.user
         prediction.match = self.match

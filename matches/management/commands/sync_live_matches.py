@@ -54,6 +54,20 @@ class Command(BaseCommand):
             "away_team",
         ).order_by("kickoff_at")
 
+        selected_count = queryset.count()
+        if options.get("verbosity", 1) >= 2:
+            self.stdout.write(
+                "Live API-Football selected matches: "
+                f"count={selected_count}, window={start_date}..{end_date}"
+            )
+            for match in queryset:
+                self.stdout.write(
+                    " - "
+                    f"match_id={match.id}, fixture_id={match.api_football_fixture_id}, "
+                    f"kickoff_at={match.kickoff_at.isoformat()}, live_status={match.live_status}, "
+                    f"finished={match.finished}, teams={match.home_team} vs {match.away_team}"
+                )
+
         service = ApiFootballSyncService()
         try:
             result = service.sync_queryset(queryset, include_events=not options["no_events"])
@@ -63,7 +77,7 @@ class Command(BaseCommand):
         self.stdout.write(
             self.style.SUCCESS(
                 "Live API-Football sync OK: "
-                f"checked={result.checked}, updated={result.updated}, skipped={result.skipped}, "
+                f"selected={selected_count}, checked={result.checked}, updated={result.updated}, skipped={result.skipped}, "
                 f"events_created={result.events_created}, events_updated={result.events_updated}, "
                 f"window={start_date}..{end_date}"
             )

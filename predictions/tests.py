@@ -34,6 +34,13 @@ class PredictionCreateViewTests(TestCase):
 
 		self.assertRedirects(response, reverse("match_list"))
 
+	def test_redirects_if_match_has_already_started(self):
+		match = self._match(days_offset=-1, finished=False)
+
+		response = self.client.get(reverse("prediction_create", args=[match.id]))
+
+		self.assertRedirects(response, reverse("match_list"))
+
 	def test_redirects_if_prediction_already_exists(self):
 		match = self._match(days_offset=1)
 		Prediction.objects.create(
@@ -68,7 +75,7 @@ class PredictionCreateViewTests(TestCase):
 			).exists()
 		)
 
-	def test_creates_prediction_when_kickoff_has_passed_but_match_not_finished(self):
+	def test_does_not_create_prediction_when_kickoff_has_passed_but_match_not_finished(self):
 		match = self._match(days_offset=-1, finished=False)
 
 		response = self.client.post(
@@ -79,15 +86,8 @@ class PredictionCreateViewTests(TestCase):
 			},
 		)
 
-		self.assertRedirects(response, reverse("dashboard"))
-		self.assertTrue(
-			Prediction.objects.filter(
-				user=self.user,
-				match=match,
-				predicted_home_score=0,
-				predicted_away_score=0,
-			).exists()
-		)
+		self.assertRedirects(response, reverse("match_list"))
+		self.assertFalse(Prediction.objects.filter(user=self.user, match=match).exists())
 
 	def test_prediction_form_includes_previous_results_for_match_teams(self):
 		target_match = self._match(days_offset=2, finished=False)

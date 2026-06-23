@@ -237,12 +237,14 @@
                                             </div>
                                         </div>
                                         <div class="today-right-tags">
-                                            {% if not match.finished and not match.has_prediction %}
+                                            {% if not match.finished and match.kickoff_at > now and not match.has_prediction %}
                                                 <a href="{% url 'prediction_create' match.id %}" class="btn btn-primary btn-sm">
                                                     <i class="fas fa-edit me-1"></i>Pronosticar
                                                 </a>
                                             {% elif match.finished %}
                                                 <span class="badge text-bg-success"><i class="fas fa-flag-checkered me-1"></i>Finalizado</span>
+                                            {% elif match.kickoff_at <= now %}
+                                                <span class="badge text-bg-success"><i class="fas fa-circle-play me-1"></i>En juego</span>
                                             {% else %}
                                                 <span class="badge text-bg-info"><i class="fas fa-check me-1"></i>Pronosticado</span>
                                             {% endif %}

@@ -40,7 +40,7 @@ services:
     runtime: python
     schedule: "*/5 * * * *"
     buildCommand: "./build.sh"
-    startCommand: "python manage.py sync_live_matches --days-back 1 --days-forward 1"
+    startCommand: "python manage.py sync_live_matches --days-back 1 --days-forward 1 --verbosity 2"
     envVars:
       - key: DATABASE_URL
         fromDatabase:

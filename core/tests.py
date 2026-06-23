@@ -1,4 +1,5 @@
 from datetime import datetime, time, timedelta
+from unittest.mock import patch
 
 from django.contrib.auth.models import User
 from django.test import TestCase
@@ -52,29 +53,32 @@ class DashboardViewTests(TestCase):
 
 	def test_dashboard_shows_predict_button_only_for_available_matches(self):
 		today = timezone.localdate()
-		today_noon = timezone.make_aware(datetime.combine(today, time(hour=12)))
+		fixed_now = timezone.make_aware(datetime.combine(today, time(hour=10)))
 
-		available = self._create_match(today_noon + timedelta(hours=1))
-		finished = self._create_match(today_noon + timedelta(hours=2))
+		available = self._create_match(fixed_now + timedelta(hours=1))
+		finished = self._create_match(fixed_now + timedelta(hours=2))
 		finished.finished = True
 		finished.home_score = 1
 		finished.away_score = 0
 		finished.save()
 
-		already_predicted = self._create_match(today_noon + timedelta(hours=3))
+		already_predicted = self._create_match(fixed_now + timedelta(hours=3))
 		Prediction.objects.create(
 			user=self.user,
 			match=already_predicted,
 			predicted_home_score=1,
 			predicted_away_score=1,
 		)
+		started = self._create_match(fixed_now - timedelta(minutes=5))
 
-		response = self.client.get(reverse("dashboard"))
+		with patch("core.views.timezone.now", return_value=fixed_now), patch("core.views.timezone.localdate", return_value=today):
+			response = self.client.get(reverse("dashboard"))
 
 		self.assertEqual(response.status_code, 200)
 		self.assertContains(response, reverse("prediction_create", args=[available.id]))
 		self.assertNotContains(response, reverse("prediction_create", args=[finished.id]))
 		self.assertNotContains(response, reverse("prediction_create", args=[already_predicted.id]))
+		self.assertNotContains(response, reverse("prediction_create", args=[started.id]))
 
 	def test_dashboard_marks_match_as_live_after_kickoff(self):
 		now = timezone.now()

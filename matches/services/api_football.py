@@ -52,7 +52,13 @@ class ApiFootballClient:
             with urlopen(request, timeout=self.timeout) as response:
                 payload = json.loads(response.read().decode("utf-8"))
         except HTTPError as exc:
-            raise ApiFootballClientError(f"API-Football HTTP error {exc.code}") from exc
+            error_body = ""
+            try:
+                error_body = exc.read().decode("utf-8")[:500]
+            except Exception:
+                error_body = ""
+            detail = f": {error_body}" if error_body else ""
+            raise ApiFootballClientError(f"API-Football HTTP error {exc.code}{detail}") from exc
         except (URLError, TimeoutError, json.JSONDecodeError) as exc:
             raise ApiFootballClientError(f"API-Football request failed: {exc}") from exc
 
