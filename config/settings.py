@@ -118,14 +118,26 @@ STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 MEDIA_URL = '/media/'
 _default_media_root = BASE_DIR / 'media'
 if os.environ.get('RENDER', '').lower() == 'true':
-    _default_media_root = Path('/var/data/media')
+    _default_media_root = Path('/tmp/media')
 MEDIA_ROOT = Path(os.environ.get('MEDIA_ROOT', str(_default_media_root)))
+
+
+def _ensure_writable_media_root(path):
+    path.mkdir(parents=True, exist_ok=True)
+    probe = path / '.write-test'
+    probe.write_text('ok', encoding='utf-8')
+    probe.unlink(missing_ok=True)
+
+
 try:
-    MEDIA_ROOT.mkdir(parents=True, exist_ok=True)
+    _ensure_writable_media_root(MEDIA_ROOT)
 except OSError:
-    # Some environments may not allow creating folders during settings import.
-    # Upload views handle storage errors and show a form-level message.
-    pass
+    if os.environ.get('RENDER', '').lower() == 'true':
+        MEDIA_ROOT = Path('/tmp/media')
+        try:
+            _ensure_writable_media_root(MEDIA_ROOT)
+        except OSError:
+            pass
 
 # REST Framework
 REST_FRAMEWORK = {

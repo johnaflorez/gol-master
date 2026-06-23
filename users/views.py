@@ -1,14 +1,19 @@
+import logging
+from pathlib import Path
+
 from django import forms
 from django.conf import settings
-from django.contrib.auth.mixins import LoginRequiredMixin
-from django.core.exceptions import SuspiciousFileOperation
-from django.shortcuts import redirect
+from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
+from django.http import JsonResponse
 from django.urls import reverse_lazy
+from django.views import View
 from django.views.generic import UpdateView
-from pathlib import Path
 
 from users.models import UserProfile
 from users.forms import UserProfileForm
+
+
+logger = logging.getLogger(__name__)
 
 
 class UserProfileUpdateView(LoginRequiredMixin, UpdateView):
@@ -25,7 +30,13 @@ class UserProfileUpdateView(LoginRequiredMixin, UpdateView):
         try:
             Path(settings.MEDIA_ROOT).mkdir(parents=True, exist_ok=True)
             return super().form_valid(form)
-        except (OSError, SuspiciousFileOperation):
+        except Exception as exc:
+            logger.exception(
+                "Profile avatar save failed for user_id=%s MEDIA_ROOT=%s error=%s",
+                self.request.user.id,
+                settings.MEDIA_ROOT,
+                exc,
+            )
             form.add_error(
                 None,
                 forms.ValidationError(
@@ -33,4 +44,38 @@ class UserProfileUpdateView(LoginRequiredMixin, UpdateView):
                 ),
             )
             return self.form_invalid(form)
+
+
+class MediaDiagnosticsView(LoginRequiredMixin, UserPassesTestMixin, View):
+
+    def test_func(self):
+        return self.request.user.is_staff
+
+    def get(self, request, *args, **kwargs):
+        media_root = Path(settings.MEDIA_ROOT)
+        payload = {
+            "media_root": str(media_root),
+            "exists": media_root.exists(),
+            "is_dir": media_root.is_dir(),
+            "writable": False,
+            "error": "",
+        }
+
+        try:
+            media_root.mkdir(parents=True, exist_ok=True)
+            probe = media_root / ".diagnostic-write-test"
+            probe.write_text("ok", encoding="utf-8")
+            probe.unlink(missing_ok=True)
+            payload.update(
+                {
+                    "exists": media_root.exists(),
+                    "is_dir": media_root.is_dir(),
+                    "writable": True,
+                }
+            )
+        except Exception as exc:
+            payload["error"] = str(exc)
+
+        return JsonResponse(payload)
+
 

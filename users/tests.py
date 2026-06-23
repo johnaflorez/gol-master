@@ -59,6 +59,24 @@ class UserProfileUpdateViewTests(TestCase):
 		self.assertEqual(profile.bio, "Foto valida")
 		self.assertTrue(profile.avatar.name.startswith("avatars/"))
 
+	def test_profile_update_creates_missing_media_root(self):
+		missing_media_root = tempfile.mkdtemp()
+		shutil.rmtree(missing_media_root)
+
+		with override_settings(MEDIA_ROOT=missing_media_root):
+			response = self.client.post(
+				reverse("profile_edit"),
+				{
+					"bio": "Media root nuevo",
+					"avatar": make_image_file(),
+				},
+			)
+
+		profile = UserProfile.objects.get(user=self.user)
+		self.assertRedirects(response, reverse("dashboard"))
+		self.assertTrue(profile.avatar.name.startswith("avatars/"))
+		shutil.rmtree(missing_media_root, ignore_errors=True)
+
 	def test_profile_update_rejects_invalid_avatar_type(self):
 		invalid_file = SimpleUploadedFile("avatar.txt", b"not an image", content_type="text/plain")
 
@@ -87,3 +105,37 @@ class UserProfileUpdateViewTests(TestCase):
 
 		self.assertEqual(response.status_code, 200)
 		self.assertContains(response, "No se pudo guardar la imagen")
+
+	@patch("django.core.files.storage.filesystem.FileSystemStorage._save", side_effect=RuntimeError("unexpected storage error"))
+	def test_profile_update_unexpected_storage_error_returns_form_error(self, storage_save):
+		with override_settings(MEDIA_ROOT=self.temp_media_root):
+			response = self.client.post(
+				reverse("profile_edit"),
+				{
+					"bio": "Mi bio",
+					"avatar": make_image_file(),
+				},
+			)
+
+		self.assertEqual(response.status_code, 200)
+		self.assertContains(response, "No se pudo guardar la imagen")
+
+	def test_media_diagnostics_requires_staff(self):
+		response = self.client.get(reverse("media_diagnostics"))
+
+		self.assertEqual(response.status_code, 403)
+
+	def test_media_diagnostics_reports_writable_media_root_for_staff(self):
+		self.user.is_staff = True
+		self.user.save()
+
+		with override_settings(MEDIA_ROOT=self.temp_media_root):
+			response = self.client.get(reverse("media_diagnostics"))
+
+		self.assertEqual(response.status_code, 200)
+		payload = response.json()
+		self.assertEqual(payload["media_root"], self.temp_media_root)
+		self.assertTrue(payload["exists"])
+		self.assertTrue(payload["is_dir"])
+		self.assertTrue(payload["writable"])
+
