@@ -44,6 +44,21 @@ class UserProfileUpdateViewTests(TestCase):
 		self.assertEqual(profile.bio, "Mi bio")
 		self.assertTrue(profile.avatar.name.startswith("avatars/"))
 
+	def test_profile_update_accepts_valid_image_with_non_standard_content_type(self):
+		with override_settings(MEDIA_ROOT=self.temp_media_root):
+			response = self.client.post(
+				reverse("profile_edit"),
+				{
+					"bio": "Foto valida",
+					"avatar": make_image_file("avatar.jpg", image_format="JPEG", content_type="image/jpg"),
+				},
+			)
+
+		profile = UserProfile.objects.get(user=self.user)
+		self.assertRedirects(response, reverse("dashboard"))
+		self.assertEqual(profile.bio, "Foto valida")
+		self.assertTrue(profile.avatar.name.startswith("avatars/"))
+
 	def test_profile_update_rejects_invalid_avatar_type(self):
 		invalid_file = SimpleUploadedFile("avatar.txt", b"not an image", content_type="text/plain")
 

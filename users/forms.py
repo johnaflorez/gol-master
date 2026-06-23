@@ -4,7 +4,6 @@ from users.models import UserProfile
 
 class UserProfileForm(forms.ModelForm):
     MAX_AVATAR_SIZE = 5 * 1024 * 1024
-    ALLOWED_IMAGE_TYPES = {"image/jpeg", "image/png", "image/webp"}
 
     def clean_avatar(self):
         avatar = self.cleaned_data.get("avatar")
@@ -13,10 +12,6 @@ class UserProfileForm(forms.ModelForm):
 
         if avatar.size > self.MAX_AVATAR_SIZE:
             raise forms.ValidationError("La imagen no puede superar 5MB.")
-
-        content_type = getattr(avatar, "content_type", "")
-        if content_type and content_type not in self.ALLOWED_IMAGE_TYPES:
-            raise forms.ValidationError("Formato no permitido. Usa JPG, PNG o WEBP.")
 
         return avatar
     

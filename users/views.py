@@ -1,8 +1,11 @@
 from django import forms
+from django.conf import settings
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.core.exceptions import SuspiciousFileOperation
 from django.shortcuts import redirect
 from django.urls import reverse_lazy
 from django.views.generic import UpdateView
+from pathlib import Path
 
 from users.models import UserProfile
 from users.forms import UserProfileForm
@@ -20,8 +23,9 @@ class UserProfileUpdateView(LoginRequiredMixin, UpdateView):
 
     def form_valid(self, form):
         try:
+            Path(settings.MEDIA_ROOT).mkdir(parents=True, exist_ok=True)
             return super().form_valid(form)
-        except OSError:
+        except (OSError, SuspiciousFileOperation):
             form.add_error(
                 None,
                 forms.ValidationError(
