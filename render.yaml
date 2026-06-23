@@ -11,10 +11,10 @@ services:
     runtime: python
     buildCommand: "./build.sh"
     startCommand: "gunicorn config.wsgi:application --bind 0.0.0.0:$PORT"
-    disks:
-      - name: media-disk
-        mountPath: /var/data
-        sizeGB: 1
+    disk:
+      name: media-disk
+      mountPath: /var/data
+      sizeGB: 1
     envVars:
       - key: DATABASE_URL
         fromDatabase:
