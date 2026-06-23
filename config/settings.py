@@ -21,6 +21,13 @@ def _split_env_list(var_name, default=""):
     raw = os.environ.get(var_name, default)
     return [item.strip() for item in raw.split(',') if item.strip()]
 
+
+def _env_bool(var_name, default=False):
+    raw = os.environ.get(var_name)
+    if raw is None:
+        return default
+    return raw.strip().lower() in {'1', 'true', 'yes', 'on'}
+
 ALLOWED_HOSTS = _split_env_list('ALLOWED_HOSTS', 'localhost,127.0.0.1')
 
 # Application definition
@@ -36,7 +43,8 @@ LOCAL_APPS = [
 
 THIRD_PARTY_APPS = [
     'rest_framework',
-    'corsheaders'
+    'corsheaders',
+    'storages',
 ]
 
 INSTALLED_APPS = [
@@ -120,6 +128,7 @@ _default_media_root = BASE_DIR / 'media'
 if os.environ.get('RENDER', '').lower() == 'true':
     _default_media_root = Path('/tmp/media')
 MEDIA_ROOT = Path(os.environ.get('MEDIA_ROOT', str(_default_media_root)))
+USE_S3_MEDIA = _env_bool('USE_S3_MEDIA')
 
 
 def _ensure_writable_media_root(path):
@@ -138,6 +147,34 @@ except OSError:
             _ensure_writable_media_root(MEDIA_ROOT)
         except OSError:
             pass
+
+
+if USE_S3_MEDIA:
+    AWS_ACCESS_KEY_ID = os.environ.get('AWS_ACCESS_KEY_ID', '')
+    AWS_SECRET_ACCESS_KEY = os.environ.get('AWS_SECRET_ACCESS_KEY', '')
+    AWS_STORAGE_BUCKET_NAME = os.environ.get('AWS_STORAGE_BUCKET_NAME', '')
+    AWS_S3_ENDPOINT_URL = os.environ.get('AWS_S3_ENDPOINT_URL', '')
+    AWS_S3_REGION_NAME = os.environ.get('AWS_S3_REGION_NAME', 'us-east-1')
+    AWS_S3_SIGNATURE_VERSION = os.environ.get('AWS_S3_SIGNATURE_VERSION', 's3v4')
+    AWS_S3_ADDRESSING_STYLE = os.environ.get('AWS_S3_ADDRESSING_STYLE', 'path')
+    AWS_S3_CUSTOM_DOMAIN = os.environ.get('AWS_S3_CUSTOM_DOMAIN', '')
+    AWS_S3_URL_PROTOCOL = os.environ.get('AWS_S3_URL_PROTOCOL', 'https:')
+    AWS_QUERYSTRING_AUTH = _env_bool('AWS_QUERYSTRING_AUTH', False)
+    AWS_S3_FILE_OVERWRITE = False
+    AWS_DEFAULT_ACL = None
+    AWS_S3_OBJECT_PARAMETERS = {
+        'CacheControl': os.environ.get('AWS_S3_CACHE_CONTROL', 'max-age=86400'),
+    }
+
+    MEDIA_URL = os.environ.get('MEDIA_URL', MEDIA_URL)
+    STORAGES = {
+        'default': {
+            'BACKEND': 'storages.backends.s3boto3.S3Boto3Storage',
+        },
+        'staticfiles': {
+            'BACKEND': 'whitenoise.storage.CompressedManifestStaticFilesStorage',
+        },
+    }
 
 
 # REST Framework

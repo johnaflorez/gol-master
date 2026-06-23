@@ -1,9 +1,3 @@
-databases:
-  - name: gol-master-db
-    databaseName: gol_master
-    user: gol_master_user
-    plan: free
-
 services:
   - type: web
     name: gol-master
@@ -13,9 +7,7 @@ services:
     startCommand: "mkdir -p /tmp/media && gunicorn config.wsgi:application --bind 0.0.0.0:$PORT"
     envVars:
       - key: DATABASE_URL
-        fromDatabase:
-          name: gol-master-db
-          property: connectionString
+        sync: false
       - key: SECRET_KEY
         generateValue: true
       - key: DEBUG
@@ -30,33 +22,34 @@ services:
         value: "/tmp/media"
       - key: SERVE_MEDIA
         value: "True"
-      - key: API_FOOTBALL_KEY
-        sync: false
-      - key: API_FOOTBALL_BASE_URL
-        value: "https://v3.football.api-sports.io"
-
-  - type: cron
-    name: gol-master-live-sync
-    runtime: python
-    schedule: "*/5 * * * *"
-    buildCommand: "./build.sh"
-    startCommand: "python manage.py sync_live_matches --days-back 1 --days-forward 1 --verbosity 2"
-    envVars:
-      - key: DATABASE_URL
-        fromDatabase:
-          name: gol-master-db
-          property: connectionString
-      - key: SECRET_KEY
-        generateValue: true
-      - key: DEBUG
+      - key: USE_S3_MEDIA
         value: "False"
-      - key: ALLOWED_HOSTS
-        value: ".onrender.com"
-      - key: PYTHON_VERSION
-        value: "3.12.0"
+      - key: AWS_ACCESS_KEY_ID
+        sync: false
+      - key: AWS_SECRET_ACCESS_KEY
+        sync: false
+      - key: AWS_STORAGE_BUCKET_NAME
+        sync: false
+      - key: AWS_S3_ENDPOINT_URL
+        sync: false
+      - key: AWS_S3_REGION_NAME
+        value: "us-east-1"
+      - key: AWS_S3_SIGNATURE_VERSION
+        value: "s3v4"
+      - key: AWS_S3_ADDRESSING_STYLE
+        value: "path"
+      - key: AWS_S3_CUSTOM_DOMAIN
+        sync: false
+      - key: AWS_S3_URL_PROTOCOL
+        value: "https:"
+      - key: AWS_QUERYSTRING_AUTH
+        value: "False"
+      - key: MEDIA_URL
+        sync: false
       - key: API_FOOTBALL_KEY
         sync: false
       - key: API_FOOTBALL_BASE_URL
         value: "https://v3.football.api-sports.io"
       - key: API_FOOTBALL_TIMEOUT
         value: "15"
+
