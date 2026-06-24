@@ -202,6 +202,15 @@ FOOTBALL_DATA_TOKEN = os.environ.get('FOOTBALL_DATA_TOKEN', '')
 FOOTBALL_DATA_BASE_URL = os.environ.get('FOOTBALL_DATA_BASE_URL', 'https://api.football-data.org/v4')
 FOOTBALL_DATA_TIMEOUT = int(os.environ.get('FOOTBALL_DATA_TIMEOUT', '15'))
 
+# WhatsApp Business Cloud API reminders
+WHATSAPP_ACCESS_TOKEN = os.environ.get('WHATSAPP_ACCESS_TOKEN', '')
+WHATSAPP_PHONE_NUMBER_ID = os.environ.get('WHATSAPP_PHONE_NUMBER_ID', '')
+WHATSAPP_CLOUD_API_VERSION = os.environ.get('WHATSAPP_CLOUD_API_VERSION', 'v20.0')
+WHATSAPP_TEMPLATE_NAME = os.environ.get('WHATSAPP_TEMPLATE_NAME', 'daily_prediction_reminder')
+WHATSAPP_TEMPLATE_LANGUAGE = os.environ.get('WHATSAPP_TEMPLATE_LANGUAGE', 'es')
+WHATSAPP_APP_URL = os.environ.get('WHATSAPP_APP_URL', '')
+WHATSAPP_TIMEOUT = int(os.environ.get('WHATSAPP_TIMEOUT', '15'))
+
 # Accept HTTPS form posts from Render/custom domains when DEBUG=False
 CSRF_TRUSTED_ORIGINS = _split_env_list(
     'CSRF_TRUSTED_ORIGINS',

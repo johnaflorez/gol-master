@@ -11,3 +11,27 @@
 .my-predictions-toolbar .form-select {
     min-width: 150px;
 }
+
+.my-tournament-prediction-card .card-header {
+    padding: 0.85rem 1rem;
+}
+
+.my-tournament-choice-box {
+    background: rgba(255, 255, 255, 0.86);
+    border: 1px solid var(--border-color);
+    border-radius: 0.95rem;
+    padding: 1rem;
+}
+
+.my-tournament-choice-value {
+    color: var(--mundial-blue);
+    font-size: 1.25rem;
+    font-weight: 800;
+}
+
+@media (max-width: 576px) {
+    .my-tournament-choice-value {
+        font-size: 1.05rem;
+    }
+}
+

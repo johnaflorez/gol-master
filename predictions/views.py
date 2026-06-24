@@ -1,6 +1,7 @@
 from urllib.parse import urlencode
 
 from django.contrib import messages
+from django.contrib.auth.models import User
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.paginator import Paginator
 from django.db.models import Count, F, Q, Sum
@@ -182,6 +183,9 @@ class MyPredictionsView(LoginRequiredMixin, ListView):
         context["phase_options"] = Match.PHASE_CHOICES
         context["country_options"] = country_options
         context["points_options"] = points_options
+        context["tournament_prediction"] = TournamentPrediction.objects.filter(
+            user=self.request.user
+        ).select_related("champion_team", "top_scorer", "top_scorer__team").first()
         context["selected_country"] = selected_country
         context["selected_phase"] = selected_phase
         context["selected_points"] = selected_points
@@ -303,13 +307,14 @@ class TournamentPredictionView(LoginRequiredMixin, FormView):
         return self.request.path
 
     def _get_prediction(self):
-        return TournamentPrediction.objects.filter(user=self.request.user).select_related("champion_team").first()
+        return TournamentPrediction.objects.filter(user=self.request.user).select_related(
+            "champion_team",
+            "top_scorer",
+            "top_scorer__team",
+        ).first()
 
     def get_form_kwargs(self):
         kwargs = super().get_form_kwargs()
-        prediction = self._get_prediction()
-        if prediction:
-            kwargs["instance"] = prediction
         return kwargs
 
     def get_context_data(self, **kwargs):
@@ -318,8 +323,13 @@ class TournamentPredictionView(LoginRequiredMixin, FormView):
         return context
 
     def form_valid(self, form):
+        if self._get_prediction():
+            messages.warning(self.request, "Tu pronóstico del campeón y goleador ya fue registrado y no se puede modificar.")
+            return redirect(self.get_success_url())
+
         prediction = form.save(commit=False)
         prediction.user = self.request.user
+        prediction.top_scorer_name = prediction.top_scorer.name
         prediction.save()
         messages.success(self.request, "Tu pronóstico del campeón y goleador fue guardado.")
         return super().form_valid(form)
@@ -357,6 +367,18 @@ class AllPredictionsView(LoginRequiredMixin, TemplateView):
         except ValueError:
             return ""
 
+    def _get_selected_user_id(self):
+        selected_user = (self.request.GET.get("user") or "").strip()
+        if not selected_user:
+            return ""
+
+        try:
+            user_id = int(selected_user)
+        except ValueError:
+            return ""
+
+        return user_id if User.objects.filter(id=user_id).exists() else ""
+
     def _group_predictions_by_match(self, predictions):
         grouped = {}
         for prediction in predictions:
@@ -375,6 +397,8 @@ class AllPredictionsView(LoginRequiredMixin, TemplateView):
         selected_country = self._get_selected_country()
         selected_phase = self._get_selected_phase()
         selected_points = self._get_selected_points()
+        selected_user_id = self._get_selected_user_id()
+        requested_tab = (self.request.GET.get("tab") or "").strip().lower()
 
         today_matches = Match.objects.filter(
             kickoff_at__date=today
@@ -427,6 +451,9 @@ class AllPredictionsView(LoginRequiredMixin, TemplateView):
         if selected_points != "":
             historical_predictions = historical_predictions.filter(points=int(selected_points))
 
+        if selected_user_id:
+            historical_predictions = historical_predictions.filter(user_id=selected_user_id)
+
         country_map = {}
         for team in Team.objects.order_by("name"):
             if team.code and team.code not in country_map:
@@ -442,8 +469,32 @@ class AllPredictionsView(LoginRequiredMixin, TemplateView):
             .distinct()
         )
 
+        prediction_user_ids = Prediction.objects.order_by().values_list("user_id", flat=True).distinct()
+        user_options = User.objects.filter(id__in=prediction_user_ids).order_by(
+            "first_name",
+            "last_name",
+            "username",
+        )
+
+        tournament_predictions = TournamentPrediction.objects.select_related(
+            "user",
+            "user__profile",
+            "champion_team",
+            "top_scorer",
+            "top_scorer__team",
+        ).order_by(
+            "user__first_name",
+            "user__last_name",
+            "user__username",
+        )
+
         history_paginator = Paginator(historical_predictions, self.historical_paginate_by)
         history_page_obj = history_paginator.get_page(self.request.GET.get("page"))
+        history_active = requested_tab == "history" or bool(
+            selected_country or selected_phase or selected_points != "" or selected_user_id or self.request.GET.get("page")
+        )
+        tournament_active = requested_tab == "tournament" and not history_active
+        active_tab = "tournament" if tournament_active else "history" if history_active else "today"
 
         query_params = {}
         if self.request.GET.get("tab") == "history":
@@ -454,17 +505,22 @@ class AllPredictionsView(LoginRequiredMixin, TemplateView):
             query_params["phase"] = selected_phase
         if selected_points != "":
             query_params["points"] = selected_points
+        if selected_user_id:
+            query_params["user"] = selected_user_id
 
         context["today_grouped"] = self._group_predictions_by_match(today_predictions)
         context["historical_predictions"] = history_page_obj.object_list
         context["history_page_obj"] = history_page_obj
         context["history_is_paginated"] = history_page_obj.has_other_pages()
+        context["tournament_predictions"] = tournament_predictions
         context["country_options"] = country_options
         context["phase_options"] = Match.PHASE_CHOICES
         context["points_options"] = points_options
+        context["user_options"] = user_options
         context["selected_country"] = selected_country
         context["selected_phase"] = selected_phase
         context["selected_points"] = selected_points
+        context["selected_user_id"] = selected_user_id
         context["selected_country_label"] = next(
             (
                 f"{country['code']} - {country['name']}"
@@ -474,9 +530,9 @@ class AllPredictionsView(LoginRequiredMixin, TemplateView):
             selected_country,
         )
         context["filters_query"] = urlencode(query_params)
-        context["history_active"] = self.request.GET.get("tab") == "history" or bool(
-            selected_country or selected_phase or selected_points != "" or self.request.GET.get("page")
-        )
+        context["active_tab"] = active_tab
+        context["history_active"] = active_tab == "history"
+        context["tournament_active"] = active_tab == "tournament"
         context["today"] = today
         context["now"] = timezone.now()
         return context

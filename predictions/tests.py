@@ -8,7 +8,7 @@ from django.utils import timezone
 from matches.models import Match
 from predictions.models import Prediction, TournamentPrediction
 from predictions.services.scoring import ScoreCalculator
-from teams.models import Team
+from teams.models import Player, Team
 
 
 class PredictionCreateViewTests(TestCase):
@@ -142,8 +142,10 @@ class TournamentPredictionViewTests(TestCase):
 
 	def setUp(self):
 		self.user = User.objects.create_user(username="global-user", password="secret123")
-		self.team_a = Team.objects.create(name="Colombia", code="COL")
-		self.team_b = Team.objects.create(name="Brasil", code="BRA")
+		self.team_a = Team.objects.create(name="Colombia", code="COL", country_code="CO")
+		self.team_b = Team.objects.create(name="Brasil", code="BRA", country_code="BR")
+		self.player_a = Player.objects.create(name="Luis Díaz", team=self.team_a, photo="players/luis-diaz.png")
+		self.player_b = Player.objects.create(name="Vinicius Jr", team=self.team_b, photo="players/vinicius.png")
 
 	def test_requires_login(self):
 		response = self.client.get(reverse("tournament_prediction"))
@@ -157,20 +159,50 @@ class TournamentPredictionViewTests(TestCase):
 			reverse("tournament_prediction"),
 			{
 				"champion_team": self.team_a.id,
-				"top_scorer_name": "Luis Díaz",
+				"top_scorer": self.player_a.id,
 			},
 		)
 
 		self.assertRedirects(response, reverse("tournament_prediction"))
 		prediction = TournamentPrediction.objects.get(user=self.user)
 		self.assertEqual(prediction.champion_team, self.team_a)
+		self.assertEqual(prediction.top_scorer, self.player_a)
 		self.assertEqual(prediction.top_scorer_name, "Luis Díaz")
 
-	def test_edits_existing_tournament_prediction_without_creating_duplicate(self):
+	def test_tournament_prediction_uses_searchable_datalists(self):
+		self.client.login(username="global-user", password="secret123")
+
+		response = self.client.get(reverse("tournament_prediction"))
+
+		self.assertEqual(response.status_code, 200)
+		self.assertContains(response, 'list="champion-team-options"')
+		self.assertContains(response, 'list="top-scorer-options"')
+		self.assertContains(response, "COL - Colombia")
+		self.assertContains(response, "Luis Díaz (COL)")
+
+	def test_creates_tournament_prediction_from_datalist_text_values(self):
+		self.client.login(username="global-user", password="secret123")
+
+		response = self.client.post(
+			reverse("tournament_prediction"),
+			{
+				"champion_team": "COL - Colombia",
+				"top_scorer": "Luis Díaz (COL)",
+			},
+		)
+
+		self.assertRedirects(response, reverse("tournament_prediction"))
+		prediction = TournamentPrediction.objects.get(user=self.user)
+		self.assertEqual(prediction.champion_team, self.team_a)
+		self.assertEqual(prediction.top_scorer, self.player_a)
+		self.assertEqual(prediction.top_scorer_name, "Luis Díaz")
+
+	def test_existing_tournament_prediction_cannot_be_modified(self):
 		TournamentPrediction.objects.create(
 			user=self.user,
 			champion_team=self.team_a,
-			top_scorer_name="Jugador Inicial",
+			top_scorer=self.player_a,
+			top_scorer_name="Luis Díaz",
 		)
 		self.client.login(username="global-user", password="secret123")
 
@@ -178,20 +210,22 @@ class TournamentPredictionViewTests(TestCase):
 			reverse("tournament_prediction"),
 			{
 				"champion_team": self.team_b.id,
-				"top_scorer_name": "Vinicius Jr",
+				"top_scorer": self.player_b.id,
 			},
 		)
 
 		self.assertRedirects(response, reverse("tournament_prediction"))
 		self.assertEqual(TournamentPrediction.objects.filter(user=self.user).count(), 1)
 		prediction = TournamentPrediction.objects.get(user=self.user)
-		self.assertEqual(prediction.champion_team, self.team_b)
-		self.assertEqual(prediction.top_scorer_name, "Vinicius Jr")
+		self.assertEqual(prediction.champion_team, self.team_a)
+		self.assertEqual(prediction.top_scorer, self.player_a)
+		self.assertEqual(prediction.top_scorer_name, "Luis Díaz")
 
 	def test_shows_existing_prediction(self):
 		TournamentPrediction.objects.create(
 			user=self.user,
 			champion_team=self.team_a,
+			top_scorer=self.player_a,
 			top_scorer_name="Luis Díaz",
 		)
 		self.client.login(username="global-user", password="secret123")
@@ -201,6 +235,12 @@ class TournamentPredictionViewTests(TestCase):
 		self.assertEqual(response.status_code, 200)
 		self.assertContains(response, "Colombia")
 		self.assertContains(response, "Luis Díaz")
+		self.assertContains(response, "Bandera CO")
+		self.assertContains(response, "players/luis-diaz.png")
+		self.assertContains(response, "no se puede modificar")
+		self.assertNotContains(response, "Tu elección actual")
+		self.assertNotContains(response, "Guardar pronóstico")
+		self.assertNotContains(response, "Editar pronóstico")
 
 
 class MyPredictionsViewTests(TestCase):
@@ -208,8 +248,9 @@ class MyPredictionsViewTests(TestCase):
 	def setUp(self):
 		self.user = User.objects.create_user(username="viewer", password="secret123")
 		self.client.login(username="viewer", password="secret123")
-		self.team_a = Team.objects.create(name="Alpha", code="ALP")
-		self.team_b = Team.objects.create(name="Bravo", code="BRV")
+		self.team_a = Team.objects.create(name="Alpha", code="ALP", country_code="CO")
+		self.team_b = Team.objects.create(name="Bravo", code="BRV", country_code="BR")
+		self.player_a = Player.objects.create(name="Jugador Alpha", team=self.team_a, photo="players/jugador-alpha.png")
 
 	def _create_prediction(
 		self,
@@ -247,6 +288,37 @@ class MyPredictionsViewTests(TestCase):
 		items = list(response.context["predictions"])
 		self.assertEqual(items[0].id, newer.id)
 		self.assertEqual(items[1].id, older.id)
+
+	def test_my_predictions_shows_user_tournament_prediction(self):
+		TournamentPrediction.objects.create(
+			user=self.user,
+			champion_team=self.team_a,
+			top_scorer=self.player_a,
+			top_scorer_name="Jugador Alpha",
+		)
+
+		response = self.client.get(reverse("my_predictions"))
+
+		self.assertEqual(response.status_code, 200)
+		self.assertEqual(response.context["tournament_prediction"].champion_team, self.team_a)
+		self.assertContains(response, "Mi campeón y goleador")
+		self.assertContains(response, "Campeón elegido")
+		self.assertContains(response, "Goleador elegido")
+		self.assertContains(response, "Alpha")
+		self.assertContains(response, "Jugador Alpha")
+		self.assertContains(response, "Bandera CO")
+		self.assertContains(response, "players/jugador-alpha.png")
+		self.assertContains(response, "no se puede modificar")
+		self.assertNotContains(response, "Crear elección")
+
+	def test_my_predictions_links_to_create_tournament_prediction_when_missing(self):
+		response = self.client.get(reverse("my_predictions"))
+
+		self.assertEqual(response.status_code, 200)
+		self.assertIsNone(response.context["tournament_prediction"])
+		self.assertContains(response, "Aún no has elegido campeón y goleador del mundial")
+		self.assertContains(response, "Crear elección")
+		self.assertContains(response, reverse("tournament_prediction"))
 
 	def test_my_predictions_is_paginated(self):
 		for index in range(11):
@@ -452,9 +524,11 @@ class AllPredictionsViewTests(TestCase):
 		self.user = User.objects.create_user(username="all-viewer", password="secret123")
 		self.other_user = User.objects.create_user(username="other-viewer", password="secret123")
 		self.client.login(username="all-viewer", password="secret123")
-		self.colombia = Team.objects.create(name="Colombia", code="COL", country_code="")
-		self.brasil = Team.objects.create(name="Brasil", code="BRA", country_code="")
+		self.colombia = Team.objects.create(name="Colombia", code="COL", country_code="CO")
+		self.brasil = Team.objects.create(name="Brasil", code="BRA", country_code="BR")
 		self.argentina = Team.objects.create(name="Argentina", code="ARG", country_code="AR")
+		self.luis_diaz = Player.objects.create(name="Luis Díaz", team=self.colombia, photo="players/luis-diaz.png")
+		self.vinicius = Player.objects.create(name="Vinicius Jr", team=self.brasil, photo="players/vinicius.png")
 
 	def _prediction(self, *, user=None, kickoff_at=None, phase="PR", points=0, finished=False, home_team=None, away_team=None):
 		match = Match.objects.create(
@@ -487,8 +561,11 @@ class AllPredictionsViewTests(TestCase):
 		self.assertEqual(response.status_code, 200)
 		self.assertContains(response, "Del día")
 		self.assertContains(response, "Histórico")
+		self.assertContains(response, "Campeón y goleador")
 		self.assertContains(response, "Final:")
 		self.assertContains(response, "Final")
+		self.assertContains(response, "badge text-bg-secondary")
+		self.assertContains(response, 'text-secondary"></i>Final:')
 		self.assertContains(response, "5 pts")
 		self.assertContains(response, "col-lg-6")
 		groups = list(response.context["today_grouped"])
@@ -525,6 +602,33 @@ class AllPredictionsViewTests(TestCase):
 		self.assertEqual(items[0].id, wanted.id)
 		self.assertTrue(response.context["history_active"])
 
+	def test_all_predictions_historical_filters_by_user(self):
+		wanted = self._prediction(
+			user=self.other_user,
+			kickoff_at=timezone.now() - timedelta(days=2),
+			points=5,
+		)
+		self._prediction(
+			user=self.user,
+			kickoff_at=timezone.now() - timedelta(days=1),
+			points=2,
+		)
+
+		response = self.client.get(
+			reverse("all_predictions"),
+			{"tab": "history", "user": str(self.other_user.id)},
+		)
+
+		self.assertEqual(response.status_code, 200)
+		self.assertContains(response, 'name="user"')
+		self.assertContains(response, "Todos los usuarios")
+		self.assertContains(response, self.other_user.username)
+		self.assertEqual(response.context["selected_user_id"], self.other_user.id)
+		items = list(response.context["historical_predictions"])
+		self.assertEqual(len(items), 1)
+		self.assertEqual(items[0].id, wanted.id)
+		self.assertTrue(response.context["history_active"])
+
 	def test_all_predictions_historical_is_paginated_and_preserves_filters(self):
 		for index in range(11):
 			self._prediction(
@@ -535,13 +639,13 @@ class AllPredictionsViewTests(TestCase):
 				away_team=self.brasil,
 			)
 
-		response = self.client.get(reverse("all_predictions"), {"country": "COL", "phase": "PR", "points": "0"})
+		response = self.client.get(reverse("all_predictions"), {"country": "COL", "phase": "PR", "points": "0", "user": str(self.user.id)})
 
 		self.assertEqual(response.status_code, 200)
 		self.assertTrue(response.context["history_is_paginated"])
 		self.assertEqual(len(response.context["historical_predictions"]), 10)
 		self.assertEqual(response.context["history_page_obj"].number, 1)
-		self.assertContains(response, "?country=COL&amp;phase=PR&amp;points=0&amp;page=2")
+		self.assertContains(response, f"?country=COL&amp;phase=PR&amp;points=0&amp;user={self.user.id}&amp;page=2")
 
 	def test_all_predictions_keeps_history_tab_active_without_filters(self):
 		for index in range(11):
@@ -561,6 +665,48 @@ class AllPredictionsViewTests(TestCase):
 		self.assertEqual(response.status_code, 200)
 		self.assertContains(response, "Pronósticos")
 		self.assertContains(response, "Pronósticos del día e histórico general")
+
+	def test_all_predictions_tournament_tab_shows_champion_and_top_scorer_choices(self):
+		TournamentPrediction.objects.create(
+			user=self.user,
+			champion_team=self.colombia,
+			top_scorer=self.luis_diaz,
+			top_scorer_name="Luis Díaz",
+		)
+		TournamentPrediction.objects.create(
+			user=self.other_user,
+			champion_team=self.brasil,
+			top_scorer=self.vinicius,
+			top_scorer_name="Vinicius Jr",
+		)
+
+		response = self.client.get(reverse("all_predictions"), {"tab": "tournament"})
+
+		self.assertEqual(response.status_code, 200)
+		self.assertEqual(response.context["active_tab"], "tournament")
+		self.assertTrue(response.context["tournament_active"])
+		self.assertContains(response, "Campeón y goleador")
+		self.assertContains(response, "Campeón y goleador elegidos")
+		self.assertContains(response, "Campeón elegido")
+		self.assertContains(response, "Goleador elegido")
+		self.assertContains(response, "Colombia")
+		self.assertContains(response, "Brasil")
+		self.assertContains(response, "Luis Díaz")
+		self.assertContains(response, "Vinicius Jr")
+		self.assertContains(response, "Bandera CO")
+		self.assertContains(response, "Bandera BR")
+		self.assertContains(response, "players/luis-diaz.png")
+		self.assertContains(response, "players/vinicius.png")
+		self.assertContains(response, reverse("tournament_prediction"))
+		self.assertEqual(list(response.context["tournament_predictions"]), list(TournamentPrediction.objects.all()))
+
+	def test_all_predictions_tournament_tab_shows_empty_state(self):
+		response = self.client.get(reverse("all_predictions"), {"tab": "tournament"})
+
+		self.assertEqual(response.status_code, 200)
+		self.assertEqual(response.context["active_tab"], "tournament")
+		self.assertContains(response, "Aún no hay pronósticos de campeón y goleador para mostrar")
+		self.assertContains(response, "Crear mi elección")
 
 
 class ScoreCalculatorTests(TestCase):

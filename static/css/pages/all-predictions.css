@@ -25,3 +25,32 @@
     border-top: 1px solid var(--border-color);
     padding: 0.75rem 1rem;
 }
+
+.predictions-tabs {
+    gap: 0.35rem;
+    overflow-x: auto;
+    overflow-y: hidden;
+    flex-wrap: nowrap;
+    padding-bottom: 0.35rem;
+}
+
+.predictions-tabs .nav-link {
+    white-space: nowrap;
+}
+
+.tournament-predictions-card .card-header {
+    padding: 0.85rem 1rem;
+}
+
+.tournament-champion-team {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+}
+
+@media (max-width: 576px) {
+    .tournament-predictions-table {
+        min-width: 720px;
+    }
+}
+

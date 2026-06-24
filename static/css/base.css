@@ -353,6 +353,44 @@ body {
     background: linear-gradient(135deg, rgba(255, 255, 255, 0.98), rgba(245, 247, 250, 0.98));
 }
 
+.top-scorer-display {
+    align-items: center;
+    display: inline-flex;
+    gap: 0.55rem;
+}
+
+.top-scorer-display--centered {
+    flex-direction: column;
+    justify-content: center;
+}
+
+.top-scorer-photo {
+    border: 2px solid var(--mundial-gold);
+    border-radius: 50%;
+    box-shadow: 0 4px 12px rgba(15, 27, 46, 0.18);
+    flex-shrink: 0;
+    height: 56px;
+    object-fit: cover;
+    width: 56px;
+}
+
+.top-scorer-photo--sm {
+    height: 38px;
+    width: 38px;
+}
+
+.top-scorer-photo--fallback {
+    align-items: center;
+    background: var(--mundial-blue);
+    color: #fff;
+    display: inline-flex;
+    justify-content: center;
+}
+
+.tournament-team-flag .d-inline-flex {
+    justify-content: center;
+}
+
 /* ===== CONTENEDOR PRINCIPAL ===== */
 .app-shell {
     padding-top: 2rem;
@@ -881,6 +919,13 @@ h2 {
 .small {
     font-size: 0.85rem;
     color: #6B7280;
+}
+
+.card-header .text-muted,
+.card-header small,
+.card-header .small {
+    color: #263B5E !important;
+    font-weight: 700;
 }
 
 hr {

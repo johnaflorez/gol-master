@@ -17,7 +17,7 @@ document.addEventListener('DOMContentLoaded', function () {
         }
 
         if (match.status === "FT") {
-            statusEl.className = "badge text-bg-dark";
+            statusEl.className = "badge text-bg-secondary";
             statusEl.innerHTML = `<i class="fas fa-check-circle me-1"></i>${match.home_score} - ${match.away_score}`;
             minuteEl.textContent = "";
         } else if (match.status === "HT") {

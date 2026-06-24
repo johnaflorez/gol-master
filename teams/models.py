@@ -41,3 +41,20 @@ class Team(models.Model):
             return ""
         return "".join(chr(0x1F1E6 + ord(c) - ord("A")) for c in self.country_code.upper())
 
+
+class Player(models.Model):
+    team = models.ForeignKey(Team, related_name="players", on_delete=models.CASCADE)
+    name = models.CharField(max_length=120)
+    photo = models.ImageField(upload_to="players/", blank=True, null=True, help_text="Imagen del jugador")
+    active = models.BooleanField(default=True, help_text="Disponible para elegir como goleador")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["team__name", "name"]
+        unique_together = ("team", "name")
+
+    def __str__(self):
+        return f"{self.name} ({self.team.code})"
+
+

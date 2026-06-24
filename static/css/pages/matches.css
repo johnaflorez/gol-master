@@ -61,6 +61,25 @@
 
 .group-standings-table {
     font-size: 0.84rem;
+    min-width: 620px;
+    table-layout: fixed;
+    width: 100%;
+}
+
+.group-standings-col-team {
+    width: 36%;
+}
+
+.group-standings-col-stat {
+    width: 7.5%;
+}
+
+.group-standings-col-diff {
+    width: 9%;
+}
+
+.group-standings-col-points {
+    width: 10%;
 }
 
 .group-standings-table .group-standings-head th {
@@ -73,17 +92,14 @@
     white-space: nowrap;
 }
 
-.group-standings-table .group-standings-head th:first-child {
-    min-width: 10rem;
-}
-
 .group-standings-table td,
 .group-standings-table th {
     padding: 0.5rem 0.45rem;
 }
 
 .group-standing-team {
-    min-width: 9rem;
+    min-width: 0;
+    overflow: hidden;
 }
 
 .group-standing-team img {
@@ -95,6 +111,16 @@
 
 .group-standing-team .d-inline-flex {
     gap: 0.4rem !important;
+    max-width: 100%;
+    min-width: 0;
+}
+
+.group-standing-team .d-inline-flex span {
+    display: inline-block;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 @media (max-width: 575.98px) {

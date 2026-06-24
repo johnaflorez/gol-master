@@ -201,6 +201,8 @@ class MatchListViewTests(TestCase):
         self.assertContains(response, "primera, segunda y tercera ronda")
         self.assertContains(response, 'name="group"')
         self.assertContains(response, 'name="country"')
+        self.assertContains(response, "group-standings-col-team")
+        self.assertContains(response, "group-standings-col-stat")
         self.assertContains(response, "Grupo A")
         self.assertContains(response, "Selecci&oacute;n")
         self.assertContains(response, "Bandera CO")

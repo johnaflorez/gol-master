@@ -17,8 +17,15 @@ class PredictionAdmin(admin.ModelAdmin):
 
 @admin.register(TournamentPrediction)
 class TournamentPredictionAdmin(admin.ModelAdmin):
-    list_display = ("user", "champion_team", "top_scorer_name", "updated_at")
-    list_filter = ("champion_team",)
-    search_fields = ("user__username", "user__first_name", "user__last_name", "champion_team__name", "top_scorer_name")
-    autocomplete_fields = ("user", "champion_team")
+    list_display = ("user", "champion_team", "top_scorer", "updated_at")
+    list_filter = ("champion_team", "top_scorer__team")
+    search_fields = (
+        "user__username",
+        "user__first_name",
+        "user__last_name",
+        "champion_team__name",
+        "top_scorer__name",
+        "top_scorer_name",
+    )
+    autocomplete_fields = ("user", "champion_team", "top_scorer")
 

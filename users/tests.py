@@ -1,15 +1,23 @@
 import shutil
 import tempfile
 from io import BytesIO
+from datetime import timedelta
+from io import StringIO
 from unittest.mock import patch
 
 from django.contrib.auth.models import User
+from django.core.management import call_command
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, override_settings
 from django.urls import reverse
+from django.utils import timezone
 from PIL import Image
 
-from users.models import UserProfile
+from matches.models import Match
+from predictions.models import Prediction
+from teams.models import Team
+from users.models import UserProfile, WhatsAppReminderLog
+from users.services.whatsapp_reminders import MorningWhatsAppReminderService
 
 
 def make_image_file(name="avatar.png", image_format="PNG", content_type="image/png"):
@@ -176,5 +184,142 @@ class UserProfileUpdateViewTests(TestCase):
 
 		self.assertEqual(response.status_code, 200)
 		self.assertNotContains(response, "data-avatar-url=")
+
+	def test_profile_update_saves_whatsapp_opt_in(self):
+		response = self.client.post(
+			reverse("profile_edit"),
+			{
+				"bio": "Quiero recordatorios",
+				"whatsapp_phone_number": "+573001234567",
+				"whatsapp_notifications_enabled": "on",
+			},
+		)
+
+		profile = UserProfile.objects.get(user=self.user)
+		self.assertRedirects(response, reverse("dashboard"))
+		self.assertEqual(profile.whatsapp_phone_number, "+573001234567")
+		self.assertTrue(profile.whatsapp_notifications_enabled)
+		self.assertIsNotNone(profile.whatsapp_opt_in_at)
+
+	def test_profile_update_requires_phone_when_whatsapp_enabled(self):
+		response = self.client.post(
+			reverse("profile_edit"),
+			{
+				"bio": "Sin telefono",
+				"whatsapp_notifications_enabled": "on",
+			},
+		)
+
+		self.assertEqual(response.status_code, 200)
+		self.assertContains(response, "Ingresa tu número de WhatsApp")
+
+	def test_profile_update_rejects_invalid_whatsapp_phone(self):
+		response = self.client.post(
+			reverse("profile_edit"),
+			{
+				"bio": "Telefono invalido",
+				"whatsapp_phone_number": "3001234567",
+				"whatsapp_notifications_enabled": "on",
+			},
+		)
+
+		self.assertEqual(response.status_code, 200)
+		self.assertContains(response, "formato internacional")
+
+
+class FakeWhatsAppClient:
+
+	def __init__(self):
+		self.calls = []
+
+	def send_template(self, **kwargs):
+		self.calls.append(kwargs)
+
+		class Result:
+			provider_message_id = "wamid.test"
+
+		return Result()
+
+
+class WhatsAppMorningReminderServiceTests(TestCase):
+
+	def setUp(self):
+		self.user = User.objects.create_user(username="whatsapp-user", first_name="Ana", password="secret123")
+		self.other_user = User.objects.create_user(username="other-user", password="secret123")
+		self.team_a = Team.objects.create(name="Colombia", code="COL")
+		self.team_b = Team.objects.create(name="Brasil", code="BRA")
+		UserProfile.objects.create(
+			user=self.user,
+			whatsapp_phone_number="+573001234567",
+			whatsapp_notifications_enabled=True,
+			whatsapp_opt_in_at=timezone.now(),
+		)
+		UserProfile.objects.create(
+			user=self.other_user,
+			whatsapp_phone_number="+573009999999",
+			whatsapp_notifications_enabled=True,
+			whatsapp_opt_in_at=timezone.now(),
+		)
+
+	def _match(self, *, hours_offset=3):
+		kickoff_at = timezone.now() + timedelta(hours=hours_offset)
+		return Match.objects.create(
+			home_team=self.team_a,
+			away_team=self.team_b,
+			kickoff_at=kickoff_at,
+			finished=False,
+		), timezone.localdate(kickoff_at)
+
+	def test_service_dry_run_logs_only_users_with_pending_predictions(self):
+		match, reminder_date = self._match()
+		Prediction.objects.create(
+			user=self.other_user,
+			match=match,
+			predicted_home_score=1,
+			predicted_away_score=0,
+		)
+
+		summary = MorningWhatsAppReminderService(client=FakeWhatsAppClient()).run(
+			reminder_date=reminder_date,
+			dry_run=True,
+		)
+
+		self.assertEqual(summary.users_checked, 2)
+		self.assertEqual(summary.dry_run, 1)
+		self.assertEqual(summary.skipped, 1)
+		log = WhatsAppReminderLog.objects.get(user=self.user)
+		self.assertEqual(log.status, WhatsAppReminderLog.STATUS_DRY_RUN)
+		self.assertEqual(log.pending_match_count, 1)
+		self.assertEqual(log.phone_number, "+573001234567")
+		self.assertFalse(WhatsAppReminderLog.objects.filter(user=self.other_user).exists())
+
+	def test_service_sends_template_and_prevents_duplicate_sent_reminders(self):
+		match, reminder_date = self._match()
+		client = FakeWhatsAppClient()
+
+		first_summary = MorningWhatsAppReminderService(client=client).run(reminder_date=reminder_date)
+		second_summary = MorningWhatsAppReminderService(client=client).run(reminder_date=reminder_date)
+
+		self.assertEqual(first_summary.sent, 2)
+		self.assertEqual(second_summary.skipped, 2)
+		self.assertEqual(len(client.calls), 2)
+		ana_call = next(call for call in client.calls if call["to"] == "+573001234567")
+		self.assertEqual(ana_call["body_parameters"][0], "Ana")
+		self.assertEqual(ana_call["body_parameters"][1], 1)
+		self.assertEqual(WhatsAppReminderLog.objects.filter(status=WhatsAppReminderLog.STATUS_SENT).count(), 2)
+
+	def test_management_command_supports_dry_run(self):
+		match, reminder_date = self._match()
+		stdout = StringIO()
+
+		call_command(
+			"send_whatsapp_morning_reminders",
+			f"--date={reminder_date.isoformat()}",
+			"--dry-run",
+			stdout=stdout,
+		)
+
+		self.assertIn("Recordatorios WhatsApp procesados", stdout.getvalue())
+		self.assertEqual(WhatsAppReminderLog.objects.filter(status=WhatsAppReminderLog.STATUS_DRY_RUN).count(), 2)
 
 

@@ -2,7 +2,7 @@ from django.db import models
 from django.contrib.auth.models import User
 
 from matches.models import Match
-from teams.models import Team
+from teams.models import Player, Team
 
 
 class Prediction(models.Model):
@@ -21,7 +21,14 @@ class Prediction(models.Model):
 class TournamentPrediction(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="tournament_prediction")
     champion_team = models.ForeignKey(Team, on_delete=models.PROTECT, related_name="champion_predictions")
-    top_scorer_name = models.CharField(max_length=120)
+    top_scorer = models.ForeignKey(
+        Player,
+        on_delete=models.PROTECT,
+        related_name="top_scorer_predictions",
+        blank=True,
+        null=True,
+    )
+    top_scorer_name = models.CharField(max_length=120, blank=True, default="")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -29,5 +36,10 @@ class TournamentPrediction(models.Model):
         ordering = ("user__username",)
 
     def __str__(self):
-        return f"{self.user.username}: {self.champion_team} / {self.top_scorer_name}"
+        return f"{self.user.username}: {self.champion_team} / {self.get_top_scorer_name()}"
+
+    def get_top_scorer_name(self):
+        if self.top_scorer_id:
+            return self.top_scorer.name
+        return self.top_scorer_name
 
