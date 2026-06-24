@@ -2,6 +2,7 @@ from django.db import models
 from django.contrib.auth.models import User
 
 from matches.models import Match
+from teams.models import Team
 
 
 class Prediction(models.Model):
@@ -15,3 +16,18 @@ class Prediction(models.Model):
 
     class Meta:
         unique_together = ("user", "match")
+
+
+class TournamentPrediction(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="tournament_prediction")
+    champion_team = models.ForeignKey(Team, on_delete=models.PROTECT, related_name="champion_predictions")
+    top_scorer_name = models.CharField(max_length=120)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ("user__username",)
+
+    def __str__(self):
+        return f"{self.user.username}: {self.champion_team} / {self.top_scorer_name}"
+

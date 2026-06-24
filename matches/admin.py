@@ -22,6 +22,7 @@ class MatchAdmin(admin.ModelAdmin):
         "live_minute",
         "phase",
         "api_football_fixture_id",
+        "football_data_match_id",
         "kickoff_at",
         "finished"
     )
@@ -30,7 +31,7 @@ class MatchAdmin(admin.ModelAdmin):
         "home_team",
         "away_team",
     ]
-    search_fields = ("home_team__name", "away_team__name", "api_football_fixture_id")
+    search_fields = ("home_team__name", "away_team__name", "api_football_fixture_id", "football_data_match_id")
     actions = [finish_matches]
 
 

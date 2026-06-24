@@ -1,5 +1,6 @@
 from urllib.parse import urlencode
 
+from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.paginator import Paginator
 from django.db.models import Count, F, Q, Sum
@@ -9,8 +10,8 @@ from django.views import View
 from django.views.generic import FormView, ListView, TemplateView
 
 from matches.models import Match
-from predictions.forms import PredictionForm
-from predictions.models import Prediction
+from predictions.forms import PredictionForm, TournamentPredictionForm
+from predictions.models import Prediction, TournamentPrediction
 from teams.models import Team
 
 
@@ -292,6 +293,36 @@ class PredictionDashboardView(LoginRequiredMixin, TemplateView):
             }
         )
         return context
+
+
+class TournamentPredictionView(LoginRequiredMixin, FormView):
+    template_name = "predictions/tournament_prediction.html"
+    form_class = TournamentPredictionForm
+
+    def get_success_url(self):
+        return self.request.path
+
+    def _get_prediction(self):
+        return TournamentPrediction.objects.filter(user=self.request.user).select_related("champion_team").first()
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        prediction = self._get_prediction()
+        if prediction:
+            kwargs["instance"] = prediction
+        return kwargs
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["tournament_prediction"] = self._get_prediction()
+        return context
+
+    def form_valid(self, form):
+        prediction = form.save(commit=False)
+        prediction.user = self.request.user
+        prediction.save()
+        messages.success(self.request, "Tu pronóstico del campeón y goleador fue guardado.")
+        return super().form_valid(form)
 
 
 class AllPredictionsView(LoginRequiredMixin, TemplateView):

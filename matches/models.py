@@ -1,4 +1,5 @@
 from django.db import models
+from django.utils import timezone
 
 from teams.models import Team
 
@@ -28,6 +29,7 @@ class Match(models.Model):
     home_score = models.IntegerField(default=0)
     away_score = models.IntegerField(default=0)
     finished = models.BooleanField(default=False)
+    finished_at = models.DateTimeField(blank=True, null=True)
     points_calculated = models.BooleanField(default=False)
     phase = models.CharField(max_length=2, choices=PHASE_CHOICES, default='PR')
     live_status = models.CharField(max_length=5, choices=LIVE_STATUS_CHOICES, default="NS")
@@ -39,9 +41,41 @@ class Match(models.Model):
         unique=True,
         help_text="ID externo del fixture en API-Football/API-SPORTS",
     )
+    football_data_match_id = models.PositiveIntegerField(
+        blank=True,
+        null=True,
+        unique=True,
+        help_text="ID externo del partido en football-data.org",
+    )
 
     def __str__(self):
         return f"{self.home_team} vs {self.away_team}"
+
+    def save(self, *args, **kwargs):
+        update_fields = kwargs.get("update_fields")
+        should_touch_finished_at = False
+
+        if self.pk:
+            previous = Match.objects.filter(pk=self.pk).values("finished", "finished_at").first()
+        else:
+            previous = None
+
+        if self.finished:
+            if not previous or not previous["finished"]:
+                if not self.finished_at:
+                    self.finished_at = timezone.now()
+                    should_touch_finished_at = True
+            elif previous["finished_at"] and not self.finished_at:
+                self.finished_at = previous["finished_at"]
+                should_touch_finished_at = True
+        elif self.finished_at:
+            self.finished_at = None
+            should_touch_finished_at = True
+
+        if should_touch_finished_at and update_fields is not None:
+            kwargs["update_fields"] = list(dict.fromkeys([*update_fields, "finished_at"]))
+
+        super().save(*args, **kwargs)
 
     def finish_match(self, home_score, away_score):
         self.home_score = home_score

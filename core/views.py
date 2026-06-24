@@ -6,6 +6,7 @@ from django.views import View
 from django.views.generic import TemplateView
 
 from matches.models import Match
+from core.services.final_match_announcements import get_recent_final_match_announcements
 from predictions.models import Prediction
 from rankings.services.ranking_service import RankingService
 from stats.services.tournament_stats import TournamentStatsService
@@ -118,6 +119,7 @@ class DashboardLiveSnapshotView(LoginRequiredMixin, View):
             {
                 "server_time": now.isoformat(),
                 "matches": payload,
+                "final_match_announcements": get_recent_final_match_announcements(now=now),
             }
         )
 

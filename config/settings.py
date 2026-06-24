@@ -80,6 +80,7 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+                'core.context_processors.final_match_announcements',
             ],
         },
     },
@@ -195,6 +196,11 @@ CORS_ALLOW_CREDENTIALS = True
 API_FOOTBALL_KEY = os.environ.get('API_FOOTBALL_KEY', '')
 API_FOOTBALL_BASE_URL = os.environ.get('API_FOOTBALL_BASE_URL', 'https://v3.football.api-sports.io')
 API_FOOTBALL_TIMEOUT = int(os.environ.get('API_FOOTBALL_TIMEOUT', '15'))
+
+# football-data.org integration (fallback gratuito para marcadores/resultados; no incluye eventos)
+FOOTBALL_DATA_TOKEN = os.environ.get('FOOTBALL_DATA_TOKEN', '')
+FOOTBALL_DATA_BASE_URL = os.environ.get('FOOTBALL_DATA_BASE_URL', 'https://api.football-data.org/v4')
+FOOTBALL_DATA_TIMEOUT = int(os.environ.get('FOOTBALL_DATA_TIMEOUT', '15'))
 
 # Accept HTTPS form posts from Render/custom domains when DEBUG=False
 CSRF_TRUSTED_ORIGINS = _split_env_list(

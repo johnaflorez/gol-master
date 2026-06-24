@@ -308,6 +308,34 @@
         }
     }
 
+    function escapeHtml(value) {
+        const div = document.createElement("div");
+        div.textContent = value || "";
+        return div.innerHTML;
+    }
+
+    function renderFinalMatchAnnouncements(announcements) {
+        const container = document.getElementById("final-match-marquee-container");
+        if (!container) {
+            return;
+        }
+
+        if (!announcements || !announcements.length) {
+            container.classList.add("d-none");
+            container.innerHTML = "";
+            return;
+        }
+
+        container.classList.remove("d-none");
+        container.innerHTML = announcements.map((announcement) => `
+            <div class="final-match-marquee" data-match-id="${announcement.match_id}" data-finished-at="${escapeHtml(announcement.finished_at)}">
+                <div class="final-match-marquee__track">
+                    <span class="final-match-marquee__text">${escapeHtml(announcement.message)}</span>
+                </div>
+            </div>
+        `).join("");
+    }
+
     async function refreshLiveMatches() {
         try {
             const response = await fetch("{% url 'dashboard_live_snapshot' %}", {
@@ -322,6 +350,7 @@
 
             const payload = await response.json();
             (payload.matches || []).forEach(renderLiveStatus);
+            renderFinalMatchAnnouncements(payload.final_match_announcements || []);
         } catch (error) {
             // Keep UI stable if network requests fail intermittently.
             console.debug("Live refresh failed", error);

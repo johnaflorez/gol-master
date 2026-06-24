@@ -10,6 +10,7 @@ from django.utils import timezone
 
 from matches.models import Match, MatchEvent
 from matches.services.api_football import ApiFootballSyncResult, ApiFootballSyncService
+from matches.services.football_data import FootballDataSyncResult, FootballDataSyncService
 from teams.models import Team
 
 
@@ -154,6 +155,50 @@ class MatchListViewTests(TestCase):
         self.assertContains(response, 'value="CO"')
 
 
+class MatchFinishedAtTests(TestCase):
+
+    def setUp(self):
+        self.team_a = Team.objects.create(name="Equipo A", code="EQA")
+        self.team_b = Team.objects.create(name="Equipo B", code="EQB")
+
+    def _match(self, *, finished=False):
+        return Match.objects.create(
+            home_team=self.team_a,
+            away_team=self.team_b,
+            kickoff_at=timezone.now(),
+            finished=finished,
+        )
+
+    def test_finished_at_is_set_when_match_transitions_to_finished(self):
+        match = self._match(finished=False)
+        self.assertIsNone(match.finished_at)
+
+        match.finished = True
+        match.save()
+
+        match.refresh_from_db()
+        self.assertIsNotNone(match.finished_at)
+
+    def test_finished_at_is_not_reset_when_finished_match_is_saved_again(self):
+        match = self._match(finished=True)
+        original_finished_at = match.finished_at
+
+        match.home_score = 2
+        match.save()
+
+        match.refresh_from_db()
+        self.assertEqual(match.finished_at, original_finished_at)
+
+    def test_finished_at_is_cleared_when_match_is_unfinished(self):
+        match = self._match(finished=True)
+
+        match.finished = False
+        match.save()
+
+        match.refresh_from_db()
+        self.assertIsNone(match.finished_at)
+
+
 class FakeApiFootballClient:
     def __init__(self, fixture, events=None):
         self.fixture = fixture
@@ -275,6 +320,95 @@ class SyncApiFootballCommandTests(TestCase):
         call_command("sync_api_football", "--live", stdout=out)
 
         self.assertIn("API-Football sync OK", out.getvalue())
+        self.assertIn("checked=1", out.getvalue())
+
+
+class FakeFootballDataClient:
+    def __init__(self, fixture):
+        self.fixture = fixture
+
+    def get_match(self, match_id):
+        return self.fixture
+
+
+class FootballDataSyncServiceTests(TestCase):
+
+    def setUp(self):
+        self.team_a = Team.objects.create(name="Colombia", code="COL")
+        self.team_b = Team.objects.create(name="Brasil", code="BRA")
+
+    def _match(self, *, match_id=12345):
+        return Match.objects.create(
+            home_team=self.team_a,
+            away_team=self.team_b,
+            kickoff_at=timezone.now(),
+            football_data_match_id=match_id,
+        )
+
+    def test_sync_match_updates_scores_status_and_team_ids(self):
+        match = self._match()
+        fixture = {
+            "id": 12345,
+            "status": "IN_PLAY",
+            "homeTeam": {"id": 100, "name": "Colombia", "tla": "COL"},
+            "awayTeam": {"id": 200, "name": "Brasil", "tla": "BRA"},
+            "score": {"fullTime": {"home": 1, "away": 0}},
+        }
+
+        service = FootballDataSyncService(client=FakeFootballDataClient(fixture))
+        result = service.sync_match(match)
+
+        match.refresh_from_db()
+        self.team_a.refresh_from_db()
+        self.team_b.refresh_from_db()
+
+        self.assertEqual(result.checked, 1)
+        self.assertEqual(result.updated, 1)
+        self.assertEqual(match.live_status, "LIVE")
+        self.assertFalse(match.finished)
+        self.assertEqual(match.home_score, 1)
+        self.assertEqual(match.away_score, 0)
+        self.assertEqual(self.team_a.football_data_team_id, 100)
+        self.assertEqual(self.team_b.football_data_team_id, 200)
+
+    def test_sync_match_marks_finished(self):
+        match = self._match()
+        fixture = {
+            "id": 12345,
+            "status": "FINISHED",
+            "homeTeam": {},
+            "awayTeam": {},
+            "score": {"fullTime": {"home": 2, "away": 1}},
+        }
+
+        service = FootballDataSyncService(client=FakeFootballDataClient(fixture))
+        service.sync_match(match)
+
+        match.refresh_from_db()
+        self.assertEqual(match.live_status, "FT")
+        self.assertTrue(match.finished)
+        self.assertEqual(match.home_score, 2)
+        self.assertEqual(match.away_score, 1)
+
+    def test_sync_match_skips_without_football_data_match_id(self):
+        match = self._match(match_id=None)
+        service = FootballDataSyncService(client=FakeFootballDataClient({}))
+
+        result = service.sync_match(match)
+
+        self.assertEqual(result.skipped, 1)
+
+
+class SyncFootballDataCommandTests(TestCase):
+
+    @patch("matches.management.commands.sync_football_data.FootballDataSyncService")
+    def test_command_prints_sync_summary(self, service_cls):
+        service_cls.return_value.sync_queryset.return_value = FootballDataSyncResult(checked=1, updated=1)
+        out = StringIO()
+
+        call_command("sync_football_data", "--live", stdout=out)
+
+        self.assertIn("football-data.org sync OK", out.getvalue())
         self.assertIn("checked=1", out.getvalue())
 
 

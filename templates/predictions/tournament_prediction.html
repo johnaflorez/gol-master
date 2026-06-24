@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+
+{% block title %}Pronóstico del campeón y goleador{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-between flex-wrap gap-3 mb-4">
+    <div>
+        <h2 class="page-title mb-1">
+            <i class="fas fa-trophy me-2 text-warning"></i>Pronóstico del Mundial
+        </h2>
+        <p class="text-muted mb-0">Elige tu selección campeona y quién crees que será el goleador del torneo.</p>
+    </div>
+    <a href="{% url 'my_predictions' %}" class="btn btn-outline-primary btn-sm">
+        <i class="fas fa-list-check me-1"></i>Mis pronósticos
+    </a>
+</div>
+
+<div class="row g-4">
+    <div class="col-lg-7">
+        <div class="card h-100">
+            <div class="card-header d-flex align-items-center gap-2">
+                <i class="fas fa-pen-to-square"></i>
+                <span>{% if tournament_prediction %}Editar pronóstico{% else %}Crear pronóstico{% endif %}</span>
+            </div>
+            <div class="card-body">
+                <form method="post" novalidate>
+                    {% csrf_token %}
+
+                    {% if form.non_field_errors %}
+                        <div class="alert alert-danger">
+                            {{ form.non_field_errors }}
+                        </div>
+                    {% endif %}
+
+                    <div class="mb-4">
+                        <label for="{{ form.champion_team.id_for_label }}" class="form-label">
+                            <i class="fas fa-flag me-1"></i>{{ form.champion_team.label }}
+                        </label>
+                        {{ form.champion_team }}
+                        {% for error in form.champion_team.errors %}
+                            <div class="text-danger small mt-1">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+
+                    <div class="mb-4">
+                        <label for="{{ form.top_scorer_name.id_for_label }}" class="form-label">
+                            <i class="fas fa-futbol me-1"></i>{{ form.top_scorer_name.label }}
+                        </label>
+                        {{ form.top_scorer_name }}
+                        {% for error in form.top_scorer_name.errors %}
+                            <div class="text-danger small mt-1">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+
+                    <div class="d-flex align-items-center gap-2 flex-wrap">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save me-1"></i>Guardar pronóstico
+                        </button>
+                        <a href="{% url 'dashboard' %}" class="btn btn-secondary">
+                            <i class="fas fa-home me-1"></i>Volver al inicio
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-5">
+        <div class="card h-100">
+            <div class="card-header d-flex align-items-center gap-2">
+                <i class="fas fa-eye"></i>
+                <span>Tu elección actual</span>
+            </div>
+            <div class="card-body">
+                {% if tournament_prediction %}
+                    <div class="stat-box mb-3">
+                        <div class="stat-label">Campeón</div>
+                        <div class="stat-value" style="font-size: 1.7rem;">{{ tournament_prediction.champion_team.name }}</div>
+                        <div class="text-muted">{{ tournament_prediction.champion_team.code }}</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-label">Goleador</div>
+                        <div class="stat-value" style="font-size: 1.7rem;">{{ tournament_prediction.top_scorer_name }}</div>
+                    </div>
+                    <p class="small text-muted mt-3 mb-0">
+                        Última actualización: {{ tournament_prediction.updated_at|date:"d/m/Y H:i" }}
+                    </p>
+                {% else %}
+                    <div class="text-center py-4">
+                        <i class="fas fa-trophy text-warning" style="font-size: 3rem;"></i>
+                        <h5 class="mt-3">Aún no tienes pronóstico global</h5>
+                        <p class="text-muted mb-0">Guarda tu campeón y goleador antes de que avance el torneo.</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

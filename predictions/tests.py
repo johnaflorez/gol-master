@@ -6,7 +6,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 from matches.models import Match
-from predictions.models import Prediction
+from predictions.models import Prediction, TournamentPrediction
 from predictions.services.scoring import ScoreCalculator
 from teams.models import Team
 
@@ -136,6 +136,71 @@ class PredictionCreateViewTests(TestCase):
 		self.assertEqual(prediction_map[recent_related.id]["away"], 0)
 		self.assertEqual(prediction_map[recent_related.id]["points"], 2)
 		self.assertNotIn(older_related.id, prediction_map)
+
+
+class TournamentPredictionViewTests(TestCase):
+
+	def setUp(self):
+		self.user = User.objects.create_user(username="global-user", password="secret123")
+		self.team_a = Team.objects.create(name="Colombia", code="COL")
+		self.team_b = Team.objects.create(name="Brasil", code="BRA")
+
+	def test_requires_login(self):
+		response = self.client.get(reverse("tournament_prediction"))
+
+		self.assertEqual(response.status_code, 302)
+
+	def test_creates_tournament_prediction(self):
+		self.client.login(username="global-user", password="secret123")
+
+		response = self.client.post(
+			reverse("tournament_prediction"),
+			{
+				"champion_team": self.team_a.id,
+				"top_scorer_name": "Luis Díaz",
+			},
+		)
+
+		self.assertRedirects(response, reverse("tournament_prediction"))
+		prediction = TournamentPrediction.objects.get(user=self.user)
+		self.assertEqual(prediction.champion_team, self.team_a)
+		self.assertEqual(prediction.top_scorer_name, "Luis Díaz")
+
+	def test_edits_existing_tournament_prediction_without_creating_duplicate(self):
+		TournamentPrediction.objects.create(
+			user=self.user,
+			champion_team=self.team_a,
+			top_scorer_name="Jugador Inicial",
+		)
+		self.client.login(username="global-user", password="secret123")
+
+		response = self.client.post(
+			reverse("tournament_prediction"),
+			{
+				"champion_team": self.team_b.id,
+				"top_scorer_name": "Vinicius Jr",
+			},
+		)
+
+		self.assertRedirects(response, reverse("tournament_prediction"))
+		self.assertEqual(TournamentPrediction.objects.filter(user=self.user).count(), 1)
+		prediction = TournamentPrediction.objects.get(user=self.user)
+		self.assertEqual(prediction.champion_team, self.team_b)
+		self.assertEqual(prediction.top_scorer_name, "Vinicius Jr")
+
+	def test_shows_existing_prediction(self):
+		TournamentPrediction.objects.create(
+			user=self.user,
+			champion_team=self.team_a,
+			top_scorer_name="Luis Díaz",
+		)
+		self.client.login(username="global-user", password="secret123")
+
+		response = self.client.get(reverse("tournament_prediction"))
+
+		self.assertEqual(response.status_code, 200)
+		self.assertContains(response, "Colombia")
+		self.assertContains(response, "Luis Díaz")
 
 
 class MyPredictionsViewTests(TestCase):

@@ -52,4 +52,10 @@ services:
         value: "https://v3.football.api-sports.io"
       - key: API_FOOTBALL_TIMEOUT
         value: "15"
+      - key: FOOTBALL_DATA_TOKEN
+        sync: false
+      - key: FOOTBALL_DATA_BASE_URL
+        value: "https://api.football-data.org/v4"
+      - key: FOOTBALL_DATA_TIMEOUT
+        value: "15"
 

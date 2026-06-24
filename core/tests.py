@@ -90,6 +90,58 @@ class DashboardViewTests(TestCase):
 		self.assertContains(response, "En juego")
 		self.assertContains(response, "text-bg-success")
 
+	def test_dashboard_shows_final_match_marquee_for_exact_prediction(self):
+		match = self._create_match(timezone.now() - timedelta(hours=2))
+		match.home_score = 2
+		match.away_score = 1
+		match.finished = True
+		match.save()
+		Prediction.objects.create(
+			user=self.user,
+			match=match,
+			predicted_home_score=2,
+			predicted_away_score=1,
+		)
+
+		response = self.client.get(reverse("dashboard"))
+
+		self.assertEqual(response.status_code, 200)
+		self.assertContains(response, "final-match-marquee")
+		self.assertContains(response, "Felicitaciones")
+		self.assertContains(response, self.user.username)
+		self.assertContains(response, "2-1")
+
+	def test_dashboard_shows_final_match_marquee_without_exact_predictions(self):
+		match = self._create_match(timezone.now() - timedelta(hours=2))
+		match.home_score = 1
+		match.away_score = 1
+		match.finished = True
+		match.save()
+		Prediction.objects.create(
+			user=self.user,
+			match=match,
+			predicted_home_score=2,
+			predicted_away_score=1,
+		)
+
+		response = self.client.get(reverse("dashboard"))
+
+		self.assertEqual(response.status_code, 200)
+		self.assertContains(response, "No hubo ningún acierto exacto")
+
+	def test_dashboard_does_not_show_expired_final_match_marquee(self):
+		match = self._create_match(timezone.now() - timedelta(hours=2))
+		match.home_score = 1
+		match.away_score = 0
+		match.finished = True
+		match.save()
+		Match.objects.filter(id=match.id).update(finished_at=timezone.now() - timedelta(minutes=6))
+
+		response = self.client.get(reverse("dashboard"))
+
+		self.assertEqual(response.status_code, 200)
+		self.assertNotContains(response, "No hubo ningún acierto exacto")
+
 	def test_live_snapshot_requires_login(self):
 		self.client.logout()
 

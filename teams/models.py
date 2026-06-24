@@ -14,6 +14,12 @@ class Team(models.Model):
         unique=True,
         help_text="ID externo del equipo en API-Football/API-SPORTS",
     )
+    football_data_team_id = models.PositiveIntegerField(
+        blank=True,
+        null=True,
+        unique=True,
+        help_text="ID externo del equipo en football-data.org",
+    )
 
     def __str__(self):
         return self.name
