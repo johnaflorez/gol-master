@@ -6,6 +6,7 @@ from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
 
+from core.models import Suggestion
 from matches.models import Match, MatchEvent
 from predictions.models import Prediction
 from teams.models import Team
@@ -180,4 +181,76 @@ class DashboardViewTests(TestCase):
 		self.assertEqual(first["away_score"], 0)
 		self.assertEqual(len(first["events"]), 1)
 		self.assertIn("Gol", first["events"][0]["text"])
+
+
+class SuggestionViewTests(TestCase):
+
+	def setUp(self):
+		self.user = User.objects.create_user(username="suggestion-user", password="secret123")
+		self.superuser = User.objects.create_superuser(username="suggestion-admin", password="secret123")
+
+	def test_suggestion_create_requires_login(self):
+		response = self.client.get(reverse("suggestion_create"))
+
+		self.assertEqual(response.status_code, 302)
+
+	def test_authenticated_user_can_create_suggestion(self):
+		self.client.login(username="suggestion-user", password="secret123")
+
+		response = self.client.post(
+			reverse("suggestion_create"),
+			{"message": "Agregar modo oscuro para ver mejor en la noche."},
+		)
+
+		self.assertRedirects(response, reverse("suggestion_create"))
+		self.assertTrue(
+			Suggestion.objects.filter(
+				user=self.user,
+				message="Agregar modo oscuro para ver mejor en la noche.",
+				is_resolved=False,
+			).exists()
+		)
+
+	def test_non_superuser_cannot_view_suggestion_list(self):
+		self.client.login(username="suggestion-user", password="secret123")
+
+		response = self.client.get(reverse("suggestion_list"))
+
+		self.assertEqual(response.status_code, 403)
+
+	def test_superuser_list_shows_only_pending_by_default(self):
+		pending = Suggestion.objects.create(user=self.user, message="Pendiente")
+		resolved = Suggestion.objects.create(user=self.user, message="Resuelta", is_resolved=True)
+		self.client.login(username="suggestion-admin", password="secret123")
+
+		response = self.client.get(reverse("suggestion_list"))
+
+		self.assertEqual(response.status_code, 200)
+		suggestions = list(response.context["suggestions"])
+		self.assertIn(pending, suggestions)
+		self.assertNotIn(resolved, suggestions)
+		self.assertContains(response, "Pendiente")
+		self.assertNotContains(response, "Resuelta")
+
+	def test_superuser_can_filter_resolved_suggestions(self):
+		Suggestion.objects.create(user=self.user, message="Pendiente")
+		resolved = Suggestion.objects.create(user=self.user, message="Resuelta", is_resolved=True)
+		self.client.login(username="suggestion-admin", password="secret123")
+
+		response = self.client.get(reverse("suggestion_list") + "?status=resolved")
+
+		self.assertEqual(response.status_code, 200)
+		suggestions = list(response.context["suggestions"])
+		self.assertEqual(suggestions, [resolved])
+
+	def test_superuser_can_mark_suggestion_as_resolved(self):
+		suggestion = Suggestion.objects.create(user=self.user, message="Revisar colores")
+		self.client.login(username="suggestion-admin", password="secret123")
+
+		response = self.client.post(reverse("suggestion_resolve", args=[suggestion.id]))
+
+		self.assertRedirects(response, reverse("suggestion_list"))
+		suggestion.refresh_from_db()
+		self.assertTrue(suggestion.is_resolved)
+
 

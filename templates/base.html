@@ -835,6 +835,24 @@
                         <i class="fas fa-trophy me-2"></i>Campeón y goleador
                     </a>
                 </li>
+
+                {% if request.user.is_authenticated %}
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.resolver_match.url_name == 'suggestion_create' %}active{% endif %}"
+                           href="{% url 'suggestion_create' %}" title="Enviar sugerencia de mejora">
+                            <i class="fas fa-lightbulb me-2"></i>Sugerencias
+                        </a>
+                    </li>
+                {% endif %}
+
+                {% if request.user.is_superuser %}
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.resolver_match.url_name == 'suggestion_list' %}active{% endif %}"
+                           href="{% url 'suggestion_list' %}" title="Revisar sugerencias pendientes">
+                            <i class="fas fa-inbox me-2"></i>Buzón
+                        </a>
+                    </li>
+                {% endif %}
             </ul>
 
             <!-- RIGHT USER SECTION -->
