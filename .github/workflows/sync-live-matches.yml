@@ -1,0 +1,40 @@
+name: Sync live matches
+
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+
+jobs:
+  sync-live-matches:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    env:
+      DEBUG: "False"
+      SECRET_KEY: "1b86bf5ba73092561af101fdf874a70d78a3525b793cbefe766933382409bcd3"
+      DATABASE_URL: "postgresql://postgres:CLMopy4hf5bFkOBg@db.tiuyybdabuiezbkpdzsb.supabase.co:5432/postgres"
+      API_FOOTBALL_KEY: "ecef34c455dfdc1a6e9b69f83199078a"
+      API_FOOTBALL_BASE_URL: "https://v3.football.api-sports.io"
+      API_FOOTBALL_TIMEOUT: "15"
+      ALLOWED_HOSTS: "localhost,127.0.0.1"
+      CSRF_TRUSTED_ORIGINS: "https://localhost"
+      USE_S3_MEDIA: "False"
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run live matches sync
+        run: |
+          python manage.py sync_live_matches --days-back 1 --days-forward 1 --verbosity 2
