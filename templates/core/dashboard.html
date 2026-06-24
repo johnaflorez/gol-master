@@ -6,101 +6,15 @@
 
 {% block title %}📊 Dashboard - Mundial Familiar 2026{% endblock %}
 
+{% block extra_css %}
+    <link rel="stylesheet" href="{% static 'css/pages/dashboard.css' %}">
+{% endblock %}
+
 {% block content %}
-    <style>
-        .dashboard-compact-header {
-            margin-bottom: 1rem;
-        }
-
-        .dashboard-compact .card {
-            margin-bottom: 1rem;
-        }
-
-        .dashboard-compact .card-body {
-            padding: 1rem;
-        }
-
-        .dashboard-ranking-item {
-            padding-top: 0.7rem !important;
-            padding-bottom: 0.7rem !important;
-        }
-
-        .dashboard-score-alert {
-            padding: 0.85rem 1rem;
-        }
-
-        .dashboard-score-alert .fw-semibold {
-            margin-bottom: 0.35rem !important;
-        }
-
-        .dashboard-score-alert ul {
-            line-height: 1.35;
-        }
-
-        .dashboard-ranking-link {
-            margin-top: 0.75rem !important;
-        }
-
-        .dashboard-stat-box {
-            padding: 1rem;
-        }
-
-        .dashboard-stat-box .stat-value {
-            font-size: 1.85rem;
-            margin: 0.25rem 0;
-        }
-
-        .dashboard-match-row {
-            padding-top: 0.75rem !important;
-            padding-bottom: 0.75rem !important;
-        }
-
-        .today-match-title {
-            font-size: 1.08rem;
-            font-weight: 700;
-            line-height: 1.3;
-        }
-
-        .today-phase-tag {
-            font-size: 0.72rem;
-            padding: 0.35em 0.55em;
-        }
-
-        .today-meta-left {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            flex-wrap: wrap;
-        }
-
-        .today-status-left .badge {
-            font-size: 0.78rem;
-            padding: 0.36em 0.62em;
-        }
-
-        .today-right-tags {
-            display: flex;
-            gap: 0.4rem;
-            align-items: center;
-            flex-wrap: wrap;
-            justify-content: flex-start;
-        }
-
-        .today-right-tags .badge {
-            font-size: 0.72rem;
-            padding: 0.32em 0.55em;
-        }
-
-        .today-right-tags .btn.btn-sm {
-            min-height: 34px;
-            padding: 0.36rem 0.7rem;
-            font-size: 0.76rem;
-        }
-    </style>
-
+    <div id="dashboard-live-config" data-live-snapshot-url="{% url 'dashboard_live_snapshot' %}" hidden></div>
     <div class="dashboard-compact-header">
         <h1 class="page-title mb-1">
-            <i class="fas fa-chart-line" style="color: var(--mundial-red);"></i> Dashboard del Torneo
+            <i class="fas fa-chart-line text-mundial-red"></i> Dashboard del Torneo
         </h1>
         <p class="text-muted mb-0">Bienvenido a tu panel de control - Seguimiento en tiempo real de los partidos y pronósticos</p>
     </div>
@@ -110,19 +24,19 @@
         <div class="col-lg-4 order-lg-1 order-2">
             <div class="card h-100">
                 <div class="card-header">
-                    <h5 class="mb-0"><i class="fas fa-medal me-2" style="color: var(--mundial-gold);"></i>Tabla de Posiciones</h5>
+                    <h5 class="mb-0"><i class="fas fa-medal me-2 text-mundial-gold"></i>Tabla de Posiciones</h5>
                 </div>
                 <div class="card-body">
                     {% for item in ranking %}
                         <div class="d-flex justify-content-between align-items-center dashboard-ranking-item border-bottom">
                             <div class="d-flex align-items-center gap-2">
-                                <div class="badge text-bg-primary rounded-circle" style="width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; font-weight: 800;">
+                                <div class="badge text-bg-primary rounded-circle rank-number-badge">
                                     {{ forloop.counter }}
                                 </div>
                                 {% include "includes/user_avatar.html" with user=item.user %}
                                 <div>
                                     <div class="d-none d-sm-block fw-semibold">{{ item.user.get_full_name|default:item.user.username }}</div>
-                                    <div class="d-sm-none text-truncate fw-semibold" style="max-width: 120px;" title="{{ item.user.get_full_name|default:item.user.username }}">{{ item.user.get_full_name|default:item.user.username|truncatewords:2 }}</div>
+                                    <div class="d-sm-none text-truncate fw-semibold max-width-120" title="{{ item.user.get_full_name|default:item.user.username }}">{{ item.user.get_full_name|default:item.user.username|truncatewords:2 }}</div>
                                     <small class="text-muted d-block">{{ item.user|user_bio_or_username }}</small>
                                 </div>
                             </div>
@@ -134,7 +48,7 @@
                         </div>
                     {% empty %}
                         <div class="text-center py-4">
-                            <i class="fas fa-inbox text-muted" style="font-size: 2rem;"></i>
+                            <i class="fas fa-inbox text-muted icon-size-2"></i>
                             <p class="text-muted mb-0 mt-2">Aun no hay datos en el ranking</p>
                         </div>
                     {% endfor %}
@@ -166,7 +80,7 @@
                 <div class="col-12">
                     <div class="card">
                         <div class="card-header d-flex flex-column flex-sm-row justify-content-between align-items-start align-items-sm-center">
-                            <h5 class="mb-2 mb-sm-0"><i class="fas fa-bar-chart me-2" style="color: var(--mundial-green);"></i>Estadísticas del torneo</h5>
+                            <h5 class="mb-2 mb-sm-0"><i class="fas fa-bar-chart me-2 text-mundial-green"></i>Estadísticas del torneo</h5>
                             <span class="badge text-bg-info">En vivo</span>
                         </div>
                         <div class="card-body">
@@ -203,7 +117,7 @@
                 <div class="col-12">
                     <div class="card h-100">
                         <div class="card-header d-flex flex-column flex-sm-row justify-content-between align-items-start align-items-sm-center">
-                            <h5 class="mb-2 mb-sm-0"><i class="fas fa-calendar-day me-2" style="color: var(--mundial-gold);"></i>Partidos de hoy</h5>
+                            <h5 class="mb-2 mb-sm-0"><i class="fas fa-calendar-day me-2 text-mundial-gold"></i>Partidos de hoy</h5>
                             <span class="badge text-bg-info">{{ matches|length }} partidos</span>
                         </div>
                         <div class="card-body">
@@ -218,7 +132,7 @@
                                     <div class="d-flex flex-column flex-sm-row justify-content-sm-between align-items-sm-center gap-2">
                                         <div class="today-meta-left">
                                             <div class="small">
-                                                <i class="far fa-clock me-1" style="color: var(--mundial-blue);"></i>
+                                                <i class="far fa-clock me-1 text-mundial-blue"></i>
                                                 <span class="text-muted">{{ match.kickoff_at|date:"d/m/Y H:i" }}</span>
                                                 <span class="text-muted ms-2" id="live-minute-{{ match.id }}">
                                                     {% if match.live_minute %}{{ match.live_minute }}'{% endif %}
@@ -254,7 +168,7 @@
                                 </div>
                             {% empty %}
                                 <div class="text-center py-4">
-                                    <i class="fas fa-calendar-times text-muted" style="font-size: 2rem;"></i>
+                                    <i class="fas fa-calendar-times text-muted icon-size-2"></i>
                                     <p class="text-muted mb-0 mt-2">No hay partidos programados para hoy</p>
                                 </div>
                             {% endfor %}
@@ -265,99 +179,8 @@
         </div>
     </div>
 
-<script>
-    // Inicializar tooltips de Bootstrap
-    const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
-    tooltipTriggerList.map(function (tooltipTriggerEl) {
-        return new bootstrap.Tooltip(tooltipTriggerEl);
-    });
+{% endblock %}
 
-    function renderLiveStatus(match) {
-        const statusEl = document.getElementById(`live-status-${match.id}`);
-        const minuteEl = document.getElementById(`live-minute-${match.id}`);
-        const eventsEl = document.getElementById(`live-events-${match.id}`);
-
-        if (!statusEl) {
-            return;
-        }
-
-        if (match.status === "FT") {
-            statusEl.className = "badge text-bg-dark";
-            statusEl.innerHTML = `<i class="fas fa-check-circle me-1"></i>${match.home_score} - ${match.away_score}`;
-            minuteEl.textContent = "";
-        } else if (match.status === "HT") {
-            statusEl.className = "badge text-bg-warning";
-            statusEl.innerHTML = `<i class="fas fa-pause me-1"></i>Descanso ${match.home_score} - ${match.away_score}`;
-            minuteEl.textContent = "";
-        } else if (match.status === "LIVE") {
-            statusEl.className = "badge text-bg-success";
-            statusEl.innerHTML = `<i class="fas fa-circle-play me-1"></i>En juego ${match.home_score} - ${match.away_score}`;
-            minuteEl.textContent = match.live_minute ? `${match.live_minute}'` : "";
-        } else {
-            statusEl.className = "badge text-bg-dark";
-            statusEl.innerHTML = `<i class="fas fa-hourglass-half me-1"></i>Por jugar`;
-            minuteEl.textContent = "";
-        }
-
-        if (eventsEl) {
-            if (match.events && match.events.length) {
-                eventsEl.innerHTML = `<i class="fas fa-bolt me-1"></i>${match.events.map((event) => event.text).join(" | ")}`;
-            } else {
-                eventsEl.textContent = "";
-            }
-        }
-    }
-
-    function escapeHtml(value) {
-        const div = document.createElement("div");
-        div.textContent = value || "";
-        return div.innerHTML;
-    }
-
-    function renderFinalMatchAnnouncements(announcements) {
-        const container = document.getElementById("final-match-marquee-container");
-        if (!container) {
-            return;
-        }
-
-        if (!announcements || !announcements.length) {
-            container.classList.add("d-none");
-            container.innerHTML = "";
-            return;
-        }
-
-        container.classList.remove("d-none");
-        container.innerHTML = announcements.map((announcement) => `
-            <div class="final-match-marquee" data-match-id="${announcement.match_id}" data-finished-at="${escapeHtml(announcement.finished_at)}">
-                <div class="final-match-marquee__track">
-                    <span class="final-match-marquee__text">${escapeHtml(announcement.message)}</span>
-                </div>
-            </div>
-        `).join("");
-    }
-
-    async function refreshLiveMatches() {
-        try {
-            const response = await fetch("{% url 'dashboard_live_snapshot' %}", {
-                headers: {
-                    "X-Requested-With": "XMLHttpRequest"
-                }
-            });
-
-            if (!response.ok) {
-                return;
-            }
-
-            const payload = await response.json();
-            (payload.matches || []).forEach(renderLiveStatus);
-            renderFinalMatchAnnouncements(payload.final_match_announcements || []);
-        } catch (error) {
-            // Keep UI stable if network requests fail intermittently.
-            console.debug("Live refresh failed", error);
-        }
-    }
-
-    refreshLiveMatches();
-    setInterval(refreshLiveMatches, 15000);
-</script>
+{% block extra_js %}
+    <script src="{% static 'js/pages/dashboard.js' %}"></script>
 {% endblock %}

@@ -75,19 +75,19 @@
                 {% if tournament_prediction %}
                     <div class="stat-box mb-3">
                         <div class="stat-label">Campeón</div>
-                        <div class="stat-value" style="font-size: 1.7rem;">{{ tournament_prediction.champion_team.name }}</div>
+                        <div class="stat-value stat-value-compact">{{ tournament_prediction.champion_team.name }}</div>
                         <div class="text-muted">{{ tournament_prediction.champion_team.code }}</div>
                     </div>
                     <div class="stat-box">
                         <div class="stat-label">Goleador</div>
-                        <div class="stat-value" style="font-size: 1.7rem;">{{ tournament_prediction.top_scorer_name }}</div>
+                        <div class="stat-value stat-value-compact">{{ tournament_prediction.top_scorer_name }}</div>
                     </div>
                     <p class="small text-muted mt-3 mb-0">
                         Última actualización: {{ tournament_prediction.updated_at|date:"d/m/Y H:i" }}
                     </p>
                 {% else %}
                     <div class="text-center py-4">
-                        <i class="fas fa-trophy text-warning" style="font-size: 3rem;"></i>
+                        <i class="fas fa-trophy text-warning icon-size-3"></i>
                         <h5 class="mt-3">Aún no tienes pronóstico global</h5>
                         <p class="text-muted mb-0">Guarda tu campeón y goleador antes de que avance el torneo.</p>
                     </div>

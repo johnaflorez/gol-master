@@ -2,8 +2,19 @@ from django.db import models
 
 
 class Team(models.Model):
+    GROUP_CHOICES = [(letter, f"Grupo {letter}") for letter in "ABCDEFGHIJKL"]
+
     name = models.CharField(max_length=100)
     code = models.CharField(max_length=3, unique=True)
+    group_code = models.CharField(
+        "grupo",
+        max_length=1,
+        choices=GROUP_CHOICES,
+        blank=True,
+        default="",
+        db_index=True,
+        help_text="Grupo de primera ronda del Mundial 2026 (A-L).",
+    )
     country_code = models.CharField(
         max_length=2, blank=True, default="",
         help_text="ISO 3166-1 alpha-2 code (e.g., AR, BR)"

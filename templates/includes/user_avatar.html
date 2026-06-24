@@ -1,10 +1,12 @@
 {% load user_extras %}
 {% user_avatar_url user as avatar_url %}
-<span class="table-user-avatar" aria-hidden="true">
-    {% if avatar_url %}
+{% if avatar_url %}
+    <span class="table-user-avatar avatar-clickable" role="button" tabindex="0" aria-label="Ver avatar de {{ user.username }} ampliado" data-avatar-url="{{ avatar_url }}" data-avatar-title="Avatar de {{ user.get_full_name|default:user.username }}">
         <img src="{{ avatar_url }}" alt="Avatar de {{ user.username }}">
-    {% else %}
+    </span>
+{% else %}
+    <span class="table-user-avatar" aria-hidden="true">
         <i class="fas fa-user"></i>
-    {% endif %}
-</span>
+    </span>
+{% endif %}
 

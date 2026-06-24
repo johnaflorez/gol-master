@@ -1,0 +1,88 @@
+.dashboard-compact-header {
+    margin-bottom: 1rem;
+}
+
+.dashboard-compact .card {
+    margin-bottom: 1rem;
+}
+
+.dashboard-compact .card-body {
+    padding: 1rem;
+}
+
+.dashboard-ranking-item {
+    padding-top: 0.7rem !important;
+    padding-bottom: 0.7rem !important;
+}
+
+.dashboard-score-alert {
+    padding: 0.85rem 1rem;
+}
+
+.dashboard-score-alert .fw-semibold {
+    margin-bottom: 0.35rem !important;
+}
+
+.dashboard-score-alert ul {
+    line-height: 1.35;
+}
+
+.dashboard-ranking-link {
+    margin-top: 0.75rem !important;
+}
+
+.dashboard-stat-box {
+    padding: 1rem;
+}
+
+.dashboard-stat-box .stat-value {
+    font-size: 1.85rem;
+    margin: 0.25rem 0;
+}
+
+.dashboard-match-row {
+    padding-top: 0.75rem !important;
+    padding-bottom: 0.75rem !important;
+}
+
+.today-match-title {
+    font-size: 1.08rem;
+    font-weight: 700;
+    line-height: 1.3;
+}
+
+.today-phase-tag {
+    font-size: 0.72rem;
+    padding: 0.35em 0.55em;
+}
+
+.today-meta-left {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.today-status-left .badge {
+    font-size: 0.78rem;
+    padding: 0.36em 0.62em;
+}
+
+.today-right-tags {
+    display: flex;
+    gap: 0.4rem;
+    align-items: center;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+}
+
+.today-right-tags .badge {
+    font-size: 0.72rem;
+    padding: 0.32em 0.55em;
+}
+
+.today-right-tags .btn.btn-sm {
+    min-height: 34px;
+    padding: 0.36rem 0.7rem;
+    font-size: 0.76rem;
+}

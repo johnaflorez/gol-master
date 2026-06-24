@@ -4,26 +4,11 @@
 
 {% block title %}🏆 Ranking Completo - Mundial Familiar 2026{% endblock %}
 
+{% block extra_css %}
+    <link rel="stylesheet" href="{% static 'css/pages/rankings.css' %}">
+{% endblock %}
+
 {% block content %}
-    <style>
-        .ranking-compact-header {
-            margin-bottom: 1rem;
-        }
-
-        .ranking-score-alert {
-            margin-bottom: 1rem !important;
-            padding: 0.85rem 1rem;
-        }
-
-        .ranking-score-alert .row {
-            row-gap: 0.35rem;
-        }
-
-        .ranking-score-item {
-            margin-bottom: 0 !important;
-        }
-    </style>
-
     <div class="ranking-compact-header">
         <h1 class="page-title mb-1">
             <img src="{% static 'images/world-cup.png' %}" alt="Copa del mundo" class="wc-icon wc-icon-md me-1"> Ranking Completo
@@ -66,34 +51,24 @@
 
     <div class="card">
         <div class="card-header d-flex justify-content-between align-items-center">
-            <h5 class="mb-0"><i class="fas fa-medal me-2" style="color: var(--mundial-red);"></i>Posiciones finales</h5>
+            <h5 class="mb-0"><i class="fas fa-medal me-2 text-mundial-red"></i>Posiciones finales</h5>
             <span class="badge text-bg-primary">Tabla actualizada</span>
         </div>
         <div class="table-responsive">
             <table class="table table-hover mb-0 align-middle">
                 <thead>
                 <tr>
-                    <th style="width: 80px;"><i class="fas fa-hashtag me-2"></i>Posición</th>
+                    <th class="width-80"><i class="fas fa-hashtag me-2"></i>Posición</th>
                     <th><i class="fas fa-user me-2"></i>Jugador</th>
-                    <th style="width: 150px;"><i class="fas fa-percent me-2"></i>Acierto</th>
-                    <th style="width: 120px;"><i class="fas fa-star me-2"></i>Puntos</th>
+                    <th class="width-150"><i class="fas fa-percent me-2"></i>Acierto</th>
+                    <th class="width-120"><i class="fas fa-star me-2"></i>Puntos</th>
                 </tr>
                 </thead>
                 <tbody>
                 {% for item in ranking %}
-                    <tr {% if forloop.counter <= 3 %}class="border-start" style="border-left: 3px solid {% if forloop.counter == 1 %}var(--mundial-gold){% elif forloop.counter == 2 %}#C0C0C0{% else %}#CD7F32{% endif %};"{% endif %}>
+                    <tr {% if forloop.counter == 1 %}class="border-start ranking-row--first"{% elif forloop.counter == 2 %}class="border-start ranking-row--second"{% elif forloop.counter == 3 %}class="border-start ranking-row--third"{% endif %}>
                         <td>
-                            <div class="badge text-bg-{{ forloop.counter|add:'0'|stringformat:'d' }}" style="
-                                {% if forloop.counter == 1 %}
-                                    background: linear-gradient(135deg, var(--mundial-gold) 0%, #F97316 100%) !important;
-                                {% elif forloop.counter == 2 %}
-                                    background: #C0C0C0 !important;
-                                {% elif forloop.counter == 3 %}
-                                    background: #CD7F32 !important;
-                                {% else %}
-                                    background: var(--mundial-blue) !important;
-                                {% endif %}
-                            " style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 1.1rem;">
+                            <div class="badge text-bg-{{ forloop.counter|add:'0'|stringformat:'d' }} ranking-position-badge {% if forloop.counter == 1 %}ranking-position-badge--first{% elif forloop.counter == 2 %}ranking-position-badge--second{% elif forloop.counter == 3 %}ranking-position-badge--third{% else %}ranking-position-badge--default{% endif %}">
                                 {% if forloop.counter == 1 %}
                                     🥇
                                 {% elif forloop.counter == 2 %}
@@ -116,9 +91,9 @@
                         </td>
                         <td>
                             <div class="d-flex align-items-center gap-2">
-                                <div class="progress" style="flex: 1; height: 6px;">
+                                <div class="progress flex-1 height-6">
                                     <div class="progress-bar bg-success" role="progressbar"
-                                         style="width: {{ item.hit_rate|floatformat:0 }}%;"
+                                         data-progress-width="{{ item.hit_rate|floatformat:0 }}"
                                          aria-valuenow="{{ item.hit_rate|floatformat:0 }}"
                                          aria-valuemin="0"
                                          aria-valuemax="100"></div>
@@ -139,7 +114,7 @@
                 {% empty %}
                     <tr>
                         <td colspan="4" class="text-center text-muted py-5">
-                            <i class="fas fa-inbox" style="font-size: 2rem;"></i>
+                            <i class="fas fa-inbox icon-size-2"></i>
                             <p class="mt-3 mb-0">Aun no hay datos de ranking</p>
                         </td>
                     </tr>
@@ -148,12 +123,8 @@
             </table>
         </div>
     </div>
+{% endblock %}
 
-    <script>
-        // Inicializar tooltips de Bootstrap
-        const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
-        tooltipTriggerList.map(function (tooltipTriggerEl) {
-            return new bootstrap.Tooltip(tooltipTriggerEl);
-        });
-    </script>
+{% block extra_js %}
+    <script src="{% static 'js/pages/rankings.js' %}"></script>
 {% endblock %}

@@ -139,4 +139,42 @@ class UserProfileUpdateViewTests(TestCase):
 		self.assertTrue(payload["is_dir"])
 		self.assertTrue(payload["writable"])
 
+	def test_pages_include_global_avatar_preview_modal(self):
+		response = self.client.get(reverse("profile_edit"))
+
+		self.assertEqual(response.status_code, 200)
+		self.assertContains(response, "avatarPreviewModal")
+		self.assertContains(response, "avatarPreviewModalImage")
+
+	def test_pages_include_responsive_sidebar_navigation(self):
+		response = self.client.get(reverse("profile_edit"))
+
+		self.assertEqual(response.status_code, 200)
+		self.assertContains(response, "app-sidebar")
+		self.assertContains(response, "appSidebarOffcanvas")
+		self.assertContains(response, reverse("match_list"))
+		self.assertContains(response, reverse("group_standings"))
+		self.assertContains(response, "fa-list-check")
+		self.assertContains(response, reverse("profile_edit"))
+		self.assertContains(response, reverse("logout"))
+
+	def test_existing_avatar_is_clickable_to_open_preview(self):
+		with override_settings(MEDIA_ROOT=self.temp_media_root):
+			profile = UserProfile.objects.create(user=self.user)
+			profile.avatar = make_image_file()
+			profile.save()
+
+			response = self.client.get(reverse("profile_edit"))
+
+		self.assertEqual(response.status_code, 200)
+		self.assertContains(response, "avatar-clickable")
+		self.assertContains(response, "data-avatar-url=")
+		self.assertContains(response, "data-avatar-title=")
+
+	def test_missing_avatar_fallback_is_not_clickable(self):
+		response = self.client.get(reverse("profile_edit"))
+
+		self.assertEqual(response.status_code, 200)
+		self.assertNotContains(response, "data-avatar-url=")
+
 

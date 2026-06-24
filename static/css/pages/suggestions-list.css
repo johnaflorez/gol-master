@@ -1,0 +1,24 @@
+.suggestion-admin-page .suggestion-filter-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+
+.suggestion-admin-page .suggestion-message {
+    white-space: pre-line;
+}
+
+@media (max-width: 576px) {
+    .suggestion-admin-page .suggestion-filter-bar,
+    .suggestion-admin-page .suggestion-filter-bar .btn-group,
+    .suggestion-admin-page .suggestion-filter-bar .btn {
+        width: 100%;
+    }
+
+    .suggestion-admin-page .suggestion-filter-bar .btn-group {
+        display: grid;
+        grid-template-columns: 1fr;
+    }
+}

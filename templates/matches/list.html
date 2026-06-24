@@ -1,60 +1,19 @@
 {% extends "base.html" %}
+{% load static %}
 {% load dict_extras %}
 {% load team_flags %}
 
 {% block title %}⚽ Partidos - Mundial Familiar 2026{% endblock %}
 
+{% block extra_css %}
+    <link rel="stylesheet" href="{% static 'css/pages/matches.css' %}">
+{% endblock %}
+
 {% block content %}
-    <style>
-        .matches-toolbar {
-            background: rgba(255, 255, 255, 0.82);
-            border: 1px solid var(--border-color);
-            border-radius: 0.85rem;
-            padding: 0.55rem 0.7rem;
-            width: fit-content;
-            max-width: 100%;
-        }
-
-        .phase-tabs {
-            gap: 0.35rem;
-            overflow-x: auto;
-            overflow-y: hidden;
-            flex-wrap: nowrap;
-            padding-bottom: 0.35rem;
-        }
-
-        .phase-tabs .nav-link {
-            border: 0;
-            border-radius: 0.75rem;
-            font-size: 0.86rem;
-            font-weight: 700;
-            padding: 0.45rem 0.7rem !important;
-            white-space: nowrap;
-            opacity: 0.78;
-        }
-
-        .phase-tabs .nav-link.active {
-            opacity: 1;
-            box-shadow: 0 0 0 3px rgba(42, 30, 92, 0.18);
-            transform: translateY(-1px);
-        }
-
-        .phase-tabs .phase-count {
-            background: rgba(255, 255, 255, 0.9);
-            color: #1f2937;
-        }
-
-        .matches-table th,
-        .matches-table td {
-            padding-top: 0.65rem;
-            padding-bottom: 0.65rem;
-        }
-    </style>
-
     <div class="mb-3 d-flex flex-column gap-2">
         <div>
             <h1 class="page-title mb-1">
-                <i class="fas fa-futbol" style="color: var(--mundial-red);"></i> Todos los Partidos
+                <i class="fas fa-futbol text-mundial-red"></i> Todos los Partidos
             </h1>
             <p class="text-muted mb-0">{{ matches_count }} partidos registrados en el torneo</p>
         </div>
@@ -63,8 +22,8 @@
             <label for="country-filter" class="small fw-semibold text-muted mb-0">
                 <i class="fas fa-search me-1"></i>País
             </label>
-            <input id="country-filter" name="country" list="country-options" class="form-control form-control-sm"
-                   placeholder="Escribe un país..." value="{{ selected_country_label }}" style="width: 220px; max-width: 100%;">
+            <input id="country-filter" name="country" list="country-options" class="form-control form-control-sm width-220 max-width-100-percent"
+                   placeholder="Escribe un país..." value="{{ selected_country_label }}">
             <datalist id="country-options">
                 {% for country in country_options %}
                     <option value="{{ country.code|upper }} - {{ country.name }}"></option>
@@ -79,9 +38,20 @@
         </form>
     </div>
 
+    <div class="card mb-4 standings-link-card">
+        <div class="card-body d-flex justify-content-between align-items-center flex-wrap gap-3">
+            <div>
+                <h5 class="mb-1"><i class="fas fa-table-list me-2 text-mundial-gold"></i>Tabla de posiciones por grupo</h5>
+            </div>
+            <a href="{% url 'group_standings' %}" class="btn btn-primary">
+                <i class="fas fa-arrow-up-right-from-square me-1"></i>Ver tabla de posiciones
+            </a>
+        </div>
+    </div>
+
     <div class="card">
         <div class="card-header d-flex justify-content-between align-items-center">
-            <h5 class="mb-0"><i class="fas fa-list me-2" style="color: var(--mundial-blue);"></i>Listado por fase</h5>
+            <h5 class="mb-0"><i class="fas fa-list me-2 text-mundial-blue"></i>Listado por fase</h5>
             <span class="badge text-bg-info">{{ matches_count }} total</span>
         </div>
 
@@ -152,7 +122,7 @@
             </div>
         {% else %}
             <div class="text-center text-muted py-5">
-                <i class="fas fa-inbox" style="font-size: 2.5rem;"></i>
+                <i class="fas fa-inbox icon-size-2-5"></i>
                 <p class="mt-3 mb-0">No hay partidos para mostrar</p>
             </div>
         {% endif %}

@@ -1,0 +1,92 @@
+.prediction-create-page .prediction-match-summary {
+    background: linear-gradient(135deg, rgba(230, 57, 70, 0.06) 0%, rgba(247, 127, 0, 0.08) 100%);
+    border: 1.5px solid rgba(230, 57, 70, 0.12);
+}
+
+.prediction-create-page .prediction-score-card {
+    height: 100%;
+    padding: 1rem;
+    border: 1.5px solid var(--border-color);
+    border-radius: 1rem;
+    background: rgba(255, 255, 255, 0.82);
+    box-shadow: 0 4px 14px rgba(15, 27, 46, 0.08);
+}
+
+.prediction-create-page .prediction-team-label {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    min-height: 2.6rem;
+    margin-bottom: 0.75rem;
+    text-align: center;
+    line-height: 1.25;
+}
+
+.prediction-create-page .prediction-score-input {
+    width: 100%;
+    max-width: 6rem;
+    min-height: 3rem;
+    margin: 0 auto;
+    padding: 0.3rem 0.5rem;
+    border-width: 2px;
+    border-radius: 0.75rem;
+    font-size: 1.5rem;
+    font-weight: 800;
+    color: var(--mundial-blue);
+    background: #fff;
+}
+
+.prediction-create-page .prediction-score-input::-webkit-outer-spin-button,
+.prediction-create-page .prediction-score-input::-webkit-inner-spin-button {
+    margin: 0;
+    -webkit-appearance: none;
+}
+
+.prediction-create-page .prediction-actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+@media (max-width: 576px) {
+    .prediction-create-page .card-body {
+        padding: 1rem !important;
+    }
+
+    .prediction-create-page .prediction-match-summary {
+        margin-bottom: 1.25rem !important;
+        padding: 0.85rem !important;
+    }
+
+    .prediction-create-page .prediction-score-card {
+        padding: 0.85rem;
+        border-radius: 0.85rem;
+    }
+
+    .prediction-create-page .prediction-team-label {
+        min-height: auto;
+        font-size: 0.9rem;
+        justify-content: flex-start;
+        text-align: left;
+    }
+
+    .prediction-create-page .prediction-score-input {
+        max-width: 6.5rem;
+        min-height: 2.75rem;
+        margin-left: 0;
+        font-size: 1.35rem;
+        border-radius: 0.7rem;
+    }
+
+    .prediction-create-page .prediction-actions {
+        flex-direction: column-reverse;
+        align-items: stretch;
+    }
+
+    .prediction-create-page .prediction-actions .btn {
+        width: 100%;
+    }
+}

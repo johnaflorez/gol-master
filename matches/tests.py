@@ -154,6 +154,130 @@ class MatchListViewTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'value="CO"')
 
+    def test_match_list_links_to_group_standings(self):
+        self.team_a.group_code = "A"
+        self.team_a.save(update_fields=["group_code"])
+        self.team_b.group_code = "A"
+        self.team_b.save(update_fields=["group_code"])
+        Match.objects.create(
+            home_team=self.team_a,
+            away_team=self.team_b,
+            kickoff_at=timezone.now() - timedelta(days=1),
+            home_score=2,
+            away_score=1,
+            finished=True,
+            phase="PR",
+        )
+
+        response = self.client.get(reverse("match_list"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Tabla de posiciones por grupo")
+        self.assertContains(response, reverse("group_standings"))
+        self.assertContains(response, "Ver tabla de posiciones")
+        self.assertNotContains(response, "Consulta J, G, E, P, GF, GC, DIF y PTS en una vista dedicada.")
+        self.assertNotContains(response, "Grupo A")
+        self.assertNotContains(response, "Selecci&oacute;n")
+
+    def test_group_standings_view_shows_table(self):
+        self.team_a.group_code = "A"
+        self.team_a.save(update_fields=["group_code"])
+        self.team_b.group_code = "A"
+        self.team_b.save(update_fields=["group_code"])
+        Match.objects.create(
+            home_team=self.team_a,
+            away_team=self.team_b,
+            kickoff_at=timezone.now() - timedelta(days=1),
+            home_score=2,
+            away_score=1,
+            finished=True,
+            phase="PR",
+        )
+
+        response = self.client.get(reverse("group_standings"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Tabla de posiciones")
+        self.assertContains(response, "primera, segunda y tercera ronda")
+        self.assertContains(response, 'name="group"')
+        self.assertContains(response, 'name="country"')
+        self.assertContains(response, "Grupo A")
+        self.assertContains(response, "Selecci&oacute;n")
+        self.assertContains(response, "Bandera CO")
+        self.assertContains(response, "Bandera BR")
+        self.assertContains(response, "J")
+        self.assertContains(response, "G")
+        self.assertContains(response, "E")
+        self.assertContains(response, "P")
+        self.assertContains(response, "GF")
+        self.assertContains(response, "GC")
+        self.assertContains(response, "DIF")
+        self.assertContains(response, "PTS")
+        self.assertContains(response, "+1")
+        self.assertEqual(response.context["group_standings"][0]["rows"][0]["points"], 3)
+
+    def test_group_standings_view_filters_by_group_and_country(self):
+        self.team_a.group_code = "A"
+        self.team_a.save(update_fields=["group_code"])
+        self.team_b.group_code = "A"
+        self.team_b.save(update_fields=["group_code"])
+        team_c = Team.objects.create(name="Team C", code="TMC", country_code="AR", group_code="B")
+        team_d = Team.objects.create(name="Team D", code="TMD", country_code="UY", group_code="B")
+        francia = Team.objects.create(name="Francia", code="FRA", country_code="FR", group_code="B")
+        Match.objects.create(
+            home_team=self.team_a,
+            away_team=self.team_b,
+            kickoff_at=timezone.now() - timedelta(days=1),
+            home_score=2,
+            away_score=1,
+            finished=True,
+            phase="SR",
+        )
+        Match.objects.create(
+            home_team=team_c,
+            away_team=team_d,
+            kickoff_at=timezone.now() - timedelta(days=1),
+            home_score=0,
+            away_score=0,
+            finished=True,
+            phase="TR",
+        )
+        Match.objects.create(
+            home_team=francia,
+            away_team=team_d,
+            kickoff_at=timezone.now() - timedelta(days=1),
+            home_score=3,
+            away_score=1,
+            finished=True,
+            phase="PR",
+        )
+
+        response = self.client.get(reverse("group_standings"), {"group": "B", "country": "AR"})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Grupo B")
+        self.assertContains(response, "Team C")
+        self.assertNotContains(response, "standing-title-A")
+        self.assertEqual(response.context["selected_group"], "B")
+        self.assertEqual(response.context["selected_country"], "AR")
+        self.assertEqual(len(response.context["group_standings"]), 1)
+        self.assertEqual(response.context["group_standings"][0]["code"], "B")
+        self.assertEqual(
+            [row["team"].code for row in response.context["group_standings"][0]["rows"]],
+            ["TMC"],
+        )
+
+        response_by_name = self.client.get(reverse("group_standings"), {"country": "Francia"})
+
+        self.assertEqual(response_by_name.status_code, 200)
+        self.assertContains(response_by_name, 'value="FRA - Francia"')
+        self.assertContains(response_by_name, "Francia")
+        self.assertEqual(response_by_name.context["selected_country"], "FRA")
+        self.assertEqual(
+            [row["team"].code for row in response_by_name.context["group_standings"][0]["rows"]],
+            ["FRA"],
+        )
+
 
 class MatchFinishedAtTests(TestCase):
 

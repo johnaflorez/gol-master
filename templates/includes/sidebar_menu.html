@@ -1,0 +1,91 @@
+{% load user_extras %}
+
+<nav class="app-sidebar-menu" aria-label="Menú principal">
+    <ul class="app-sidebar-nav">
+        <li>
+            <a class="app-sidebar-link {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}"
+               href="{% url 'dashboard' %}" title="Ir al inicio">
+                <i class="fas fa-home"></i><span>Inicio</span>
+            </a>
+        </li>
+        <li>
+            <a class="app-sidebar-link {% if request.resolver_match.url_name == 'match_list' %}active{% endif %}"
+               href="{% url 'match_list' %}" title="Ver partidos">
+                <i class="fas fa-futbol"></i><span>Partidos</span>
+            </a>
+        </li>
+        <li>
+            <a class="app-sidebar-link {% if request.resolver_match.url_name == 'group_standings' %}active{% endif %}"
+               href="{% url 'group_standings' %}" title="Ver tabla de posiciones">
+                <i class="fas fa-table-list"></i><span>Tabla de posiciones</span>
+            </a>
+        </li>
+        <li>
+            <a class="app-sidebar-link {% if request.resolver_match.url_name == 'my_predictions' %}active{% endif %}"
+               href="{% url 'my_predictions' %}" title="Mis pronósticos">
+                <i class="fas fa-list-check"></i><span>Mis pronósticos</span>
+            </a>
+        </li>
+        <li>
+            <a class="app-sidebar-link {% if request.resolver_match.url_name == 'all_predictions' %}active{% endif %}"
+               href="{% url 'all_predictions' %}" title="Ver pronósticos del día e histórico">
+                <i class="fas fa-chart-bar"></i><span>Pronósticos</span>
+            </a>
+        </li>
+        <li>
+            <a class="app-sidebar-link {% if request.resolver_match.url_name == 'tournament_prediction' %}active{% endif %}"
+               href="{% url 'tournament_prediction' %}" title="Elegir campeón y goleador">
+                <i class="fas fa-trophy"></i><span>Campeón y goleador</span>
+            </a>
+        </li>
+        {% if request.user.is_authenticated %}
+            <li>
+                <a class="app-sidebar-link {% if request.resolver_match.url_name == 'suggestion_create' %}active{% endif %}"
+                   href="{% url 'suggestion_create' %}" title="Enviar sugerencia de mejora">
+                    <i class="fas fa-lightbulb"></i><span>Sugerencias</span>
+                </a>
+            </li>
+        {% endif %}
+        {% if request.user.is_superuser %}
+            <li>
+                <a class="app-sidebar-link {% if request.resolver_match.url_name == 'suggestion_list' %}active{% endif %}"
+                   href="{% url 'suggestion_list' %}" title="Revisar sugerencias pendientes">
+                    <i class="fas fa-inbox"></i><span>Buzón</span>
+                </a>
+            </li>
+        {% endif %}
+    </ul>
+</nav>
+
+<div class="app-sidebar-user">
+    {% if request.user.is_authenticated %}
+        {% user_avatar_url request.user as sidebar_avatar_url %}
+        <div class="user-chip sidebar-user-chip">
+            <span class="user-avatar {% if sidebar_avatar_url %}avatar-clickable{% endif %}"
+                  {% if sidebar_avatar_url %}role="button" tabindex="0" aria-label="Ver avatar de {{ request.user.username }} ampliado" data-avatar-url="{{ sidebar_avatar_url }}" data-avatar-title="Avatar de {{ request.user.get_full_name|default:request.user.username }}"{% endif %}>
+                {% if sidebar_avatar_url %}
+                    <img src="{{ sidebar_avatar_url }}" alt="Avatar de {{ request.user.username }}">
+                {% else %}
+                    <i class="fas fa-user"></i>
+                {% endif %}
+            </span>
+            <span class="sidebar-user-name">{{ request.user.get_full_name|default:request.user.username }}</span>
+        </div>
+        <div class="sidebar-user-actions">
+            <a class="btn btn-outline-light btn-sm" href="{% url 'profile_edit' %}" title="Editar perfil">
+                <i class="fas fa-cog me-1"></i>Perfil
+            </a>
+            <form method="post" action="{% url 'logout' %}" class="d-inline">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-outline-light btn-sm" title="Cerrar sesión">
+                    <i class="fas fa-sign-out-alt me-1"></i>Salir
+                </button>
+            </form>
+        </div>
+    {% else %}
+        <a class="btn btn-primary btn-sm w-100" href="{% url 'login' %}" title="Iniciar sesión">
+            <i class="fas fa-sign-in-alt me-1"></i>Entrar
+        </a>
+    {% endif %}
+</div>
+

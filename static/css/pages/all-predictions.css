@@ -1,0 +1,27 @@
+.all-predictions-toolbar {
+    background: rgba(255, 255, 255, 0.82);
+    border: 1px solid var(--border-color);
+    border-radius: 0.85rem;
+    padding: 0.55rem 0.7rem;
+    width: fit-content;
+    max-width: 100%;
+}
+
+.today-prediction-card .card-header {
+    padding: 0.75rem 1rem;
+}
+
+.prediction-mini-row {
+    border-top: 1px solid var(--border-color);
+    padding: 0.7rem 0;
+}
+
+.prediction-mini-row:first-child {
+    border-top: 0;
+    padding-top: 0;
+}
+
+.history-pagination {
+    border-top: 1px solid var(--border-color);
+    padding: 0.75rem 1rem;
+}
