@@ -19,6 +19,25 @@ class PredictionForm(forms.ModelForm):
             "predicted_away_score": "Goles visitante",
         }
 
+        widgets = {
+            "predicted_home_score": forms.NumberInput(
+                attrs={
+                    "class": "form-control text-center prediction-score-input",
+                    "min": 0,
+                    "inputmode": "numeric",
+                    "placeholder": "0",
+                }
+            ),
+            "predicted_away_score": forms.NumberInput(
+                attrs={
+                    "class": "form-control text-center prediction-score-input",
+                    "min": 0,
+                    "inputmode": "numeric",
+                    "placeholder": "0",
+                }
+            ),
+        }
+
 
 class TournamentPredictionForm(forms.ModelForm):
 
@@ -54,20 +73,4 @@ class TournamentPredictionForm(forms.ModelForm):
         if not value:
             raise forms.ValidationError("Ingresa el nombre del goleador.")
         return value
-        widgets = {
-            "predicted_home_score": forms.NumberInput(
-                attrs={
-                    "class": "form-control form-control-lg text-center",
-                    "min": 0,
-                    "placeholder": "0",
-                }
-            ),
-            "predicted_away_score": forms.NumberInput(
-                attrs={
-                    "class": "form-control form-control-lg text-center",
-                    "min": 0,
-                    "placeholder": "0",
-                }
-            ),
-        }
 

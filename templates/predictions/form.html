@@ -6,14 +6,109 @@
 
 {% block content %}
 
-    <div class="row justify-content-center">
+    <style>
+        .prediction-create-page .prediction-match-summary {
+            background: linear-gradient(135deg, rgba(230, 57, 70, 0.06) 0%, rgba(247, 127, 0, 0.08) 100%);
+            border: 1.5px solid rgba(230, 57, 70, 0.12);
+        }
+
+        .prediction-create-page .prediction-score-card {
+            height: 100%;
+            padding: 1rem;
+            border: 1.5px solid var(--border-color);
+            border-radius: 1rem;
+            background: rgba(255, 255, 255, 0.82);
+            box-shadow: 0 4px 14px rgba(15, 27, 46, 0.08);
+        }
+
+        .prediction-create-page .prediction-team-label {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-wrap: wrap;
+            gap: 0.4rem;
+            min-height: 2.6rem;
+            margin-bottom: 0.75rem;
+            text-align: center;
+            line-height: 1.25;
+        }
+
+        .prediction-create-page .prediction-score-input {
+            width: 100%;
+            max-width: 6rem;
+            min-height: 3rem;
+            margin: 0 auto;
+            padding: 0.3rem 0.5rem;
+            border-width: 2px;
+            border-radius: 0.75rem;
+            font-size: 1.5rem;
+            font-weight: 800;
+            color: var(--mundial-blue);
+            background: #fff;
+        }
+
+        .prediction-create-page .prediction-score-input::-webkit-outer-spin-button,
+        .prediction-create-page .prediction-score-input::-webkit-inner-spin-button {
+            margin: 0;
+            -webkit-appearance: none;
+        }
+
+        .prediction-create-page .prediction-actions {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        @media (max-width: 576px) {
+            .prediction-create-page .card-body {
+                padding: 1rem !important;
+            }
+
+            .prediction-create-page .prediction-match-summary {
+                margin-bottom: 1.25rem !important;
+                padding: 0.85rem !important;
+            }
+
+            .prediction-create-page .prediction-score-card {
+                padding: 0.85rem;
+                border-radius: 0.85rem;
+            }
+
+            .prediction-create-page .prediction-team-label {
+                min-height: auto;
+                font-size: 0.9rem;
+                justify-content: flex-start;
+                text-align: left;
+            }
+
+            .prediction-create-page .prediction-score-input {
+                max-width: 6.5rem;
+                min-height: 2.75rem;
+                margin-left: 0;
+                font-size: 1.35rem;
+                border-radius: 0.7rem;
+            }
+
+            .prediction-create-page .prediction-actions {
+                flex-direction: column-reverse;
+                align-items: stretch;
+            }
+
+            .prediction-create-page .prediction-actions .btn {
+                width: 100%;
+            }
+        }
+    </style>
+
+    <div class="prediction-create-page row justify-content-center">
         <div class="col-lg-7 col-xl-6">
             <div class="card">
                 <div class="card-header">
                     <h5 class="mb-0"><i class="fas fa-pencil-alt me-2" style="color: var(--mundial-red);"></i>Crear Pronóstico</h5>
                 </div>
                 <div class="card-body p-4">
-                    <div class="text-center mb-5 p-3 rounded-2" style="background: linear-gradient(135deg, rgba(230, 57, 70, 0.05) 0%, rgba(247, 127, 0, 0.05) 100%);">
+                    <div class="prediction-match-summary text-center mb-4 p-3 rounded-3">
                         <div class="fw-bold fs-5 mb-2">{{ match.home_team|team_with_flag }} <span style="color: var(--mundial-gold);">VS</span> {{ match.away_team|team_with_flag }}</div>
                         <div class="text-muted small">
                             <i class="far fa-calendar me-1"></i>{{ match.kickoff_at|date:"d/m/Y H:i" }}
@@ -35,29 +130,33 @@
                             </div>
                         {% endif %}
 
-                        <div class="row g-3 mb-4">
-                            <div class="col-6">
-                                <label for="{{ form.predicted_home_score.id_for_label }}" class="form-label">
-                                    <i class="fas fa-arrow-right me-1" style="color: var(--mundial-blue);"></i>{{ match.home_team|team_with_flag }}
-                                </label>
-                                {{ form.predicted_home_score }}
-                                {% if form.predicted_home_score.errors %}
-                                    <div class="text-danger small mt-2"><i class="fas fa-circle-exclamation me-1"></i>{{ form.predicted_home_score.errors|striptags }}</div>
-                                {% endif %}
+                        <div class="row g-3 mb-4 prediction-score-fields">
+                            <div class="col-12 col-sm-6">
+                                <div class="prediction-score-card">
+                                    <label for="{{ form.predicted_home_score.id_for_label }}" class="form-label prediction-team-label">
+                                        <i class="fas fa-arrow-right me-1" style="color: var(--mundial-blue);"></i>{{ match.home_team|team_with_flag }}
+                                    </label>
+                                    {{ form.predicted_home_score }}
+                                    {% if form.predicted_home_score.errors %}
+                                        <div class="text-danger small mt-2"><i class="fas fa-circle-exclamation me-1"></i>{{ form.predicted_home_score.errors|striptags }}</div>
+                                    {% endif %}
+                                </div>
                             </div>
 
-                            <div class="col-6">
-                                <label for="{{ form.predicted_away_score.id_for_label }}" class="form-label">
-                                    <i class="fas fa-arrow-left me-1" style="color: var(--mundial-red);"></i>{{ match.away_team|team_with_flag }}
-                                </label>
-                                {{ form.predicted_away_score }}
-                                {% if form.predicted_away_score.errors %}
-                                    <div class="text-danger small mt-2"><i class="fas fa-circle-exclamation me-1"></i>{{ form.predicted_away_score.errors|striptags }}</div>
-                                {% endif %}
+                            <div class="col-12 col-sm-6">
+                                <div class="prediction-score-card">
+                                    <label for="{{ form.predicted_away_score.id_for_label }}" class="form-label prediction-team-label">
+                                        <i class="fas fa-arrow-left me-1" style="color: var(--mundial-red);"></i>{{ match.away_team|team_with_flag }}
+                                    </label>
+                                    {{ form.predicted_away_score }}
+                                    {% if form.predicted_away_score.errors %}
+                                        <div class="text-danger small mt-2"><i class="fas fa-circle-exclamation me-1"></i>{{ form.predicted_away_score.errors|striptags }}</div>
+                                    {% endif %}
+                                </div>
                             </div>
                         </div>
 
-                        <div class="d-flex justify-content-between align-items-center pt-3 border-top gap-2">
+                        <div class="prediction-actions pt-3 border-top">
                             <a href="{% url 'match_list' %}" class="btn btn-outline-primary">
                                 <i class="fas fa-times me-1"></i>Cancelar
                             </a>

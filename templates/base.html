@@ -685,12 +685,12 @@
             animation: fadeInUp 0.3s ease-out;
         }
 
-        @keyframes finalMatchMarqueeLeftToRight {
+        @keyframes finalMatchMarqueeRightToLeft {
             from {
-                transform: translateX(-100%);
+                transform: translateX(100%);
             }
             to {
-                transform: translateX(100%);
+                transform: translateX(-100%);
             }
         }
 
@@ -725,7 +725,7 @@
             font-weight: 800;
             letter-spacing: 0.02em;
             text-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
-            animation: finalMatchMarqueeLeftToRight 18s linear infinite;
+            animation: finalMatchMarqueeRightToLeft 18s linear infinite;
         }
 
         @media (max-width: 576px) {
