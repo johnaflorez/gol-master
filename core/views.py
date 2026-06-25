@@ -1,7 +1,7 @@
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.http import JsonResponse
-from django.db.models import Case, Exists, IntegerField, OuterRef, Value, When
+from django.db.models import Exists, OuterRef
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse_lazy
 from django.utils.http import url_has_allowed_host_and_scheme
@@ -13,6 +13,7 @@ from core.forms import SuggestionForm
 from core.models import Suggestion
 from matches.models import Match
 from core.services.final_match_announcements import get_recent_final_match_announcements
+from matches.query_utils import order_with_finished_last
 from predictions.models import Prediction
 from rankings.services.ranking_service import RankingService
 from stats.services.tournament_stats import TournamentStatsService
@@ -34,23 +35,21 @@ class DashboardView(LoginRequiredMixin, TemplateView):
             match=OuterRef("pk")
         )
 
-        latest_matches = Match.objects.select_related(
-            "home_team",
-            "away_team"
-        ).prefetch_related(
-            "events",
-            "events__team",
-        ).filter(
-            kickoff_at__date=today
-        ).annotate(
-            has_prediction=Exists(user_predictions),
-            finished_sort=Case(
-                When(finished=True, then=Value(1)),
-                When(live_status="FT", then=Value(1)),
-                default=Value(0),
-                output_field=IntegerField(),
+        latest_matches = order_with_finished_last(
+            Match.objects.select_related(
+                "home_team",
+                "away_team"
+            ).prefetch_related(
+                "events",
+                "events__team",
+            ).filter(
+                kickoff_at__date=today
+            ).annotate(
+                has_prediction=Exists(user_predictions),
             ),
-        ).order_by("finished_sort", "kickoff_at", "id")[:10]
+            "kickoff_at",
+            "id",
+        )[:10]
 
         ranking_service = RankingService()
         ranking = ranking_service.get_ranking()[:10]
@@ -74,22 +73,19 @@ class DashboardLiveSnapshotView(LoginRequiredMixin, View):
         now = timezone.now()
         today = timezone.localdate()
 
-        matches = Match.objects.select_related(
-            "home_team",
-            "away_team",
-        ).prefetch_related(
-            "events",
-            "events__team",
-        ).filter(
-            kickoff_at__date=today,
-        ).annotate(
-            finished_sort=Case(
-                When(finished=True, then=Value(1)),
-                When(live_status="FT", then=Value(1)),
-                default=Value(0),
-                output_field=IntegerField(),
+        matches = order_with_finished_last(
+            Match.objects.select_related(
+                "home_team",
+                "away_team",
+            ).prefetch_related(
+                "events",
+                "events__team",
+            ).filter(
+                kickoff_at__date=today,
             ),
-        ).order_by("finished_sort", "kickoff_at", "id")
+            "kickoff_at",
+            "id",
+        )
 
         payload = []
         for match in matches:

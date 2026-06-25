@@ -2,6 +2,7 @@ from collections import OrderedDict
 
 from matches.models import Match
 from teams.models import Team
+from teams.utils import team_matches_country
 
 
 class GroupStandingsService:
@@ -63,7 +64,7 @@ class GroupStandingsService:
             if selected_country:
                 group["rows"] = [
                     row for row in group["rows"]
-                    if self._matches_country_filter(row["team"], selected_country)
+                    if team_matches_country(row["team"], selected_country)
                 ]
             group["rows"].sort(
                 key=lambda row: (
@@ -106,11 +107,4 @@ class GroupStandingsService:
             row["points"] += 1
         else:
             row["losses"] += 1
-
-    def _matches_country_filter(self, team, selected_country):
-        return selected_country in {
-            (team.code or "").upper(),
-            (team.country_code or "").upper(),
-            (team.name or "").upper(),
-        }
 

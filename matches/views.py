@@ -1,13 +1,13 @@
 from urllib.parse import urlencode
 
 from django.contrib.auth.mixins import LoginRequiredMixin
-from django.db.models import Q
 from django.utils import timezone
 from django.views.generic import ListView, TemplateView
 
 from matches.models import Match
 from stats.services.group_standings import GroupStandingsService
 from teams.models import Team
+from teams.utils import get_country_label, get_country_options, match_country_q, parse_country_filter
 
 
 class MatchListView(LoginRequiredMixin, ListView):
@@ -17,19 +17,7 @@ class MatchListView(LoginRequiredMixin, ListView):
     paginate_by = None
 
     def _get_selected_country(self):
-        raw_country = (self.request.GET.get("country") or "").strip()
-        if not raw_country:
-            return ""
-
-        if " - " in raw_country:
-            raw_country = raw_country.split(" - ", 1)[0].strip()
-
-        country = raw_country.upper()
-        country_by_name = Team.objects.filter(name__iexact=raw_country).first()
-        if country_by_name:
-            return country_by_name.code.upper()
-
-        return country
+        return parse_country_filter(self.request.GET.get("country"))
 
     def get_queryset(self):
         queryset = Match.objects.select_related(
@@ -40,12 +28,7 @@ class MatchListView(LoginRequiredMixin, ListView):
         selected_country = self._get_selected_country()
 
         if selected_country:
-            queryset = queryset.filter(
-                Q(home_team__country_code__iexact=selected_country)
-                | Q(away_team__country_code__iexact=selected_country)
-                | Q(home_team__code__iexact=selected_country)
-                | Q(away_team__code__iexact=selected_country)
-            )
+            queryset = queryset.filter(match_country_q(selected_country))
 
         return queryset
 
@@ -59,23 +42,8 @@ class MatchListView(LoginRequiredMixin, ListView):
         context["selected_country"] = selected_country
         phase_labels = dict(Match.PHASE_CHOICES)
 
-        country_map = {}
-        country_teams = Team.objects.order_by("name")
-        for team in country_teams:
-            if team.code and team.code not in country_map:
-                country_map[team.code] = team.name
-        context["country_options"] = [
-            {"code": code, "name": name}
-            for code, name in country_map.items()
-        ]
-        context["selected_country_label"] = next(
-            (
-                f"{country['code']} - {country['name']}"
-                for country in context["country_options"]
-                if country["code"].upper() == selected_country
-            ),
-            selected_country,
-        )
+        context["country_options"] = get_country_options()
+        context["selected_country_label"] = get_country_label(selected_country, context["country_options"])
 
         context["grouped_matches"] = [
             {
@@ -102,18 +70,7 @@ class GroupStandingsView(LoginRequiredMixin, TemplateView):
         return (self.request.GET.get("group") or "").strip().upper()
 
     def _get_selected_country(self):
-        raw_country = (self.request.GET.get("country") or "").strip()
-        if not raw_country:
-            return ""
-
-        if " - " in raw_country:
-            raw_country = raw_country.split(" - ", 1)[0].strip()
-
-        country_by_name = Team.objects.filter(name__iexact=raw_country).first()
-        if country_by_name:
-            return country_by_name.code.upper()
-
-        return raw_country.upper()
+        return parse_country_filter(self.request.GET.get("country"))
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -131,31 +88,12 @@ class GroupStandingsView(LoginRequiredMixin, TemplateView):
             for code in Team.objects.exclude(group_code="").order_by("group_code").values_list("group_code", flat=True).distinct()
         ]
 
-        country_options = []
-        seen_names = set()
-        for team in Team.objects.order_by("name"):
-            normalized_name = team.name.strip().casefold()
-            if team.name and normalized_name not in seen_names:
-                country_options.append(
-                    {
-                        "code": team.code,
-                        "country_code": team.country_code,
-                        "name": team.name,
-                    }
-                )
-                seen_names.add(normalized_name)
-        context["country_options"] = country_options
-        context["selected_country_label"] = next(
-            (
-                f"{country['code']} - {country['name']}"
-                for country in context["country_options"]
-                if selected_country in {
-                    (country["code"] or "").upper(),
-                    (country["country_code"] or "").upper(),
-                    (country["name"] or "").upper(),
-                }
-            ),
+        context["country_options"] = get_country_options(unique_by="name")
+        context["selected_country_label"] = get_country_label(
             selected_country,
+            context["country_options"],
+            match_country_code=True,
+            match_name=True,
         )
         return context
 

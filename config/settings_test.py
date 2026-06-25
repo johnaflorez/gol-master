@@ -43,7 +43,6 @@ STORAGES = {
 STATICFILES_STORAGE = "django.contrib.staticfiles.storage.StaticFilesStorage"
 
 # Evita llamadas lentas accidentales a proveedores externos durante tests.
-API_FOOTBALL_TIMEOUT = 1
 FOOTBALL_DATA_TIMEOUT = 1
 EMAIL_BACKEND = "django.core.mail.backends.locmem.EmailBackend"
 

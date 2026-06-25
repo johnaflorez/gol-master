@@ -46,12 +46,6 @@ services:
         value: "False"
       - key: MEDIA_URL
         sync: false
-      - key: API_FOOTBALL_KEY
-        sync: false
-      - key: API_FOOTBALL_BASE_URL
-        value: "https://v3.football.api-sports.io"
-      - key: API_FOOTBALL_TIMEOUT
-        value: "15"
       - key: FOOTBALL_DATA_TOKEN
         sync: false
       - key: FOOTBALL_DATA_BASE_URL

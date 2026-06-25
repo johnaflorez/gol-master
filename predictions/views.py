@@ -4,16 +4,17 @@ from django.contrib import messages
 from django.contrib.auth.models import User
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.paginator import Paginator
-from django.db.models import Case, Count, F, IntegerField, Q, Sum, Value, When
+from django.db.models import Count, F, Q, Sum
 from django.shortcuts import redirect, get_object_or_404
 from django.utils import timezone
 from django.views import View
 from django.views.generic import FormView, ListView, TemplateView
 
 from matches.models import Match
+from matches.query_utils import order_with_finished_last
 from predictions.forms import PredictionForm, TournamentPredictionForm
 from predictions.models import Prediction, TournamentPrediction
-from teams.models import Team
+from teams.utils import get_country_label, get_country_options, match_country_q, parse_country_filter
 
 
 class PredictionCreateView(LoginRequiredMixin, FormView):
@@ -80,18 +81,7 @@ class MyPredictionsView(LoginRequiredMixin, ListView):
     paginate_by = 10
 
     def _get_selected_country(self):
-        raw_country = (self.request.GET.get("country") or "").strip()
-        if not raw_country:
-            return ""
-
-        if " - " in raw_country:
-            raw_country = raw_country.split(" - ", 1)[0].strip()
-
-        team_by_name = Team.objects.filter(name__iexact=raw_country).first()
-        if team_by_name:
-            return team_by_name.code.upper()
-
-        return raw_country.upper()
+        return parse_country_filter(self.request.GET.get("country"))
 
     def _get_selected_phase(self):
         selected_phase = (self.request.GET.get("phase") or "").strip().upper()
@@ -123,12 +113,7 @@ class MyPredictionsView(LoginRequiredMixin, ListView):
         selected_points = self._get_selected_points()
 
         if selected_country:
-            queryset = queryset.filter(
-                Q(match__home_team__country_code__iexact=selected_country)
-                | Q(match__away_team__country_code__iexact=selected_country)
-                | Q(match__home_team__code__iexact=selected_country)
-                | Q(match__away_team__code__iexact=selected_country)
-            )
+            queryset = queryset.filter(match_country_q(selected_country, prefix="match"))
 
         if selected_phase:
             queryset = queryset.filter(match__phase=selected_phase)
@@ -145,14 +130,7 @@ class MyPredictionsView(LoginRequiredMixin, ListView):
         selected_phase = self._get_selected_phase()
         selected_points = self._get_selected_points()
 
-        country_map = {}
-        for team in Team.objects.order_by("name"):
-            if team.code and team.code not in country_map:
-                country_map[team.code] = team.name
-        country_options = [
-            {"code": code, "name": name}
-            for code, name in country_map.items()
-        ]
+        country_options = get_country_options()
 
         points_options = list(
             Prediction.objects.filter(user=self.request.user)
@@ -189,14 +167,7 @@ class MyPredictionsView(LoginRequiredMixin, ListView):
         context["selected_country"] = selected_country
         context["selected_phase"] = selected_phase
         context["selected_points"] = selected_points
-        context["selected_country_label"] = next(
-            (
-                f"{country['code']} - {country['name']}"
-                for country in country_options
-                if country["code"].upper() == selected_country
-            ),
-            selected_country,
-        )
+        context["selected_country_label"] = get_country_label(selected_country, country_options)
         context["filters_query"] = urlencode(query_params)
         return context
 
@@ -313,10 +284,6 @@ class TournamentPredictionView(LoginRequiredMixin, FormView):
             "top_scorer__team",
         ).first()
 
-    def get_form_kwargs(self):
-        kwargs = super().get_form_kwargs()
-        return kwargs
-
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context["tournament_prediction"] = self._get_prediction()
@@ -340,18 +307,7 @@ class AllPredictionsView(LoginRequiredMixin, TemplateView):
     historical_paginate_by = 10
 
     def _get_selected_country(self):
-        raw_country = (self.request.GET.get("country") or "").strip()
-        if not raw_country:
-            return ""
-
-        if " - " in raw_country:
-            raw_country = raw_country.split(" - ", 1)[0].strip()
-
-        team_by_name = Team.objects.filter(name__iexact=raw_country).first()
-        if team_by_name:
-            return team_by_name.code.upper()
-
-        return raw_country.upper()
+        return parse_country_filter(self.request.GET.get("country"))
 
     def _get_selected_phase(self):
         selected_phase = (self.request.GET.get("phase") or "").strip().upper()
@@ -400,46 +356,35 @@ class AllPredictionsView(LoginRequiredMixin, TemplateView):
         selected_user_id = self._get_selected_user_id()
         requested_tab = (self.request.GET.get("tab") or "").strip().lower()
 
-        today_matches = Match.objects.filter(
-            kickoff_at__date=today
-        ).select_related(
-            "home_team",
-            "away_team"
-        ).annotate(
-            finished_sort=Case(
-                When(finished=True, then=Value(1)),
-                When(live_status="FT", then=Value(1)),
-                default=Value(0),
-                output_field=IntegerField(),
+        today_matches = order_with_finished_last(
+            Match.objects.filter(
+                kickoff_at__date=today
+            ).select_related(
+                "home_team",
+                "away_team"
             ),
-        ).order_by(
-            "finished_sort",
             "kickoff_at",
             "id",
         )
 
-        today_predictions = Prediction.objects.filter(
-            match__in=today_matches
-        ).select_related(
-            "user",
-            "user__profile",
-            "match",
-            "match__home_team",
-            "match__away_team"
-        ).annotate(
-            match_finished_sort=Case(
-                When(match__finished=True, then=Value(1)),
-                When(match__live_status="FT", then=Value(1)),
-                default=Value(0),
-                output_field=IntegerField(),
-            )
-        ).order_by(
-            "match_finished_sort",
+        today_predictions = order_with_finished_last(
+            Prediction.objects.filter(
+                match__in=today_matches
+            ).select_related(
+                "user",
+                "user__profile",
+                "match",
+                "match__home_team",
+                "match__away_team"
+            ),
             "match__kickoff_at",
             "match_id",
             "user__first_name",
             "user__last_name",
-            "user__username"
+            "user__username",
+            finished_field="match__finished",
+            live_status_field="match__live_status",
+            annotation_name="match_finished_sort",
         )
 
         historical_predictions = Prediction.objects.select_related(
@@ -456,12 +401,7 @@ class AllPredictionsView(LoginRequiredMixin, TemplateView):
         )
 
         if selected_country:
-            historical_predictions = historical_predictions.filter(
-                Q(match__home_team__country_code__iexact=selected_country)
-                | Q(match__away_team__country_code__iexact=selected_country)
-                | Q(match__home_team__code__iexact=selected_country)
-                | Q(match__away_team__code__iexact=selected_country)
-            )
+            historical_predictions = historical_predictions.filter(match_country_q(selected_country, prefix="match"))
 
         if selected_phase:
             historical_predictions = historical_predictions.filter(match__phase=selected_phase)
@@ -472,14 +412,7 @@ class AllPredictionsView(LoginRequiredMixin, TemplateView):
         if selected_user_id:
             historical_predictions = historical_predictions.filter(user_id=selected_user_id)
 
-        country_map = {}
-        for team in Team.objects.order_by("name"):
-            if team.code and team.code not in country_map:
-                country_map[team.code] = team.name
-        country_options = [
-            {"code": code, "name": name}
-            for code, name in country_map.items()
-        ]
+        country_options = get_country_options()
 
         points_options = list(
             Prediction.objects.order_by("points")
@@ -539,14 +472,7 @@ class AllPredictionsView(LoginRequiredMixin, TemplateView):
         context["selected_phase"] = selected_phase
         context["selected_points"] = selected_points
         context["selected_user_id"] = selected_user_id
-        context["selected_country_label"] = next(
-            (
-                f"{country['code']} - {country['name']}"
-                for country in country_options
-                if country["code"].upper() == selected_country
-            ),
-            selected_country,
-        )
+        context["selected_country_label"] = get_country_label(selected_country, country_options)
         context["filters_query"] = urlencode(query_params)
         context["active_tab"] = active_tab
         context["history_active"] = active_tab == "history"

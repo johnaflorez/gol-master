@@ -88,7 +88,7 @@ class FootballDataSyncService:
     FINISHED_STATUSES = {"FINISHED"}
     LIVE_STATUSES = {"IN_PLAY", "LIVE"}
     HALF_TIME_STATUSES = {"PAUSED"}
-    NOT_STARTED_STATUSES = {"SCHEDULED", "TIMED", "POSTPONED", "SUSPENDED", "CANCELLED"}
+    NOT_STARTED_STATUSES = {"SCHEDULED", "TIMED", "POSTPONED", "SUSPENDED", "CANCELED", "CANCELLED"}
 
     def __init__(self, client=None):
         self.client = client or FootballDataClient()
@@ -121,7 +121,7 @@ class FootballDataSyncService:
 
     def _update_match_from_fixture(self, match, fixture):
         update_fields = []
-        status = fixture.get("status") or "SCHEDULED"
+        status = self._normalize_status(fixture.get("status"))
         score = fixture.get("score") or {}
         home_score, away_score = self._extract_score(score)
 
@@ -152,6 +152,7 @@ class FootballDataSyncService:
         return None, None
 
     def _map_live_status(self, status):
+        status = self._normalize_status(status)
         if status in self.FINISHED_STATUSES:
             return "FT"
         if status in self.HALF_TIME_STATUSES:
@@ -159,6 +160,9 @@ class FootballDataSyncService:
         if status in self.LIVE_STATUSES:
             return "LIVE"
         return "NS"
+
+    def _normalize_status(self, status):
+        return (status or "SCHEDULED").strip().upper()
 
     def _update_team_api_ids(self, match, home_team, away_team):
         home_api_id = home_team.get("id")

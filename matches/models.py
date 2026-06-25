@@ -35,12 +35,6 @@ class Match(models.Model):
     live_status = models.CharField(max_length=5, choices=LIVE_STATUS_CHOICES, default="NS")
     live_minute = models.PositiveSmallIntegerField(blank=True, null=True)
     last_event_at = models.DateTimeField(blank=True, null=True)
-    api_football_fixture_id = models.PositiveIntegerField(
-        blank=True,
-        null=True,
-        unique=True,
-        help_text="ID externo del fixture en API-Football/API-SPORTS",
-    )
     football_data_match_id = models.PositiveIntegerField(
         blank=True,
         null=True,
@@ -99,7 +93,6 @@ class MatchEvent(models.Model):
     event_type = models.CharField(max_length=10, choices=EVENT_TYPE_CHOICES, default="OTHER")
     player_name = models.CharField(max_length=100, blank=True, default="")
     description = models.CharField(max_length=255, blank=True, default="")
-    api_football_event_key = models.CharField(max_length=255, blank=True, default="", db_index=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

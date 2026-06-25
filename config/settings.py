@@ -192,13 +192,8 @@ REST_FRAMEWORK = {
 CORS_ALLOWED_ORIGINS = _split_env_list('CORS_ALLOWED_ORIGINS', 'http://localhost:5173')
 CORS_ALLOW_CREDENTIALS = True
 
-# API-Football / API-SPORTS integration
-API_FOOTBALL_KEY = os.environ.get('API_FOOTBALL_KEY', '')
-API_FOOTBALL_BASE_URL = os.environ.get('API_FOOTBALL_BASE_URL', 'https://v3.football.api-sports.io')
-API_FOOTBALL_TIMEOUT = int(os.environ.get('API_FOOTBALL_TIMEOUT', '15'))
-
-# football-data.org integration (fallback gratuito para marcadores/resultados; no incluye eventos)
-FOOTBALL_DATA_TOKEN = os.environ.get('FOOTBALL_DATA_TOKEN', '')
+# football-data.org integration (marcadores/resultados; no incluye eventos)
+FOOTBALL_DATA_TOKEN = os.environ.get('FOOTBALL_DATA_TOKEN', '54825cc619d144d0977380aaa2fd67a6')
 FOOTBALL_DATA_BASE_URL = os.environ.get('FOOTBALL_DATA_BASE_URL', 'https://api.football-data.org/v4')
 FOOTBALL_DATA_TIMEOUT = int(os.environ.get('FOOTBALL_DATA_TIMEOUT', '15'))
 

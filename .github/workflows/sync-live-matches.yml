@@ -14,9 +14,6 @@ jobs:
       DEBUG: "False"
       SECRET_KEY: ${{ secrets.SECRET_KEY }}
       DATABASE_URL: ${{ secrets.DATABASE_URL }}
-      API_FOOTBALL_KEY: ${{ secrets.API_FOOTBALL_KEY }}
-      API_FOOTBALL_BASE_URL: "https://v3.football.api-sports.io"
-      API_FOOTBALL_TIMEOUT: "15"
       FOOTBALL_DATA_TOKEN: ${{ secrets.FOOTBALL_DATA_TOKEN }}
       FOOTBALL_DATA_BASE_URL: "https://api.football-data.org/v4"
       FOOTBALL_DATA_TIMEOUT: "15"
@@ -38,12 +35,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Run live matches sync
-        continue-on-error: true
-        run: |
-          python manage.py sync_live_matches --days-back 1 --days-forward 1 --verbosity 2
-
-      - name: Run football-data.org fallback sync
+      - name: Run football-data.org live sync
         if: env.FOOTBALL_DATA_TOKEN != ''
         run: |
           python manage.py sync_football_data --live --days-back 1 --days-forward 1 --verbosity 2
