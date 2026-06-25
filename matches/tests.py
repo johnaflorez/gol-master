@@ -1,4 +1,4 @@
-from datetime import timedelta
+from datetime import datetime, timedelta, timezone as dt_timezone
 from io import StringIO
 from unittest.mock import patch
 
@@ -338,6 +338,18 @@ class FakeFootballDataClient:
         return self.fixture
 
 
+class FakeFootballDataListClient:
+    fixtures = []
+    calls = []
+
+    def __init__(self):
+        pass
+
+    def get_matches(self, *, date_from=None, date_to=None, status=None):
+        self.__class__.calls.append({"date_from": date_from, "date_to": date_to, "status": status})
+        return self.__class__.fixtures
+
+
 class FootballDataSyncServiceTests(TestCase):
 
     def setUp(self):
@@ -460,6 +472,104 @@ class SyncFootballDataCommandTests(TestCase):
 
         self.assertIn("football-data.org sync OK", out.getvalue())
         self.assertIn("checked=1", out.getvalue())
+
+
+class MapFootballDataMatchesCommandTests(TestCase):
+
+    def setUp(self):
+        FakeFootballDataListClient.fixtures = []
+        FakeFootballDataListClient.calls = []
+        self.team_a = Team.objects.create(name="Colombia", code="COL")
+        self.team_b = Team.objects.create(name="Brasil", code="BRA")
+        self.kickoff = datetime(2026, 6, 25, 20, 0, tzinfo=dt_timezone.utc)
+
+    def _fixture(self, *, fixture_id=9001, home_name="Colombia", home_tla="COL", away_name="Brazil", away_tla="BRA"):
+        return {
+            "id": fixture_id,
+            "utcDate": self.kickoff.isoformat().replace("+00:00", "Z"),
+            "homeTeam": {"id": 100, "name": home_name, "tla": home_tla},
+            "awayTeam": {"id": 200, "name": away_name, "tla": away_tla},
+            "status": "TIMED",
+            "score": {"fullTime": {"home": None, "away": None}},
+        }
+
+    def _match(self, *, home_team=None, away_team=None):
+        return Match.objects.create(
+            home_team=home_team or self.team_a,
+            away_team=away_team or self.team_b,
+            kickoff_at=self.kickoff,
+        )
+
+    @patch("matches.management.commands.map_football_data_matches.FootballDataClient", FakeFootballDataListClient)
+    def test_map_football_data_matches_dry_run_does_not_update_match(self):
+        match = self._match()
+        FakeFootballDataListClient.fixtures = [self._fixture()]
+        out = StringIO()
+
+        call_command("map_football_data_matches", "--date", "2026-06-25", stdout=out)
+
+        match.refresh_from_db()
+        self.assertIsNone(match.football_data_match_id)
+        self.assertIn("DRY-RUN", out.getvalue())
+        self.assertIn("MAP: local_match_id", out.getvalue())
+
+    @patch("matches.management.commands.map_football_data_matches.FootballDataClient", FakeFootballDataListClient)
+    def test_map_football_data_matches_commit_updates_match_and_team_ids(self):
+        match = self._match()
+        FakeFootballDataListClient.fixtures = [self._fixture(fixture_id=9002)]
+        out = StringIO()
+
+        call_command("map_football_data_matches", "--date", "2026-06-25", "--commit", stdout=out)
+
+        match.refresh_from_db()
+        self.team_a.refresh_from_db()
+        self.team_b.refresh_from_db()
+        self.assertEqual(match.football_data_match_id, 9002)
+        self.assertEqual(self.team_a.football_data_team_id, 100)
+        self.assertEqual(self.team_b.football_data_team_id, 200)
+        self.assertIn("mapped=1", out.getvalue())
+
+    @patch("matches.management.commands.map_football_data_matches.FootballDataClient", FakeFootballDataListClient)
+    def test_map_football_data_matches_uses_spanish_english_alias_when_codes_differ(self):
+        espana = Team.objects.create(name="España", code="SPN")
+        alemania = Team.objects.create(name="Alemania", code="DEU")
+        match = self._match(home_team=espana, away_team=alemania)
+        FakeFootballDataListClient.fixtures = [
+            self._fixture(
+                fixture_id=9003,
+                home_name="Spain",
+                home_tla="ESP",
+                away_name="Germany",
+                away_tla="GER",
+            )
+        ]
+
+        call_command("map_football_data_matches", "--date", "2026-06-25", "--commit", stdout=StringIO())
+
+        match.refresh_from_db()
+        self.assertEqual(match.football_data_match_id, 9003)
+
+    @patch("matches.management.commands.map_football_data_matches.FootballDataClient", FakeFootballDataListClient)
+    def test_map_football_data_matches_skips_ambiguous_candidates(self):
+        match = self._match()
+        FakeFootballDataListClient.fixtures = [self._fixture(fixture_id=9004), self._fixture(fixture_id=9005)]
+        out = StringIO()
+
+        call_command("map_football_data_matches", "--date", "2026-06-25", "--commit", stdout=out)
+
+        match.refresh_from_db()
+        self.assertIsNone(match.football_data_match_id)
+        self.assertIn("AMBIGUO", out.getvalue())
+
+    @patch("matches.management.commands.map_football_data_matches.FootballDataClient", FakeFootballDataListClient)
+    def test_map_football_data_matches_fetches_padded_dates_for_utc_shift(self):
+        self._match()
+        FakeFootballDataListClient.fixtures = []
+
+        call_command("map_football_data_matches", "--date", "2026-06-25", stdout=StringIO())
+
+        self.assertEqual(FakeFootballDataListClient.calls[0]["date_from"].isoformat(), "2026-06-24")
+        self.assertEqual(FakeFootballDataListClient.calls[0]["date_to"].isoformat(), "2026-06-26")
 
     @patch("matches.management.commands.sync_football_data.FootballDataSyncService")
     def test_live_command_selects_unfinished_mapped_matches_in_window(self, service_cls):
