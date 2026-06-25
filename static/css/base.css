@@ -884,29 +884,38 @@ h2 {
 }
 
 .final-match-marquee__track {
-    width: 100%;
+    align-items: center;
+    animation: finalMatchMarqueeRightToLeft 18s linear infinite;
+    display: inline-flex;
+    gap: 1.1rem;
+    min-width: max-content;
     white-space: nowrap;
     padding: 0.7rem 0;
 }
 
 .final-match-marquee__text {
     display: inline-block;
-    min-width: max-content;
     color: #fff;
     font-weight: 800;
     letter-spacing: 0.02em;
     text-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
-    animation: finalMatchMarqueeRightToLeft 18s linear infinite;
+}
+
+.final-match-marquee__separator {
+    color: var(--fifa-yellow);
+    font-weight: 900;
+    text-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
 }
 
 @media (max-width: 576px) {
     .final-match-marquee__track {
+        animation-duration: 14s;
+        gap: 0.85rem;
         padding: 0.6rem 0;
     }
 
     .final-match-marquee__text {
         font-size: 0.9rem;
-        animation-duration: 14s;
     }
 }
 

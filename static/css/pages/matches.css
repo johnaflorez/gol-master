@@ -59,6 +59,35 @@
     padding: 0.75rem 0.9rem;
 }
 
+.group-standings-scroll-hint {
+    align-items: center;
+    background: rgba(29, 53, 87, 0.08);
+    border-bottom: 1px solid var(--border-color);
+    color: var(--mundial-blue);
+    display: none;
+    font-size: 0.78rem;
+    font-weight: 800;
+    gap: 0.45rem;
+    justify-content: center;
+    letter-spacing: 0.01em;
+    padding: 0.45rem 0.75rem;
+    pointer-events: none;
+}
+
+.group-standings-scroll-hint i {
+    animation: groupStandingsSwipeHint 1.45s ease-in-out infinite;
+    color: var(--mundial-gold);
+}
+
+@keyframes groupStandingsSwipeHint {
+    0%, 100% {
+        transform: translateX(-4px);
+    }
+    50% {
+        transform: translateX(4px);
+    }
+}
+
 .group-standings-table {
     font-size: 0.84rem;
     min-width: 620px;
@@ -145,8 +174,18 @@
         padding: 0.8rem;
     }
 
+    .group-standings-scroll-hint {
+        display: flex;
+    }
+
     .group-standings-table {
         font-size: 0.78rem;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .group-standings-scroll-hint i {
+        animation: none;
     }
 }
 

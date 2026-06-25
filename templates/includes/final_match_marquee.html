@@ -1,10 +1,13 @@
 <div id="final-match-marquee-container" class="final-match-marquee-container {% if not final_match_announcements %}d-none{% endif %}" aria-live="polite">
-    {% for announcement in final_match_announcements %}
-        <div class="final-match-marquee" data-match-id="{{ announcement.match_id }}" data-finished-at="{{ announcement.finished_at }}">
+    {% if final_match_announcements %}
+        <div class="final-match-marquee">
             <div class="final-match-marquee__track">
-                <span class="final-match-marquee__text">{{ announcement.message }}</span>
+                {% for announcement in final_match_announcements %}
+                <span class="final-match-marquee__text" data-match-id="{{ announcement.match_id }}" data-finished-at="{{ announcement.finished_at }}">{{ announcement.message }}</span>
+                {% if not forloop.last %}<span class="final-match-marquee__separator" aria-hidden="true">•</span>{% endif %}
+                {% endfor %}
             </div>
         </div>
-    {% endfor %}
+    {% endif %}
 </div>
 

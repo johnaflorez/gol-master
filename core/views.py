@@ -1,7 +1,7 @@
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.http import JsonResponse
-from django.db.models import Exists, OuterRef
+from django.db.models import Case, Exists, IntegerField, OuterRef, Value, When
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse_lazy
 from django.utils.http import url_has_allowed_host_and_scheme
@@ -43,8 +43,14 @@ class DashboardView(LoginRequiredMixin, TemplateView):
         ).filter(
             kickoff_at__date=today
         ).annotate(
-            has_prediction=Exists(user_predictions)
-        ).order_by("-kickoff_at")[:10]
+            has_prediction=Exists(user_predictions),
+            finished_sort=Case(
+                When(finished=True, then=Value(1)),
+                When(live_status="FT", then=Value(1)),
+                default=Value(0),
+                output_field=IntegerField(),
+            ),
+        ).order_by("finished_sort", "kickoff_at", "id")[:10]
 
         ranking_service = RankingService()
         ranking = ranking_service.get_ranking()[:10]
@@ -76,7 +82,14 @@ class DashboardLiveSnapshotView(LoginRequiredMixin, View):
             "events__team",
         ).filter(
             kickoff_at__date=today,
-        ).order_by("-kickoff_at")
+        ).annotate(
+            finished_sort=Case(
+                When(finished=True, then=Value(1)),
+                When(live_status="FT", then=Value(1)),
+                default=Value(0),
+                output_field=IntegerField(),
+            ),
+        ).order_by("finished_sort", "kickoff_at", "id")
 
         payload = []
         for match in matches:

@@ -4,7 +4,7 @@ from django.contrib import messages
 from django.contrib.auth.models import User
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.paginator import Paginator
-from django.db.models import Count, F, Q, Sum
+from django.db.models import Case, Count, F, IntegerField, Q, Sum, Value, When
 from django.shortcuts import redirect, get_object_or_404
 from django.utils import timezone
 from django.views import View
@@ -262,7 +262,7 @@ class PredictionDashboardView(LoginRequiredMixin, TemplateView):
         return Match.objects.filter(
             finished=False,
             kickoff_at__gt=timezone.now()
-        )
+        ).order_by("kickoff_at", "id")
 
     def post(self, request, *args, **kwargs):
         for match in self._open_matches():
@@ -405,8 +405,17 @@ class AllPredictionsView(LoginRequiredMixin, TemplateView):
         ).select_related(
             "home_team",
             "away_team"
+        ).annotate(
+            finished_sort=Case(
+                When(finished=True, then=Value(1)),
+                When(live_status="FT", then=Value(1)),
+                default=Value(0),
+                output_field=IntegerField(),
+            ),
         ).order_by(
-            "kickoff_at"
+            "finished_sort",
+            "kickoff_at",
+            "id",
         )
 
         today_predictions = Prediction.objects.filter(
@@ -417,8 +426,17 @@ class AllPredictionsView(LoginRequiredMixin, TemplateView):
             "match",
             "match__home_team",
             "match__away_team"
+        ).annotate(
+            match_finished_sort=Case(
+                When(match__finished=True, then=Value(1)),
+                When(match__live_status="FT", then=Value(1)),
+                default=Value(0),
+                output_field=IntegerField(),
+            )
         ).order_by(
+            "match_finished_sort",
             "match__kickoff_at",
+            "match_id",
             "user__first_name",
             "user__last_name",
             "user__username"

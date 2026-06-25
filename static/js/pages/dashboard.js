@@ -62,13 +62,15 @@ document.addEventListener('DOMContentLoaded', function () {
         }
 
         container.classList.remove("d-none");
-        container.innerHTML = announcements.map((announcement) => `
-            <div class="final-match-marquee" data-match-id="${announcement.match_id}" data-finished-at="${escapeHtml(announcement.finished_at)}">
-                <div class="final-match-marquee__track">
-                    <span class="final-match-marquee__text">${escapeHtml(announcement.message)}</span>
-                </div>
-            </div>
+        const messages = announcements.map((announcement, index) => `
+            <span class="final-match-marquee__text" data-match-id="${announcement.match_id}" data-finished-at="${escapeHtml(announcement.finished_at)}">${escapeHtml(announcement.message)}</span>
+            ${index < announcements.length - 1 ? '<span class="final-match-marquee__separator" aria-hidden="true">•</span>' : ''}
         `).join("");
+        container.innerHTML = `
+            <div class="final-match-marquee">
+                <div class="final-match-marquee__track">${messages}</div>
+            </div>
+        `;
     }
 
     async function refreshLiveMatches() {

@@ -1,4 +1,4 @@
-from datetime import timedelta
+from datetime import datetime, time, timedelta
 
 from django.contrib.auth.models import User
 from django.test import TestCase
@@ -136,6 +136,16 @@ class PredictionCreateViewTests(TestCase):
 		self.assertEqual(prediction_map[recent_related.id]["away"], 0)
 		self.assertEqual(prediction_map[recent_related.id]["points"], 2)
 		self.assertNotIn(older_related.id, prediction_map)
+
+	def test_prediction_dashboard_orders_open_matches_by_kickoff(self):
+		later = self._match(days_offset=2)
+		earlier = self._match(days_offset=1)
+
+		response = self.client.get(reverse("prediction_dashboard"))
+
+		self.assertEqual(response.status_code, 200)
+		matches = list(response.context["matches"])
+		self.assertEqual([match.id for match in matches], [earlier.id, later.id])
 
 
 class TournamentPredictionViewTests(TestCase):
@@ -570,6 +580,28 @@ class AllPredictionsViewTests(TestCase):
 		self.assertContains(response, "col-lg-6")
 		groups = list(response.context["today_grouped"])
 		self.assertEqual(groups[0]["predictions"][0].id, prediction.id)
+
+	def test_all_predictions_today_tab_orders_finished_matches_last(self):
+		today = timezone.localdate()
+		finished_early = self._prediction(
+			kickoff_at=timezone.make_aware(datetime.combine(today, time(hour=9))),
+			finished=True,
+		)
+		upcoming_first = self._prediction(
+			kickoff_at=timezone.make_aware(datetime.combine(today, time(hour=10))),
+		)
+		upcoming_second = self._prediction(
+			kickoff_at=timezone.make_aware(datetime.combine(today, time(hour=11))),
+		)
+
+		response = self.client.get(reverse("all_predictions"))
+
+		self.assertEqual(response.status_code, 200)
+		groups = list(response.context["today_grouped"])
+		self.assertEqual(
+			[group["match"].id for group in groups],
+			[upcoming_first.match_id, upcoming_second.match_id, finished_early.match_id],
+		)
 
 	def test_all_predictions_historical_filters_by_country_phase_and_points(self):
 		wanted = self._prediction(

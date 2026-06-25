@@ -43,6 +43,23 @@ class DashboardViewTests(TestCase):
 		self.assertEqual(len(matches), 1)
 		self.assertEqual(matches[0].id, today_match.id)
 
+	def test_dashboard_orders_unfinished_matches_first_and_finished_last(self):
+		today = timezone.localdate()
+		finished_early = self._create_match(timezone.make_aware(datetime.combine(today, time(hour=9))))
+		finished_early.finished = True
+		finished_early.live_status = "FT"
+		finished_early.home_score = 1
+		finished_early.away_score = 0
+		finished_early.save()
+		upcoming_first = self._create_match(timezone.make_aware(datetime.combine(today, time(hour=10))))
+		upcoming_second = self._create_match(timezone.make_aware(datetime.combine(today, time(hour=11))))
+
+		response = self.client.get(reverse("dashboard"))
+
+		self.assertEqual(response.status_code, 200)
+		matches = list(response.context["matches"])
+		self.assertEqual([match.id for match in matches], [upcoming_first.id, upcoming_second.id, finished_early.id])
+
 	def test_dashboard_exposes_tournament_stats(self):
 		response = self.client.get(reverse("dashboard"))
 
@@ -111,6 +128,34 @@ class DashboardViewTests(TestCase):
 		self.assertContains(response, "Felicitaciones")
 		self.assertContains(response, self.user.username)
 		self.assertContains(response, "2-1")
+
+	def test_dashboard_renders_multiple_final_announcements_in_single_marquee(self):
+		first_match = self._create_match(timezone.now() - timedelta(hours=2))
+		first_match.home_score = 2
+		first_match.away_score = 1
+		first_match.finished = True
+		first_match.save()
+		Prediction.objects.create(
+			user=self.user,
+			match=first_match,
+			predicted_home_score=2,
+			predicted_away_score=1,
+		)
+
+		second_match = self._create_match(timezone.now() - timedelta(hours=1))
+		second_match.home_score = 0
+		second_match.away_score = 0
+		second_match.finished = True
+		second_match.save()
+
+		response = self.client.get(reverse("dashboard"))
+
+		self.assertEqual(response.status_code, 200)
+		self.assertContains(response, 'class="final-match-marquee"', count=1)
+		self.assertContains(response, 'class="final-match-marquee__text"', count=2)
+		self.assertContains(response, "Felicitaciones")
+		self.assertContains(response, "No hubo ningún acierto exacto")
+		self.assertContains(response, "final-match-marquee__separator")
 
 	def test_dashboard_shows_final_match_marquee_without_exact_predictions(self):
 		match = self._create_match(timezone.now() - timedelta(hours=2))
@@ -181,6 +226,20 @@ class DashboardViewTests(TestCase):
 		self.assertEqual(first["away_score"], 0)
 		self.assertEqual(len(first["events"]), 1)
 		self.assertIn("Gol", first["events"][0]["text"])
+
+	def test_live_snapshot_orders_finished_matches_last(self):
+		today = timezone.localdate()
+		finished_early = self._create_match(timezone.make_aware(datetime.combine(today, time(hour=9))))
+		finished_early.finished = True
+		finished_early.live_status = "FT"
+		finished_early.save()
+		upcoming = self._create_match(timezone.make_aware(datetime.combine(today, time(hour=10))))
+
+		response = self.client.get(reverse("dashboard_live_snapshot"))
+
+		self.assertEqual(response.status_code, 200)
+		payload = response.json()
+		self.assertEqual([match["id"] for match in payload["matches"]], [upcoming.id, finished_early.id])
 
 
 class SuggestionViewTests(TestCase):
