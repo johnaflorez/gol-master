@@ -21,16 +21,18 @@ class MatchAdmin(admin.ModelAdmin):
         "live_status",
         "live_minute",
         "phase",
+        "bracket_position",
         "football_data_match_id",
         "kickoff_at",
         "finished"
     )
-    list_filter = ("finished", "live_status", "phase", "kickoff_at")
+    list_filter = ("finished", "live_status", "phase", "bracket_position", "kickoff_at")
     autocomplete_fields = [
         "home_team",
         "away_team",
     ]
     search_fields = ("home_team__name", "away_team__name", "football_data_match_id")
+    ordering = ("phase", "bracket_position", "kickoff_at", "id")
     actions = [finish_matches]
 
 

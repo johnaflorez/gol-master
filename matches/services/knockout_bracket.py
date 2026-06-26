@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 
+from django.db.models import Case, IntegerField, Value, When
 from django.utils import timezone
 
 from matches.models import Match
@@ -20,6 +21,12 @@ KNOCKOUT_PHASES = [
 	KnockoutPhase("SF", "Semifinal", "Semis", 2),
 	KnockoutPhase("F", "Final", "Final", 1),
 ]
+
+KNOCKOUT_PHASE_ORDER = [phase.code for phase in KNOCKOUT_PHASES]
+NEXT_PHASE_BY_CODE = {
+	phase_code: KNOCKOUT_PHASE_ORDER[index + 1]
+	for index, phase_code in enumerate(KNOCKOUT_PHASE_ORDER[:-1])
+}
 
 
 class KnockoutBracketService:
@@ -43,6 +50,8 @@ class KnockoutBracketService:
 					"slots": self._build_slots(phase, phase_matches),
 				}
 			)
+
+		self._project_advancers(phases)
 
 		return {
 			"phases": phases,
@@ -85,12 +94,71 @@ class KnockoutBracketService:
 		middle = (len(slots) + 1) // 2
 		return slots[:middle] if side == "left" else slots[middle:]
 
+	def _project_advancers(self, phases):
+		phase_by_code = {phase["code"]: phase for phase in phases}
+
+		for phase_code, next_phase_code in NEXT_PHASE_BY_CODE.items():
+			phase = phase_by_code[phase_code]
+			next_phase = phase_by_code[next_phase_code]
+			unique_source_positions = self._get_unique_source_positions(phase["slots"])
+
+			for slot in phase["slots"]:
+				match = slot["match"]
+				winner_team = slot["winner_team"]
+				if not match or not winner_team or not match.bracket_position:
+					continue
+				if unique_source_positions.get(match.bracket_position) != 1:
+					continue
+
+				next_position = ((match.bracket_position - 1) // 2) + 1
+				if next_position < 1 or next_position > len(next_phase["slots"]):
+					continue
+
+				next_slot = next_phase["slots"][next_position - 1]
+				if next_slot["match"]:
+					continue
+
+				side = "home" if match.bracket_position % 2 == 1 else "away"
+				next_slot["projected_teams"][side] = {
+					"team": winner_team,
+					"source_phase": phase["short_label"],
+					"source_position": match.bracket_position,
+				}
+				self._refresh_projected_rows(next_slot)
+
+	def _get_unique_source_positions(self, slots):
+		position_counts = {}
+		for slot in slots:
+			match = slot["match"]
+			if not match or not match.bracket_position:
+				continue
+			position_counts[match.bracket_position] = position_counts.get(match.bracket_position, 0) + 1
+		return position_counts
+
+	def _refresh_projected_rows(self, slot):
+		projected_rows = []
+		for side in ("home", "away"):
+			projected_team = slot["projected_teams"].get(side)
+			if projected_team:
+				projected_rows.append({"side": side, **projected_team})
+		slot["projected_rows"] = projected_rows
+		if projected_rows:
+			slot["status_label"] = "Parcial"
+			slot["status_class"] = "text-bg-warning"
+
 	def _get_matches_by_phase(self):
 		phase_codes = [phase.code for phase in KNOCKOUT_PHASES]
 		matches = (
 			Match.objects.filter(phase__in=phase_codes)
 			.select_related("home_team", "away_team")
-			.order_by("kickoff_at", "id")
+			.annotate(
+				bracket_position_sort=Case(
+					When(bracket_position__isnull=True, then=Value(1)),
+					default=Value(0),
+					output_field=IntegerField(),
+				)
+			)
+			.order_by("phase", "bracket_position_sort", "bracket_position", "kickoff_at", "id")
 		)
 		grouped = {phase_code: [] for phase_code in phase_codes}
 		for match in matches:
@@ -98,12 +166,23 @@ class KnockoutBracketService:
 		return grouped
 
 	def _build_slots(self, phase, matches):
-		slot_count = max(phase.expected_matches, len(matches))
-		slots = []
-		for index in range(slot_count):
-			match = matches[index] if index < len(matches) else None
-			slots.append(self._build_slot(index + 1, match))
-		return slots
+		max_position = max([match.bracket_position or 0 for match in matches], default=0)
+		slot_count = max(phase.expected_matches, len(matches), max_position)
+		positioned_matches = [None] * slot_count
+		unpositioned_matches = []
+
+		for match in matches:
+			position = match.bracket_position or 0
+			if position > 0 and position <= slot_count and positioned_matches[position - 1] is None:
+				positioned_matches[position - 1] = match
+			else:
+				unpositioned_matches.append(match)
+
+		empty_indexes = [index for index, match in enumerate(positioned_matches) if match is None]
+		for index, match in zip(empty_indexes, unpositioned_matches):
+			positioned_matches[index] = match
+
+		return [self._build_slot(index + 1, match) for index, match in enumerate(positioned_matches)]
 
 	def _build_slot(self, position, match):
 		if not match:
@@ -114,6 +193,8 @@ class KnockoutBracketService:
 				"status_class": "text-bg-light",
 				"winner_side": "",
 				"winner_team": None,
+				"projected_teams": {"home": None, "away": None},
+				"projected_rows": [],
 			}
 
 		winner_side = ""
@@ -133,6 +214,8 @@ class KnockoutBracketService:
 			"status_class": self._get_status_class(match),
 			"winner_side": winner_side,
 			"winner_team": winner_team,
+			"projected_teams": {"home": None, "away": None},
+			"projected_rows": [],
 		}
 
 	def _get_status_label(self, match):

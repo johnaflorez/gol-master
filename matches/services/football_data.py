@@ -424,6 +424,21 @@ class FootballDataSyncService:
             self._refresh_scorers(result)
         return result
 
+    def sync_queryset_from_match_list(self, queryset, *, date_from, date_to, refresh_scorers=True):
+        fixtures = self.client.get_matches(date_from=date_from, date_to=date_to)
+        fixtures_by_id = {fixture.get("id"): fixture for fixture in fixtures if fixture.get("id")}
+        result = FootballDataSyncResult()
+
+        for match in queryset:
+            match_result = self._sync_match_from_fixture(match, fixtures_by_id.get(match.football_data_match_id))
+            result.checked += match_result.checked
+            result.updated += match_result.updated
+            result.skipped += match_result.skipped
+
+        if refresh_scorers and result.updated:
+            self._refresh_scorers(result)
+        return result
+
     def sync_match(self, match, *, refresh_scorers=True):
         result = FootballDataSyncResult(checked=1)
         if not match.football_data_match_id:
@@ -441,6 +456,17 @@ class FootballDataSyncService:
             if refresh_scorers:
                 self._refresh_scorers(result)
 
+        return result
+
+    def _sync_match_from_fixture(self, match, fixture):
+        result = FootballDataSyncResult(checked=1)
+        if not match.football_data_match_id or not fixture:
+            result.skipped = 1
+            return result
+
+        updated = self._update_match_from_fixture(match, fixture)
+        if updated:
+            result.updated = 1
         return result
 
     def _refresh_scorers(self, result):

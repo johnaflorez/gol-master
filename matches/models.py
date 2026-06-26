@@ -32,6 +32,12 @@ class Match(models.Model):
     finished_at = models.DateTimeField(blank=True, null=True)
     points_calculated = models.BooleanField(default=False)
     phase = models.CharField(max_length=2, choices=PHASE_CHOICES, default='PR')
+    bracket_position = models.PositiveSmallIntegerField(
+        blank=True,
+        null=True,
+        db_index=True,
+        help_text="Posición visual del partido dentro de su fase eliminatoria. Ej: 2, 9.",
+    )
     live_status = models.CharField(max_length=5, choices=LIVE_STATUS_CHOICES, default="NS")
     live_minute = models.PositiveSmallIntegerField(blank=True, null=True)
     last_event_at = models.DateTimeField(blank=True, null=True)
@@ -44,6 +50,11 @@ class Match(models.Model):
 
     def __str__(self):
         return f"{self.home_team} vs {self.away_team}"
+
+    class Meta:
+        indexes = [
+            models.Index(fields=["phase", "bracket_position"], name="matches_mat_phase_b_25ba5e_idx"),
+        ]
 
     def save(self, *args, **kwargs):
         update_fields = kwargs.get("update_fields")

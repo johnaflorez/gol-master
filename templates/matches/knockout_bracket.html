@@ -9,6 +9,7 @@
 {% endblock %}
 
 {% block content %}
+    <div class="knockout-page">
     <div class="mb-3 d-flex justify-content-between align-items-start flex-wrap gap-3">
         <div>
             <h1 class="page-title mb-1">
@@ -50,7 +51,7 @@
 
                     <div class="knockout-slots">
                         {% for slot in phase.slots %}
-                            <article class="knockout-match-card {% if not slot.match %}knockout-match-card--empty{% endif %}" aria-label="{{ phase.short_label }} partido {{ slot.position }}">
+                            <article class="knockout-match-card {% if not slot.match %}knockout-match-card--empty{% endif %} {% if slot.projected_rows %}knockout-match-card--projected{% endif %}" aria-label="{{ phase.short_label }} partido {{ slot.position }}">
                                 <div class="knockout-match-meta">
                                     <span class="fw-bold">Partido {{ slot.position }}</span>
                                     <span class="badge {{ slot.status_class }}">{{ slot.status_label }}</span>
@@ -79,6 +80,31 @@
                                             <span class="knockout-qualified ms-auto"><i class="fas fa-arrow-right me-1"></i>Clasifica {{ slot.winner_team.name }}</span>
                                         {% endif %}
                                     </div>
+                                {% elif slot.projected_rows %}
+                                    <div class="knockout-projected-slot">
+                                        {% for projected in slot.projected_rows %}
+                                            <div class="knockout-team-row knockout-team-row--projected">
+                                                <div class="knockout-team-name">
+                                                    <i class="fas fa-arrow-turn-up text-mundial-gold me-1" title="Proyectado al siguiente cuadro"></i>
+                                                    <span class="knockout-team-full">{{ projected.team|team_with_flag }}</span>
+                                                    <span class="knockout-team-short">{{ projected.team.tla|default:projected.team.code }}</span>
+                                                </div>
+                                                <span class="knockout-projected-label">{{ projected.source_phase }} {{ projected.source_position }}</span>
+                                            </div>
+                                        {% endfor %}
+                                        {% if slot.projected_rows|length == 1 %}
+                                            <div class="knockout-team-row knockout-team-row--awaiting">
+                                                <div class="knockout-team-name">
+                                                    <i class="fas fa-hourglass-half me-1"></i>
+                                                    <span>Rival por definir</span>
+                                                </div>
+                                                <span class="knockout-projected-label">Pend.</span>
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                    <div class="knockout-match-footer">
+                                        <span class="knockout-qualified"><i class="fas fa-arrow-right me-1"></i>Clasificado proyectado</span>
+                                    </div>
                                 {% else %}
                                     <div class="knockout-empty-slot">
                                         <i class="fas fa-hourglass-half"></i>
@@ -99,5 +125,6 @@
             Aún no hay partidos de eliminatorias cargados. El esquema muestra los espacios esperados desde 16avos hasta la final.
         </div>
     {% endif %}
+    </div>
 {% endblock %}
 

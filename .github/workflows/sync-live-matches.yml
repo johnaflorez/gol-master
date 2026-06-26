@@ -50,5 +50,5 @@ jobs:
       - name: Run football-data.org live sync
         if: env.FOOTBALL_DATA_TOKEN != ''
         run: |
-          python manage.py sync_football_data --live --days-back 1 --days-forward 1 --verbosity 2
+          python manage.py sync_football_data --live --days-back 1 --days-forward 1 --no-refresh-scorers --verbosity 2
 

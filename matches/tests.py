@@ -1,5 +1,7 @@
+import json
 from datetime import datetime, timedelta, timezone as dt_timezone
 from io import StringIO
+from tempfile import NamedTemporaryFile
 from unittest.mock import patch
 
 from django.contrib.auth.models import User
@@ -366,6 +368,109 @@ class KnockoutBracketViewTests(TestCase):
         self.assertEqual(len(bracket["layout_columns"][-1]["slots"]), 8)
         self.assertEqual(bracket["phases"][0]["slots"][0]["winner_team"], self.colombia)
 
+    def test_knockout_bracket_uses_bracket_position_before_kickoff_order(self):
+        self.client.login(username="bracket-user", password="secret123")
+        later_but_first_slot = Match.objects.create(
+            home_team=self.argentina,
+            away_team=self.uruguay,
+            kickoff_at=timezone.now() + timedelta(days=2),
+            phase="DR",
+            bracket_position=1,
+        )
+        earlier_but_second_slot = Match.objects.create(
+            home_team=self.colombia,
+            away_team=self.brasil,
+            kickoff_at=timezone.now() + timedelta(days=1),
+            phase="DR",
+            bracket_position=2,
+        )
+
+        response = self.client.get(reverse("knockout_bracket"))
+
+        dr_slots = response.context["bracket"]["phases"][0]["slots"]
+        self.assertEqual(dr_slots[0]["position"], 1)
+        self.assertEqual(dr_slots[0]["match"], later_but_first_slot)
+        self.assertEqual(dr_slots[1]["position"], 2)
+        self.assertEqual(dr_slots[1]["match"], earlier_but_second_slot)
+
+    def test_knockout_bracket_places_match_in_exact_bracket_position(self):
+        self.client.login(username="bracket-user", password="secret123")
+        ninth_slot_match = Match.objects.create(
+            home_team=self.colombia,
+            away_team=self.brasil,
+            kickoff_at=timezone.now() + timedelta(days=1),
+            phase="DR",
+            bracket_position=9,
+        )
+
+        response = self.client.get(reverse("knockout_bracket"))
+
+        dr_slots = response.context["bracket"]["phases"][0]["slots"]
+        self.assertIsNone(dr_slots[0]["match"])
+        self.assertEqual(dr_slots[8]["position"], 9)
+        self.assertEqual(dr_slots[8]["match"], ninth_slot_match)
+
+    def test_knockout_bracket_projects_winners_into_empty_next_round_slot(self):
+        self.client.login(username="bracket-user", password="secret123")
+        Match.objects.create(
+            home_team=self.colombia,
+            away_team=self.brasil,
+            kickoff_at=timezone.now() - timedelta(days=1),
+            home_score=2,
+            away_score=1,
+            finished=True,
+            phase="DR",
+            bracket_position=1,
+        )
+        Match.objects.create(
+            home_team=self.argentina,
+            away_team=self.uruguay,
+            kickoff_at=timezone.now() - timedelta(days=1),
+            home_score=0,
+            away_score=1,
+            finished=True,
+            phase="DR",
+            bracket_position=2,
+        )
+
+        response = self.client.get(reverse("knockout_bracket"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Clasificado proyectado")
+        self.assertContains(response, "16avos 1")
+        self.assertContains(response, "16avos 2")
+        of_slot = response.context["bracket"]["phases"][1]["slots"][0]
+        self.assertIsNone(of_slot["match"])
+        self.assertEqual(of_slot["status_label"], "Parcial")
+        self.assertEqual([row["team"] for row in of_slot["projected_rows"]], [self.colombia, self.uruguay])
+        self.assertEqual([row["source_position"] for row in of_slot["projected_rows"]], [1, 2])
+
+    def test_knockout_bracket_does_not_project_when_next_round_match_exists(self):
+        self.client.login(username="bracket-user", password="secret123")
+        Match.objects.create(
+            home_team=self.colombia,
+            away_team=self.brasil,
+            kickoff_at=timezone.now() - timedelta(days=1),
+            home_score=2,
+            away_score=1,
+            finished=True,
+            phase="DR",
+            bracket_position=1,
+        )
+        next_match = Match.objects.create(
+            home_team=self.argentina,
+            away_team=self.uruguay,
+            kickoff_at=timezone.now() + timedelta(days=1),
+            phase="OF",
+            bracket_position=1,
+        )
+
+        response = self.client.get(reverse("knockout_bracket"))
+
+        of_slot = response.context["bracket"]["phases"][1]["slots"][0]
+        self.assertEqual(of_slot["match"], next_match)
+        self.assertEqual(of_slot["projected_rows"], [])
+
     def test_knockout_bracket_shows_empty_schema_when_no_matches_exist(self):
         self.client.login(username="bracket-user", password="secret123")
 
@@ -613,6 +718,37 @@ class FootballDataSyncServiceTests(TestCase):
 
         self.assertEqual(result.skipped, 1)
 
+    def test_sync_queryset_from_match_list_updates_with_single_list_request(self):
+        match = self._match(match_id=12345)
+        missing_from_response = self._match(match_id=99999)
+        FakeFootballDataListClient.fixtures = [
+            {
+                "id": 12345,
+                "status": "IN_PLAY",
+                "homeTeam": {"id": 100, "name": "Colombia", "tla": "COL", "crest": "https://crests.example/col.svg"},
+                "awayTeam": {},
+                "score": {"fullTime": {"home": 1, "away": 0}},
+            }
+        ]
+        FakeFootballDataListClient.calls = []
+
+        result = FootballDataSyncService(client=FakeFootballDataListClient()).sync_queryset_from_match_list(
+            Match.objects.filter(pk__in=[match.pk, missing_from_response.pk]).order_by("pk"),
+            date_from=timezone.localdate(),
+            date_to=timezone.localdate(),
+            refresh_scorers=False,
+        )
+
+        match.refresh_from_db()
+        missing_from_response.refresh_from_db()
+        self.assertEqual(len(FakeFootballDataListClient.calls), 1)
+        self.assertEqual(result.checked, 2)
+        self.assertEqual(result.updated, 1)
+        self.assertEqual(result.skipped, 1)
+        self.assertEqual(match.live_status, "LIVE")
+        self.assertEqual(match.home_score, 1)
+        self.assertEqual(missing_from_response.home_score, 0)
+
     def test_top_scorers_refresh_upserts_and_deletes_stale_rows(self):
         self.team_a.football_data_team_id = 100
         self.team_a.tla = "COL"
@@ -784,6 +920,24 @@ class SyncFootballDataCommandTests(TestCase):
         self.assertIn("football-data.org scorers OK", out.getvalue())
         self.assertIn("updated=2", out.getvalue())
         self.assertIn("deleted=1", out.getvalue())
+
+    @patch("matches.management.commands.sync_football_data.FootballDataSyncService")
+    def test_live_command_uses_batch_sync_and_can_skip_scorers(self, service_cls):
+        service_cls.return_value.sync_queryset_from_match_list.return_value = FootballDataSyncResult(checked=1, updated=1)
+        team_a = Team.objects.create(name="Live A", code="LVA")
+        team_b = Team.objects.create(name="Live B", code="LVB")
+        Match.objects.create(
+            home_team=team_a,
+            away_team=team_b,
+            kickoff_at=timezone.now(),
+            football_data_match_id=2001,
+        )
+
+        call_command("sync_football_data", "--live", "--no-refresh-scorers", stdout=StringIO())
+
+        service_cls.return_value.sync_queryset_from_match_list.assert_called_once()
+        service_cls.return_value.sync_queryset.assert_not_called()
+        self.assertFalse(service_cls.return_value.sync_queryset_from_match_list.call_args.kwargs["refresh_scorers"])
 
     @patch("matches.management.commands.refresh_football_data_scorers.FootballDataTopScorersService")
     def test_refresh_football_data_scorers_command(self, service_cls):
@@ -1002,18 +1156,19 @@ class MapFootballDataMatchesCommandTests(TestCase):
             kickoff_at=timezone.now() - timedelta(days=3),
             football_data_match_id=2004,
         )
-        service_cls.return_value.sync_queryset.return_value = FootballDataSyncResult(checked=2)
+        service_cls.return_value.sync_queryset_from_match_list.return_value = FootballDataSyncResult(checked=2)
         out = StringIO()
 
         call_command("sync_football_data", "--live", "--days-back", "1", "--days-forward", "1", stdout=out)
 
-        queryset = service_cls.return_value.sync_queryset.call_args[0][0]
+        queryset = service_cls.return_value.sync_queryset_from_match_list.call_args[0][0]
         selected_ids = {match.id for match in queryset}
         self.assertIn(included.id, selected_ids)
         self.assertIn(old_live.id, selected_ids)
         self.assertNotIn(finished.id, selected_ids)
         self.assertNotIn(unmapped.id, selected_ids)
         self.assertNotIn(old_not_live.id, selected_ids)
+        service_cls.return_value.sync_queryset.assert_not_called()
         self.assertIn("football-data.org sync OK", out.getvalue())
 
 
@@ -1138,5 +1293,60 @@ class ImportFootballDataMatchesCommandTests(TestCase):
         self.assertEqual(match.live_status, "FT")
         self.assertTrue(match.finished)
         self.assertIsNotNone(match.finished_at)
+
+    @patch("matches.management.commands.import_football_data_matches.FootballDataClient", FakeFootballDataListClient)
+    def test_import_football_data_matches_sets_bracket_position_from_knockout_matchday(self):
+        FakeFootballDataListClient.fixtures = [
+            self._fixture(
+                fixture_id=7006,
+                stage="LAST_32",
+                matchday=9,
+            )
+        ]
+
+        call_command("import_football_data_matches", "--date", "2026-06-25", "--commit", stdout=StringIO())
+
+        match = Match.objects.get(football_data_match_id=7006)
+        self.assertEqual(match.phase, "DR")
+        self.assertEqual(match.bracket_position, 9)
+
+    def test_assign_bracket_positions_command_updates_from_json(self):
+        match = Match.objects.create(
+            home_team=self.colombia,
+            away_team=self.brasil,
+            kickoff_at=self.kickoff,
+            phase="DR",
+            football_data_match_id=7010,
+        )
+        payload = {"DR": {"2": 7010}}
+        out = StringIO()
+
+        with NamedTemporaryFile("w", suffix=".json", encoding="utf-8") as json_file:
+            json.dump(payload, json_file)
+            json_file.flush()
+            call_command("assign_bracket_positions", json_file.name, "--commit", stdout=out)
+
+        match.refresh_from_db()
+        self.assertEqual(match.phase, "DR")
+        self.assertEqual(match.bracket_position, 2)
+        self.assertIn("updated=1", out.getvalue())
+
+    def test_assign_bracket_positions_command_is_dry_run_by_default(self):
+        match = Match.objects.create(
+            home_team=self.colombia,
+            away_team=self.brasil,
+            kickoff_at=self.kickoff,
+            phase="DR",
+            football_data_match_id=7011,
+        )
+        payload = {"matches": [{"football_data_match_id": 7011, "phase": "DR", "position": 3}]}
+
+        with NamedTemporaryFile("w", suffix=".json", encoding="utf-8") as json_file:
+            json.dump(payload, json_file)
+            json_file.flush()
+            call_command("assign_bracket_positions", json_file.name, stdout=StringIO())
+
+        match.refresh_from_db()
+        self.assertIsNone(match.bracket_position)
 
 

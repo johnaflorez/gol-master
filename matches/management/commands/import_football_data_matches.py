@@ -33,6 +33,7 @@ class Command(BaseCommand):
         "FINAL": "F",
         "THIRD_PLACE": "F",
     }
+    KNOCKOUT_PHASES = {"DR", "OF", "CF", "SF", "F"}
 
     def add_arguments(self, parser):
         parser.add_argument("--date", help="Fecha local YYYY-MM-DD. Equivale a --from-date y --to-date.")
@@ -122,6 +123,7 @@ class Command(BaseCommand):
             proposed += 1
             self.stdout.write(
                 f"CREATE: football_data_match_id={external_id} phase={match_data['phase']} "
+                f"bracket_position={match_data.get('bracket_position') or '-'} "
                 f"status={match_data['live_status']} finished={match_data['finished']} | "
                 f"{home_team} vs {away_team} | kickoff_at={fixture_datetime.isoformat()}"
             )
@@ -193,6 +195,7 @@ class Command(BaseCommand):
         status = self._normalize_status(fixture.get("status"))
         home_score, away_score = self._extract_score(fixture.get("score") or {})
         finished = status in self.FINISHED_STATUSES
+        phase = self._map_phase(fixture)
 
         return {
             "home_team": home_team,
@@ -201,7 +204,8 @@ class Command(BaseCommand):
             "home_score": int(home_score) if home_score is not None else 0,
             "away_score": int(away_score) if away_score is not None else 0,
             "finished": finished,
-            "phase": self._map_phase(fixture),
+            "phase": phase,
+            "bracket_position": self._bracket_position_from_fixture(fixture, phase),
             "live_status": self._map_live_status(status),
             "football_data_match_id": fixture.get("id"),
         }
@@ -225,6 +229,15 @@ class Command(BaseCommand):
                 return "TR"
             return "PR"
         return self.STAGE_PHASE_MAP.get(stage, "PR")
+
+    def _bracket_position_from_fixture(self, fixture, phase):
+        if phase not in self.KNOCKOUT_PHASES:
+            return None
+        try:
+            matchday = int(fixture.get("matchday") or 0)
+        except (TypeError, ValueError):
+            return None
+        return matchday or None
 
     def _map_live_status(self, status):
         status = self._normalize_status(status)

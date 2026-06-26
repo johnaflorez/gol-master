@@ -26,14 +26,13 @@
         <label for="scorer-player-filter" class="small fw-semibold text-muted mb-0">
             <i class="fas fa-user me-1"></i>Jugador
         </label>
-        <select id="scorer-player-filter" name="player_id" class="form-select form-select-sm standings-country-input">
-            <option value="">Todos los jugadores</option>
+        <input id="scorer-player-filter" name="player" list="scorer-player-options" class="form-control form-control-sm standings-country-input"
+               placeholder="Escribe un jugador..." value="{{ selected_player_label }}">
+        <datalist id="scorer-player-options">
             {% for player in player_options %}
-                <option value="{{ player.id }}" {% if selected_player_id == player.id %}selected{% endif %}>
-                    {{ player.name }}{% if player.team %} · {{ player.team.name }}{% endif %}
-                </option>
+                <option value="{{ player.label }}"></option>
             {% endfor %}
-        </select>
+        </datalist>
     </div>
     <div class="standings-filter-control standings-country-control">
         <label for="scorer-country-filter" class="small fw-semibold text-muted mb-0">

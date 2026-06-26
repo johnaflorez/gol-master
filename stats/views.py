@@ -6,7 +6,14 @@ from django.views.generic import ListView
 
 from stats.models import TopScorerStanding
 from teams.models import Player
-from teams.utils import get_country_label, get_country_options, parse_country_filter
+from teams.utils import (
+	find_player_from_filter,
+	get_country_label,
+	get_country_options,
+	get_player_label,
+	get_player_options,
+	parse_country_filter,
+)
 
 
 class TopScorersView(LoginRequiredMixin, ListView):
@@ -26,6 +33,11 @@ class TopScorersView(LoginRequiredMixin, ListView):
 	def _get_selected_player(self):
 		if hasattr(self, "_selected_player"):
 			return self._selected_player
+		player_text = self._get_player_filter()
+		if player_text:
+			self._selected_player = find_player_from_filter(player_text)
+			if self._selected_player:
+				return self._selected_player
 		player_id = self._get_player_id_filter()
 		if not player_id:
 			self._selected_player = None
@@ -73,19 +85,19 @@ class TopScorersView(LoginRequiredMixin, ListView):
 		selected_player = self._get_selected_player()
 		selected_player_id = selected_player.id if selected_player else None
 		player_text = self._get_player_filter()
+		selected_player_label = get_player_label(selected_player) if selected_player else player_text
 		selected_country = self._get_country_filter()
 		country_options = get_country_options(unique_by="name")
 		filter_params = {}
-		if selected_player_id:
-			filter_params["player_id"] = selected_player_id
-		elif player_text:
-			filter_params["player"] = player_text
+		if selected_player_label:
+			filter_params["player"] = selected_player_label
 		if selected_country:
 			filter_params["country"] = selected_country
 
-		context["player_options"] = Player.objects.select_related("team").order_by("name", "team__name")
+		context["player_options"] = get_player_options()
 		context["selected_player_id"] = selected_player_id
 		context["selected_player"] = selected_player.name if selected_player else player_text
+		context["selected_player_label"] = selected_player_label
 		context["selected_country"] = selected_country
 		context["country_options"] = country_options
 		context["selected_country_label"] = get_country_label(

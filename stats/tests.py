@@ -147,7 +147,7 @@ class TopScorersViewTests(TestCase):
         self.assertEqual(response.context["selected_player"], "Luis")
         self.assertEqual(response.context["selected_country"], "COL")
 
-    def test_top_scorers_view_filters_by_player_table_selection(self):
+    def test_top_scorers_view_filters_by_player_datalist_selection(self):
         self.client.login(username="scorers-user", password="secret123")
         brasil = Team.objects.create(name="Brasil", code="BRA", tla="BRA")
         player = Player.objects.create(
@@ -195,15 +195,46 @@ class TopScorersViewTests(TestCase):
             goals=2,
         )
 
-        response = self.client.get(reverse("top_scorers"), {"player_id": str(player.id)})
+        response = self.client.get(reverse("top_scorers"), {"player": "Luis Díaz - Colombia"})
 
         self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'list="scorer-player-options"')
+        self.assertContains(response, 'value="Luis Díaz - Colombia"')
+        self.assertContains(response, '<option value="Neymar - Brasil"></option>', html=True)
         self.assertContains(response, "Luis Díaz")
         self.assertContains(response, "Colombia")
         self.assertEqual([scorer.player_name for scorer in response.context["scorers"]], ["Luis Díaz"])
         self.assertEqual(response.context["selected_player_id"], player.id)
         self.assertEqual(response.context["selected_player"], "Luis Díaz")
-        self.assertEqual(list(response.context["player_options"]), list(Player.objects.select_related("team").order_by("name", "team__name")))
+        self.assertEqual(response.context["selected_player_label"], "Luis Díaz - Colombia")
+        self.assertEqual(
+            [option["label"] for option in response.context["player_options"]],
+            ["Luis Díaz - Colombia", "Neymar - Brasil"],
+        )
+
+    def test_top_scorers_view_keeps_legacy_player_id_filter(self):
+        self.client.login(username="scorers-user", password="secret123")
+        player = Player.objects.create(team=self.team, name="Luis Díaz", football_data_player_id=10)
+        TopScorerStanding.objects.create(
+            competition_code="WC",
+            season=2026,
+            rank=1,
+            external_key="player:10",
+            football_data_player_id=10,
+            player_name="Luis Díaz",
+            team=self.team,
+            team_name="Colombia",
+            team_tla="COL",
+            goals=4,
+        )
+
+        response = self.client.get(reverse("top_scorers"), {"player_id": str(player.id)})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual([scorer.player_name for scorer in response.context["scorers"]], ["Luis Díaz"])
+        self.assertEqual(response.context["selected_player_id"], player.id)
+        self.assertEqual(response.context["selected_player_label"], "Luis Díaz - Colombia")
+        self.assertContains(response, 'value="Luis Díaz - Colombia"')
 
     def test_top_scorers_view_paginates_and_preserves_filters(self):
         self.client.login(username="scorers-user", password="secret123")

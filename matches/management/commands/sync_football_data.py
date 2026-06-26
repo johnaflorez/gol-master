@@ -48,6 +48,11 @@ class Command(BaseCommand):
             default=1,
             help="Días hacia adelante desde hoy para incluir partidos no finalizados cuando se usa --live. Default: 1.",
         )
+        parser.add_argument(
+            "--no-refresh-scorers",
+            action="store_true",
+            help="No actualiza la tabla de goleadores al terminar la sincronización de marcadores.",
+        )
 
     def handle(self, *args, **options):
         queryset = Match.objects.exclude(
@@ -95,9 +100,19 @@ class Command(BaseCommand):
                     f"finished={match.finished}, teams={match.home_team} vs {match.away_team}"
                 )
 
+        refresh_scorers = not options.get("no_refresh_scorers")
         service = FootballDataSyncService()
         try:
-            result = service.sync_queryset(queryset)
+            if options.get("live") and selected_count:
+                date_bounds = list(queryset.dates("kickoff_at", "day", order="ASC"))
+                result = service.sync_queryset_from_match_list(
+                    queryset,
+                    date_from=date_bounds[0],
+                    date_to=date_bounds[-1],
+                    refresh_scorers=refresh_scorers,
+                )
+            else:
+                result = service.sync_queryset(queryset, refresh_scorers=refresh_scorers)
         except (FootballDataConfigError, FootballDataClientError) as exc:
             raise CommandError(str(exc)) from exc
 
