@@ -1,0 +1,102 @@
+name: Import football-data matches
+
+on:
+  workflow_dispatch:
+    inputs:
+      date:
+        description: "Fecha local YYYY-MM-DD. Si se llena, ignora from_date/to_date."
+        required: false
+        type: string
+      from_date:
+        description: "Fecha local inicial YYYY-MM-DD. Opcional si usas date."
+        required: false
+        type: string
+      to_date:
+        description: "Fecha local final YYYY-MM-DD. Opcional si usas date."
+        required: false
+        type: string
+      commit:
+        description: "Crear partidos en la DB. Déjalo false para dry-run."
+        required: true
+        default: false
+        type: boolean
+      status:
+        description: "Status opcional football-data.org: TIMED, SCHEDULED, IN_PLAY, FINISHED. Vacío trae todos."
+        required: false
+        type: string
+      fetch_padding_days:
+        description: "Días extra al consultar football-data.org por diferencias UTC."
+        required: true
+        default: "1"
+        type: string
+
+jobs:
+  import-football-data-matches:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    env:
+      DEBUG: "False"
+      SECRET_KEY: ${{ secrets.SECRET_KEY }}
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      FOOTBALL_DATA_TOKEN: ${{ secrets.FOOTBALL_DATA_TOKEN }}
+      FOOTBALL_DATA_BASE_URL: "https://api.football-data.org/v4"
+      FOOTBALL_DATA_TIMEOUT: "15"
+      ALLOWED_HOSTS: "localhost,127.0.0.1"
+      CSRF_TRUSTED_ORIGINS: "https://localhost"
+      USE_S3_MEDIA: "False"
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Validate required secrets
+        run: |
+          test -n "$DATABASE_URL" || (echo "DATABASE_URL secret is required" && exit 1)
+          test -n "$SECRET_KEY" || (echo "SECRET_KEY secret is required" && exit 1)
+          test -n "$FOOTBALL_DATA_TOKEN" || (echo "FOOTBALL_DATA_TOKEN secret is required" && exit 1)
+
+      - name: Run football-data.org importer
+        env:
+          INPUT_DATE: ${{ inputs.date }}
+          INPUT_FROM_DATE: ${{ inputs.from_date }}
+          INPUT_TO_DATE: ${{ inputs.to_date }}
+          INPUT_COMMIT: ${{ inputs.commit }}
+          INPUT_STATUS: ${{ inputs.status }}
+          INPUT_FETCH_PADDING_DAYS: ${{ inputs.fetch_padding_days }}
+        run: |
+          set -euo pipefail
+
+          args=("--fetch-padding-days" "$INPUT_FETCH_PADDING_DAYS")
+
+          if [ -n "$INPUT_DATE" ]; then
+            args+=("--date" "$INPUT_DATE")
+          else
+            if [ -n "$INPUT_FROM_DATE" ]; then
+              args+=("--from-date" "$INPUT_FROM_DATE")
+            fi
+            if [ -n "$INPUT_TO_DATE" ]; then
+              args+=("--to-date" "$INPUT_TO_DATE")
+            fi
+          fi
+
+          if [ -n "$INPUT_STATUS" ]; then
+            args+=("--status" "$INPUT_STATUS")
+          fi
+
+          if [ "$INPUT_COMMIT" = "true" ]; then
+            args+=("--commit")
+          fi
+
+          python manage.py import_football_data_matches "${args[@]}"
+

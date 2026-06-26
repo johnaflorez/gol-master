@@ -152,8 +152,20 @@ class TournamentPredictionViewTests(TestCase):
 
 	def setUp(self):
 		self.user = User.objects.create_user(username="global-user", password="secret123")
-		self.team_a = Team.objects.create(name="Colombia", code="COL", country_code="CO")
-		self.team_b = Team.objects.create(name="Brasil", code="BRA", country_code="BR")
+		self.team_a = Team.objects.create(
+			name="Colombia",
+			code="COL",
+			country_code="CO",
+			flag="https://crests.football-data.org/818.svg",
+			tla="COL",
+		)
+		self.team_b = Team.objects.create(
+			name="Brasil",
+			code="BRA",
+			country_code="BR",
+			flag="https://crests.football-data.org/764.svg",
+			tla="BRA",
+		)
 		self.player_a = Player.objects.create(name="Luis Díaz", team=self.team_a, photo="players/luis-diaz.png")
 		self.player_b = Player.objects.create(name="Vinicius Jr", team=self.team_b, photo="players/vinicius.png")
 
@@ -245,7 +257,8 @@ class TournamentPredictionViewTests(TestCase):
 		self.assertEqual(response.status_code, 200)
 		self.assertContains(response, "Colombia")
 		self.assertContains(response, "Luis Díaz")
-		self.assertContains(response, "Bandera CO")
+		self.assertContains(response, "Bandera COL")
+		self.assertContains(response, "https://crests.football-data.org/818.svg")
 		self.assertContains(response, "players/luis-diaz.png")
 		self.assertContains(response, "no se puede modificar")
 		self.assertNotContains(response, "Tu elección actual")
@@ -258,7 +271,13 @@ class MyPredictionsViewTests(TestCase):
 	def setUp(self):
 		self.user = User.objects.create_user(username="viewer", password="secret123")
 		self.client.login(username="viewer", password="secret123")
-		self.team_a = Team.objects.create(name="Alpha", code="ALP", country_code="CO")
+		self.team_a = Team.objects.create(
+			name="Alpha",
+			code="ALP",
+			country_code="CO",
+			flag="https://crests.football-data.org/818.svg",
+			tla="COL",
+		)
 		self.team_b = Team.objects.create(name="Bravo", code="BRV", country_code="BR")
 		self.player_a = Player.objects.create(name="Jugador Alpha", team=self.team_a, photo="players/jugador-alpha.png")
 
@@ -316,7 +335,8 @@ class MyPredictionsViewTests(TestCase):
 		self.assertContains(response, "Goleador elegido")
 		self.assertContains(response, "Alpha")
 		self.assertContains(response, "Jugador Alpha")
-		self.assertContains(response, "Bandera CO")
+		self.assertContains(response, "Bandera COL")
+		self.assertContains(response, "https://crests.football-data.org/818.svg")
 		self.assertContains(response, "players/jugador-alpha.png")
 		self.assertContains(response, "no se puede modificar")
 		self.assertNotContains(response, "Crear elección")
@@ -534,8 +554,20 @@ class AllPredictionsViewTests(TestCase):
 		self.user = User.objects.create_user(username="all-viewer", password="secret123")
 		self.other_user = User.objects.create_user(username="other-viewer", password="secret123")
 		self.client.login(username="all-viewer", password="secret123")
-		self.colombia = Team.objects.create(name="Colombia", code="COL", country_code="CO")
-		self.brasil = Team.objects.create(name="Brasil", code="BRA", country_code="BR")
+		self.colombia = Team.objects.create(
+			name="Colombia",
+			code="COL",
+			country_code="CO",
+			flag="https://crests.football-data.org/818.svg",
+			tla="COL",
+		)
+		self.brasil = Team.objects.create(
+			name="Brasil",
+			code="BRA",
+			country_code="BR",
+			flag="https://crests.football-data.org/764.svg",
+			tla="BRA",
+		)
 		self.argentina = Team.objects.create(name="Argentina", code="ARG", country_code="AR")
 		self.luis_diaz = Player.objects.create(name="Luis Díaz", team=self.colombia, photo="players/luis-diaz.png")
 		self.vinicius = Player.objects.create(name="Vinicius Jr", team=self.brasil, photo="players/vinicius.png")
@@ -725,8 +757,10 @@ class AllPredictionsViewTests(TestCase):
 		self.assertContains(response, "Brasil")
 		self.assertContains(response, "Luis Díaz")
 		self.assertContains(response, "Vinicius Jr")
-		self.assertContains(response, "Bandera CO")
-		self.assertContains(response, "Bandera BR")
+		self.assertContains(response, "Bandera COL")
+		self.assertContains(response, "Bandera BRA")
+		self.assertContains(response, "https://crests.football-data.org/818.svg")
+		self.assertContains(response, "https://crests.football-data.org/764.svg")
 		self.assertContains(response, "players/luis-diaz.png")
 		self.assertContains(response, "players/vinicius.png")
 		self.assertContains(response, reverse("tournament_prediction"))

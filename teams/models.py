@@ -19,6 +19,19 @@ class Team(models.Model):
         max_length=2, blank=True, default="",
         help_text="ISO 3166-1 alpha-2 code (e.g., AR, BR)"
     )
+    flag = models.URLField(
+        max_length=255,
+        blank=True,
+        default="",
+        help_text="URL de la bandera/escudo del equipo en football-data.org",
+    )
+    tla = models.CharField(
+        max_length=3,
+        blank=True,
+        default="",
+        db_index=True,
+        help_text="Código TLA usado por football-data.org (e.g., ARG, GER, NED)",
+    )
     football_data_team_id = models.PositiveIntegerField(
         blank=True,
         null=True,

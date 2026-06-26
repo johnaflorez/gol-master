@@ -210,8 +210,8 @@ class MatchListViewTests(TestCase):
         self.assertNotContains(response, "group-standing-sticky-cell")
         self.assertContains(response, "Grupo A")
         self.assertContains(response, "Selecci&oacute;n")
-        self.assertContains(response, "Bandera CO")
-        self.assertContains(response, "Bandera BR")
+        self.assertContains(response, "Team A")
+        self.assertContains(response, "Team B")
         self.assertContains(response, "J")
         self.assertContains(response, "G")
         self.assertContains(response, "E")
@@ -369,8 +369,8 @@ class FootballDataSyncServiceTests(TestCase):
         fixture = {
             "id": 12345,
             "status": "IN_PLAY",
-            "homeTeam": {"id": 100, "name": "Colombia", "tla": "COL"},
-            "awayTeam": {"id": 200, "name": "Brasil", "tla": "BRA"},
+            "homeTeam": {"id": 100, "name": "Colombia", "tla": "COL", "crest": "https://crests.example/col.svg"},
+            "awayTeam": {"id": 200, "name": "Brasil", "tla": "BRA", "crest": "https://crests.example/bra.svg"},
             "score": {"fullTime": {"home": 1, "away": 0}},
         }
 
@@ -389,6 +389,10 @@ class FootballDataSyncServiceTests(TestCase):
         self.assertEqual(match.away_score, 0)
         self.assertEqual(self.team_a.football_data_team_id, 100)
         self.assertEqual(self.team_b.football_data_team_id, 200)
+        self.assertEqual(self.team_a.tla, "COL")
+        self.assertEqual(self.team_b.tla, "BRA")
+        self.assertEqual(self.team_a.flag, "https://crests.example/col.svg")
+        self.assertEqual(self.team_b.flag, "https://crests.example/bra.svg")
 
     def test_sync_match_marks_finished(self):
         match = self._match()
@@ -487,8 +491,8 @@ class MapFootballDataMatchesCommandTests(TestCase):
         return {
             "id": fixture_id,
             "utcDate": self.kickoff.isoformat().replace("+00:00", "Z"),
-            "homeTeam": {"id": 100, "name": home_name, "tla": home_tla},
-            "awayTeam": {"id": 200, "name": away_name, "tla": away_tla},
+            "homeTeam": {"id": 100, "name": home_name, "tla": home_tla, "crest": "https://crests.example/home.svg"},
+            "awayTeam": {"id": 200, "name": away_name, "tla": away_tla, "crest": "https://crests.example/away.svg"},
             "status": "TIMED",
             "score": {"fullTime": {"home": None, "away": None}},
         }
@@ -527,7 +531,53 @@ class MapFootballDataMatchesCommandTests(TestCase):
         self.assertEqual(match.football_data_match_id, 9002)
         self.assertEqual(self.team_a.football_data_team_id, 100)
         self.assertEqual(self.team_b.football_data_team_id, 200)
+        self.assertEqual(self.team_a.tla, "COL")
+        self.assertEqual(self.team_b.tla, "BRA")
+        self.assertEqual(self.team_a.flag, "https://crests.example/home.svg")
+        self.assertEqual(self.team_b.flag, "https://crests.example/away.svg")
         self.assertIn("mapped=1", out.getvalue())
+
+    @patch("matches.management.commands.map_football_data_matches.FootballDataClient", FakeFootballDataListClient)
+    def test_map_football_data_matches_uses_team_tla_when_code_differs(self):
+        local_home = Team.objects.create(name="Equipo Local", code="DEU", tla="GER")
+        local_away = Team.objects.create(name="Rival Local", code="NLD", tla="NED")
+        match = self._match(home_team=local_home, away_team=local_away)
+        FakeFootballDataListClient.fixtures = [
+            self._fixture(
+                fixture_id=9006,
+                home_name="Germany",
+                home_tla="GER",
+                away_name="Netherlands",
+                away_tla="NED",
+            )
+        ]
+
+        call_command("map_football_data_matches", "--date", "2026-06-25", "--commit", stdout=StringIO())
+
+        match.refresh_from_db()
+        self.assertEqual(match.football_data_match_id, 9006)
+
+    @patch("matches.management.commands.map_football_data_matches.FootballDataClient", FakeFootballDataListClient)
+    def test_map_football_data_matches_rejects_code_match_when_tla_differs(self):
+        local_home = Team.objects.create(name="Local Alemania", code="GER", tla="DEU")
+        local_away = Team.objects.create(name="Local Paises Bajos", code="NED", tla="NLD")
+        match = self._match(home_team=local_home, away_team=local_away)
+        FakeFootballDataListClient.fixtures = [
+            self._fixture(
+                fixture_id=9007,
+                home_name="Germany",
+                home_tla="GER",
+                away_name="Netherlands",
+                away_tla="NED",
+            )
+        ]
+        out = StringIO()
+
+        call_command("map_football_data_matches", "--date", "2026-06-25", "--commit", stdout=out)
+
+        match.refresh_from_db()
+        self.assertIsNone(match.football_data_match_id)
+        self.assertIn("SIN MATCH", out.getvalue())
 
     @patch("matches.management.commands.map_football_data_matches.FootballDataClient", FakeFootballDataListClient)
     def test_map_football_data_matches_uses_spanish_english_alias_when_codes_differ(self):
@@ -619,5 +669,128 @@ class MapFootballDataMatchesCommandTests(TestCase):
         self.assertNotIn(unmapped.id, selected_ids)
         self.assertNotIn(old_not_live.id, selected_ids)
         self.assertIn("football-data.org sync OK", out.getvalue())
+
+
+class ImportFootballDataMatchesCommandTests(TestCase):
+
+    def setUp(self):
+        FakeFootballDataListClient.fixtures = []
+        FakeFootballDataListClient.calls = []
+        self.colombia = Team.objects.create(name="Colombia", code="COL", tla="COL")
+        self.brasil = Team.objects.create(name="Brasil", code="BRA", tla="BRA")
+        self.kickoff = datetime(2026, 6, 25, 20, 0, tzinfo=dt_timezone.utc)
+
+    def _fixture(
+        self,
+        *,
+        fixture_id=7001,
+        home_tla="COL",
+        away_tla="BRA",
+        stage="GROUP_STAGE",
+        matchday=1,
+        status="TIMED",
+        home_score=None,
+        away_score=None,
+    ):
+        return {
+            "id": fixture_id,
+            "utcDate": self.kickoff.isoformat().replace("+00:00", "Z"),
+            "stage": stage,
+            "matchday": matchday,
+            "status": status,
+            "homeTeam": {
+                "id": 100,
+                "name": "Colombia",
+                "tla": home_tla,
+                "crest": "https://crests.example/col.svg",
+            },
+            "awayTeam": {
+                "id": 200,
+                "name": "Brazil",
+                "tla": away_tla,
+                "crest": "https://crests.example/bra.svg",
+            },
+            "score": {"fullTime": {"home": home_score, "away": away_score}},
+        }
+
+    @patch("matches.management.commands.import_football_data_matches.FootballDataClient", FakeFootballDataListClient)
+    def test_import_football_data_matches_dry_run_does_not_create_match(self):
+        FakeFootballDataListClient.fixtures = [self._fixture()]
+        out = StringIO()
+
+        call_command("import_football_data_matches", "--date", "2026-06-25", stdout=out)
+
+        self.assertFalse(Match.objects.exists())
+        self.assertIn("DRY-RUN", out.getvalue())
+        self.assertIn("CREATE: football_data_match_id=7001", out.getvalue())
+
+    @patch("matches.management.commands.import_football_data_matches.FootballDataClient", FakeFootballDataListClient)
+    def test_import_football_data_matches_commit_creates_match_using_tla(self):
+        FakeFootballDataListClient.fixtures = [self._fixture(fixture_id=7002, status="IN_PLAY", home_score=1, away_score=0)]
+        out = StringIO()
+
+        call_command("import_football_data_matches", "--date", "2026-06-25", "--commit", stdout=out)
+
+        match = Match.objects.get(football_data_match_id=7002)
+        self.colombia.refresh_from_db()
+        self.brasil.refresh_from_db()
+        self.assertEqual(match.home_team, self.colombia)
+        self.assertEqual(match.away_team, self.brasil)
+        self.assertEqual(match.home_score, 1)
+        self.assertEqual(match.away_score, 0)
+        self.assertEqual(match.live_status, "LIVE")
+        self.assertFalse(match.finished)
+        self.assertEqual(match.phase, "PR")
+        self.assertEqual(self.colombia.football_data_team_id, 100)
+        self.assertEqual(self.brasil.football_data_team_id, 200)
+        self.assertEqual(self.colombia.flag, "https://crests.example/col.svg")
+        self.assertIn("created=1", out.getvalue())
+
+    @patch("matches.management.commands.import_football_data_matches.FootballDataClient", FakeFootballDataListClient)
+    def test_import_football_data_matches_rejects_when_tla_is_missing_locally(self):
+        self.colombia.tla = ""
+        self.colombia.save(update_fields=["tla"])
+        FakeFootballDataListClient.fixtures = [self._fixture(fixture_id=7003)]
+        out = StringIO()
+
+        call_command("import_football_data_matches", "--date", "2026-06-25", "--commit", stdout=out)
+
+        self.assertFalse(Match.objects.exists())
+        self.assertIn("SIN EQUIPO LOCAL", out.getvalue())
+
+    @patch("matches.management.commands.import_football_data_matches.FootballDataClient", FakeFootballDataListClient)
+    def test_import_football_data_matches_skips_existing_external_id(self):
+        Match.objects.create(
+            home_team=self.colombia,
+            away_team=self.brasil,
+            kickoff_at=self.kickoff,
+            football_data_match_id=7004,
+        )
+        FakeFootballDataListClient.fixtures = [self._fixture(fixture_id=7004)]
+
+        call_command("import_football_data_matches", "--date", "2026-06-25", "--commit", stdout=StringIO())
+
+        self.assertEqual(Match.objects.count(), 1)
+
+    @patch("matches.management.commands.import_football_data_matches.FootballDataClient", FakeFootballDataListClient)
+    def test_import_football_data_matches_maps_finished_knockout_match(self):
+        FakeFootballDataListClient.fixtures = [
+            self._fixture(
+                fixture_id=7005,
+                stage="QUARTER_FINALS",
+                matchday=None,
+                status="FINISHED",
+                home_score=2,
+                away_score=1,
+            )
+        ]
+
+        call_command("import_football_data_matches", "--date", "2026-06-25", "--commit", stdout=StringIO())
+
+        match = Match.objects.get(football_data_match_id=7005)
+        self.assertEqual(match.phase, "CF")
+        self.assertEqual(match.live_status, "FT")
+        self.assertTrue(match.finished)
+        self.assertIsNotNone(match.finished_at)
 
 

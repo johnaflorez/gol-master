@@ -1,7 +1,6 @@
 import json
 from dataclasses import dataclass
 from datetime import date
-from typing import Any
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
@@ -135,7 +134,7 @@ class FootballDataSyncService:
 
         home_team = fixture.get("homeTeam") or {}
         away_team = fixture.get("awayTeam") or {}
-        self._update_team_api_ids(match, home_team, away_team)
+        self._update_team_data(match, home_team, away_team)
 
         if update_fields:
             match.save(update_fields=list(dict.fromkeys(update_fields)))
@@ -164,17 +163,27 @@ class FootballDataSyncService:
     def _normalize_status(self, status):
         return (status or "SCHEDULED").strip().upper()
 
-    def _update_team_api_ids(self, match, home_team, away_team):
-        home_api_id = home_team.get("id")
-        away_api_id = away_team.get("id")
+    def _update_team_data(self, match, home_team, away_team):
+        self._update_single_team_data(match.home_team, match.home_team_id, home_team)
+        self._update_single_team_data(match.away_team, match.away_team_id, away_team)
 
-        if home_api_id and match.home_team.football_data_team_id != home_api_id:
-            Team.objects.filter(id=match.home_team_id).update(football_data_team_id=home_api_id)
-            match.home_team.football_data_team_id = home_api_id
+    def _update_single_team_data(self, team, team_id, fixture_team):
+        updates = {}
+        football_data_team_id = fixture_team.get("id")
+        tla = (fixture_team.get("tla") or "").strip().upper()
+        flag = (fixture_team.get("crest") or "").strip()
 
-        if away_api_id and match.away_team.football_data_team_id != away_api_id:
-            Team.objects.filter(id=match.away_team_id).update(football_data_team_id=away_api_id)
-            match.away_team.football_data_team_id = away_api_id
+        if football_data_team_id and team.football_data_team_id != football_data_team_id:
+            updates["football_data_team_id"] = football_data_team_id
+        if tla and team.tla != tla:
+            updates["tla"] = tla
+        if flag and team.flag != flag:
+            updates["flag"] = flag
+
+        if updates:
+            Team.objects.filter(id=team_id).update(**updates)
+            for field, value in updates.items():
+                setattr(team, field, value)
 
     def _set_if_changed(self, instance, field, value):
         if getattr(instance, field) != value:

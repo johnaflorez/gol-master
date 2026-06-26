@@ -2,8 +2,14 @@ name: Sync live matches
 
 on:
   schedule:
-    - cron: "*/10 * * * *"
+    # GitHub scheduled workflows can be delayed or dropped during high-load minutes.
+    # Run every 5 minutes on offset minutes to avoid the most congested :00/:10/:20... slots.
+    - cron: "3,8,13,18,23,28,33,38,43,48,53,58 * * * *"
   workflow_dispatch:
+
+concurrency:
+  group: sync-live-matches
+  cancel-in-progress: false
 
 jobs:
   sync-live-matches:
@@ -22,6 +28,12 @@ jobs:
       USE_S3_MEDIA: "False"
 
     steps:
+      - name: Print sync context
+        run: |
+          echo "event_name=${{ github.event_name }}"
+          echo "scheduled_at_utc=$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+          echo "ref=${{ github.ref }}"
+
       - name: Checkout repository
         uses: actions/checkout@v4
 

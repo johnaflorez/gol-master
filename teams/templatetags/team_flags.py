@@ -10,17 +10,18 @@ def team_with_flag(team):
     if not team:
         return ""
 
-    country_code = (getattr(team, "country_code", "") or "").strip().lower()
+    flag_url = (getattr(team, "flag", "") or "").strip()
+    flag_alt = (getattr(team, "tla", "") or getattr(team, "code", "") or "").strip().upper()
     team_name = getattr(team, "name", "")
 
-    if len(country_code) == 2 and country_code.isalpha():
+    if flag_url:
         return format_html(
             '<span class="d-inline-flex align-items-center gap-1">'
-            '<img src="https://flagcdn.com/24x18/{}.png" alt="Bandera {}" '
-            'loading="lazy" width="18" height="14" style="border-radius:2px;">'
+            '<img src="{}" alt="Bandera {}" '
+            'loading="lazy" width="18" height="14" style="border-radius:2px; object-fit:contain;">'
             '<span>{}</span></span>',
-            country_code,
-            country_code.upper(),
+            flag_url,
+            flag_alt,
             team_name,
         )
 

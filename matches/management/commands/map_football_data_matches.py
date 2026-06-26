@@ -249,11 +249,20 @@ class Command(BaseCommand):
         fixture_tla = (fixture_team.get("tla") or "").strip().upper()
         fixture_name = self._normalize_text(fixture_team.get("name"))
         team_name = self._normalize_text(team.name)
+        team_tla = (getattr(team, "tla", "") or "").strip().upper()
 
         if team.football_data_team_id and fixture_id == team.football_data_team_id:
             return 5
+
+        # When the local team has a football-data TLA, use it as the authoritative key.
+        # This avoids false positives because Team.code can differ from football-data.org
+        # values (e.g. DEU vs GER, NLD vs NED, PRT vs POR).
+        if team_tla:
+            return 4 if fixture_tla == team_tla else 0
+
+        # Fallbacks only apply to teams that still do not have tla populated.
         if team.code and fixture_tla and team.code.upper() == fixture_tla:
-            return 4
+            return 3
         if fixture_name and fixture_name == team_name:
             return 3
         if fixture_name and fixture_name in aliases.get(team_name, set()):
@@ -281,12 +290,30 @@ class Command(BaseCommand):
         away_team = fixture.get("awayTeam") or {}
         updates = []
 
-        if home_team.get("id") and match.home_team.football_data_team_id != home_team["id"]:
-            Team.objects.filter(id=match.home_team_id).update(football_data_team_id=home_team["id"])
+        home_updates = self._team_updates_from_fixture(match.home_team, home_team)
+        if home_updates:
+            Team.objects.filter(id=match.home_team_id).update(**home_updates)
             updates.append("home_team")
-        if away_team.get("id") and match.away_team.football_data_team_id != away_team["id"]:
-            Team.objects.filter(id=match.away_team_id).update(football_data_team_id=away_team["id"])
+
+        away_updates = self._team_updates_from_fixture(match.away_team, away_team)
+        if away_updates:
+            Team.objects.filter(id=match.away_team_id).update(**away_updates)
             updates.append("away_team")
+
+        return updates
+
+    def _team_updates_from_fixture(self, team, fixture_team):
+        updates = {}
+        fixture_id = fixture_team.get("id")
+        fixture_tla = (fixture_team.get("tla") or "").strip().upper()
+        fixture_flag = (fixture_team.get("crest") or "").strip()
+
+        if fixture_id and team.football_data_team_id != fixture_id:
+            updates["football_data_team_id"] = fixture_id
+        if fixture_tla and team.tla != fixture_tla:
+            updates["tla"] = fixture_tla
+        if fixture_flag and team.flag != fixture_flag:
+            updates["flag"] = fixture_flag
 
         return updates
 
