@@ -198,6 +198,7 @@ FOOTBALL_DATA_BASE_URL = os.environ.get('FOOTBALL_DATA_BASE_URL', 'https://api.f
 FOOTBALL_DATA_TIMEOUT = int(os.environ.get('FOOTBALL_DATA_TIMEOUT', '15'))
 FOOTBALL_DATA_COMPETITION_CODE = os.environ.get('FOOTBALL_DATA_COMPETITION_CODE', 'WC')
 FOOTBALL_DATA_SEASON = int(os.environ.get('FOOTBALL_DATA_SEASON', '2026'))
+FOOTBALL_DATA_SCORERS_LIMIT = int(os.environ.get('FOOTBALL_DATA_SCORERS_LIMIT', '500'))
 
 # Accept HTTPS form posts from Render/custom domains when DEBUG=False
 CSRF_TRUSTED_ORIGINS = _split_env_list(

@@ -4,12 +4,12 @@ from unittest.mock import patch
 
 from django.contrib.auth.models import User
 from django.core.management import call_command
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
 
 from matches.models import Match
-from matches.services.football_data import FootballDataSyncResult, FootballDataSyncService, FootballDataTopScorersService
+from matches.services.football_data import FootballDataClient, FootballDataSyncResult, FootballDataSyncService, FootballDataTopScorersService
 from stats.models import TopScorerStanding
 from teams.models import Player, Team
 
@@ -543,6 +543,37 @@ class FootballDataSyncServiceTests(TestCase):
 
 class SyncFootballDataCommandTests(TestCase):
 
+    @override_settings(FOOTBALL_DATA_SCORERS_LIMIT=500)
+    def test_football_data_client_requests_configured_scorers_limit_by_default(self):
+        client = FootballDataClient(token="token", base_url="https://example.test", timeout=1)
+        calls = []
+
+        def fake_request(path, params=None):
+            calls.append({"path": path, "params": params})
+            return {"scorers": []}
+
+        client._request = fake_request
+
+        client.get_scorers(competition_code="WC", season=2026)
+
+        self.assertEqual(calls[0]["path"], "competitions/WC/scorers")
+        self.assertEqual(calls[0]["params"]["season"], 2026)
+        self.assertEqual(calls[0]["params"]["limit"], 500)
+
+    def test_football_data_client_preserves_explicit_scorers_limit(self):
+        client = FootballDataClient(token="token", base_url="https://example.test", timeout=1)
+        calls = []
+
+        def fake_request(path, params=None):
+            calls.append({"path": path, "params": params})
+            return {"scorers": []}
+
+        client._request = fake_request
+
+        client.get_scorers(competition_code="WC", season=2026, limit=50)
+
+        self.assertEqual(calls[0]["params"]["limit"], 50)
+
     @patch("matches.management.commands.sync_football_data.FootballDataSyncService")
     def test_command_prints_sync_summary(self, service_cls):
         service_cls.return_value.sync_queryset.return_value = FootballDataSyncResult(checked=1, updated=1)
@@ -582,6 +613,16 @@ class SyncFootballDataCommandTests(TestCase):
         service_cls.return_value.refresh.assert_called_once_with(limit=None)
         self.assertIn("football-data.org scorers OK", out.getvalue())
         self.assertIn("checked=3", out.getvalue())
+
+    @patch("matches.management.commands.refresh_football_data_scorers.FootballDataTopScorersService")
+    def test_refresh_football_data_scorers_command_accepts_explicit_limit(self, service_cls):
+        service_cls.return_value.refresh.return_value.checked = 50
+        service_cls.return_value.refresh.return_value.updated = 50
+        service_cls.return_value.refresh.return_value.deleted = 0
+
+        call_command("refresh_football_data_scorers", "--limit", "50", stdout=StringIO())
+
+        service_cls.return_value.refresh.assert_called_once_with(limit=50)
 
 
 class MapFootballDataMatchesCommandTests(TestCase):

@@ -964,53 +964,34 @@ h2 {
     z-index: 1050;
 }
 
-.rich-bio-emoji-tabs .btn {
-    min-height: 34px;
-    padding: 0.35rem 0.55rem;
-}
-
-.rich-bio-emoji-grid {
-    display: grid;
-    gap: 0.35rem;
-    grid-template-columns: repeat(8, minmax(0, 1fr));
-    max-height: 220px;
-    overflow-y: auto;
-    padding-right: 0.15rem;
-}
-
-.rich-bio-emoji-option {
-    align-items: center;
-    background: #fff;
-    border: 1px solid transparent;
-    border-radius: 0.55rem;
-    display: inline-flex;
-    font-size: 1.25rem;
-    height: 2.25rem;
-    justify-content: center;
-    line-height: 1;
-    padding: 0;
-    transition: all 0.15s ease;
+.rich-bio-emoji-component {
+    --border-color: transparent;
+    --border-radius: 0.75rem;
+    --emoji-size: 1.45rem;
+    --num-columns: 8;
+    height: 380px;
+    max-height: min(62vh, 420px);
     width: 100%;
-}
-
-.rich-bio-emoji-option:hover,
-.rich-bio-emoji-option:focus-visible {
-    background: rgba(203, 180, 245, 0.22);
-    border-color: var(--mundial-red);
-    outline: none;
-    transform: scale(1.08);
 }
 
 @media (max-width: 576px) {
     .rich-bio-emoji-panel {
-        left: auto;
+        border-radius: 1rem 1rem 0 0;
+        bottom: 0;
+        left: 0;
+        max-width: none;
+        padding: 0.65rem;
+        position: fixed;
         right: 0;
-        width: min(86vw, 340px);
+        top: auto;
+        width: 100%;
+        z-index: 1065;
     }
 
-    .rich-bio-emoji-grid {
-        grid-template-columns: repeat(7, minmax(0, 1fr));
-        max-height: 210px;
+    .rich-bio-emoji-component {
+        --emoji-size: 1.6rem;
+        --num-columns: 7;
+        height: min(68vh, 460px);
     }
 }
 

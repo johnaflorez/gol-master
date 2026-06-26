@@ -93,6 +93,8 @@ class FootballDataClient:
 
     def get_scorers(self, *, competition_code=None, season=None, limit=None):
         competition_code = competition_code or settings.FOOTBALL_DATA_COMPETITION_CODE
+        if limit is None:
+            limit = getattr(settings, "FOOTBALL_DATA_SCORERS_LIMIT", 500)
         return self._request(
             f"competitions/{competition_code}/scorers",
             {
