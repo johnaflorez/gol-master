@@ -85,7 +85,7 @@
                                 {% include "includes/user_avatar.html" with user=item.user %}
                                 <div>
                                     <div class="fw-semibold">{{ item.user.get_full_name|default:item.user.username }}</div>
-                                    <small class="text-muted">{{ item.user|user_bio_or_username }}</small>
+                                    <div class="small text-muted user-rich-bio">{{ item.user|user_bio_or_username }}</div>
                                 </div>
                             </div>
                         </td>

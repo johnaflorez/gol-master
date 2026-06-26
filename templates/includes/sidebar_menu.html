@@ -21,6 +21,12 @@
             </a>
         </li>
         <li>
+            <a class="app-sidebar-link {% if request.resolver_match.url_name == 'top_scorers' %}active{% endif %}"
+               href="{% url 'top_scorers' %}" title="Ver tabla de goleadores">
+                <i class="fas fa-medal"></i><span>Goleadores</span>
+            </a>
+        </li>
+        <li>
             <a class="app-sidebar-link {% if request.resolver_match.url_name == 'my_predictions' %}active{% endif %}"
                href="{% url 'my_predictions' %}" title="Mis pronósticos">
                 <i class="fas fa-list-check"></i><span>Mis pronósticos</span>
@@ -51,6 +57,12 @@
                 <a class="app-sidebar-link {% if request.resolver_match.url_name == 'suggestion_list' %}active{% endif %}"
                    href="{% url 'suggestion_list' %}" title="Revisar sugerencias pendientes">
                     <i class="fas fa-inbox"></i><span>Buzón</span>
+                </a>
+            </li>
+            <li>
+                <a class="app-sidebar-link {% if request.resolver_match.url_name == 'football_data_commands' %}active{% endif %}"
+                   href="{% url 'football_data_commands' %}" title="Ejecutar comandos football-data">
+                    <i class="fas fa-terminal"></i><span>Football-data</span>
                 </a>
             </li>
         {% endif %}

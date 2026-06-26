@@ -1,4 +1,6 @@
 import json
+import re
+import unicodedata
 from dataclasses import dataclass
 from datetime import date
 from urllib.error import HTTPError, URLError
@@ -8,6 +10,8 @@ from urllib.request import Request, urlopen
 from django.conf import settings
 
 from matches.models import Match
+from stats.models import TopScorerStanding
+from teams.models import Player
 from teams.models import Team
 
 
@@ -24,6 +28,17 @@ class FootballDataSyncResult:
     checked: int = 0
     updated: int = 0
     skipped: int = 0
+    scorers_refreshed: bool = False
+    scorer_rows_updated: int = 0
+    scorer_rows_deleted: int = 0
+    scorer_error: str = ""
+
+
+@dataclass
+class FootballDataTopScorersResult:
+    checked: int = 0
+    updated: int = 0
+    deleted: int = 0
 
 
 class FootballDataClient:
@@ -76,6 +91,132 @@ class FootballDataClient:
             },
         ).get("matches", [])
 
+    def get_scorers(self, *, competition_code=None, season=None, limit=None):
+        competition_code = competition_code or settings.FOOTBALL_DATA_COMPETITION_CODE
+        return self._request(
+            f"competitions/{competition_code}/scorers",
+            {
+                "season": season if season is not None else settings.FOOTBALL_DATA_SEASON,
+                "limit": limit,
+            },
+        ).get("scorers", [])
+
+
+class FootballDataTopScorersService:
+    """Refreshes top scorer standings from football-data.org."""
+
+    def __init__(self, client=None, competition_code=None, season=None):
+        self.client = client or FootballDataClient()
+        self.competition_code = competition_code or settings.FOOTBALL_DATA_COMPETITION_CODE
+        self.season = season if season is not None else settings.FOOTBALL_DATA_SEASON
+
+    def refresh(self, *, limit=None):
+        scorers = self.client.get_scorers(
+            competition_code=self.competition_code,
+            season=self.season,
+            limit=limit,
+        )
+        result = FootballDataTopScorersResult(checked=len(scorers))
+        seen_keys = set()
+
+        for index, scorer in enumerate(scorers, start=1):
+            defaults, external_key = self._build_standing_defaults(index, scorer)
+            seen_keys.add(external_key)
+            _, created = TopScorerStanding.objects.update_or_create(
+                competition_code=self.competition_code,
+                season=self.season,
+                external_key=external_key,
+                defaults=defaults,
+            )
+            result.updated += 1 if created or defaults else 0
+
+        stale_queryset = TopScorerStanding.objects.filter(
+            competition_code=self.competition_code,
+            season=self.season,
+        ).exclude(external_key__in=seen_keys)
+        result.deleted = stale_queryset.count()
+        stale_queryset.delete()
+        return result
+
+    def _build_standing_defaults(self, rank, scorer):
+        player_payload = scorer.get("player") or {}
+        team_payload = scorer.get("team") or {}
+        player_name = (player_payload.get("name") or "Jugador sin nombre").strip()
+        team = self._find_team(team_payload)
+        player = self._find_player(team, player_name)
+        team_tla = (team_payload.get("tla") or "").strip().upper()
+        team_crest = (team_payload.get("crest") or "").strip()
+        team_name = (team_payload.get("name") or getattr(team, "name", "") or "").strip()
+        football_data_player_id = player_payload.get("id")
+        external_key = self._build_external_key(football_data_player_id, player_name, team_payload)
+
+        if team:
+            self._update_team_from_payload(team, team_payload)
+
+        return {
+            "rank": rank,
+            "football_data_player_id": football_data_player_id,
+            "player": player,
+            "player_name": player_name,
+            "team": team,
+            "team_name": team_name,
+            "team_tla": team_tla,
+            "team_crest": team_crest,
+            "played_matches": self._safe_int(scorer.get("playedMatches")),
+            "goals": self._safe_int(scorer.get("goals")),
+            "assists": self._safe_nullable_int(scorer.get("assists")),
+            "penalties": self._safe_nullable_int(scorer.get("penalties")),
+            "raw_payload": scorer,
+        }, external_key
+
+    def _find_team(self, team_payload):
+        football_data_team_id = team_payload.get("id")
+        if football_data_team_id:
+            team = Team.objects.filter(football_data_team_id=football_data_team_id).first()
+            if team:
+                return team
+
+        tla = (team_payload.get("tla") or "").strip().upper()
+        if tla:
+            return Team.objects.filter(tla__iexact=tla).first()
+        return None
+
+    def _find_player(self, team, player_name):
+        if not team or not player_name:
+            return None
+        return Player.objects.filter(team=team, name__iexact=player_name).first()
+
+    def _update_team_from_payload(self, team, team_payload):
+        updates = {}
+        football_data_team_id = team_payload.get("id")
+        tla = (team_payload.get("tla") or "").strip().upper()
+        crest = (team_payload.get("crest") or "").strip()
+        if football_data_team_id and team.football_data_team_id != football_data_team_id:
+            updates["football_data_team_id"] = football_data_team_id
+        if tla and team.tla != tla:
+            updates["tla"] = tla
+        if crest and team.flag != crest:
+            updates["flag"] = crest
+        if updates:
+            Team.objects.filter(pk=team.pk).update(**updates)
+
+    def _build_external_key(self, football_data_player_id, player_name, team_payload):
+        if football_data_player_id:
+            return f"player:{football_data_player_id}"
+        team_key = team_payload.get("id") or team_payload.get("tla") or team_payload.get("name") or "unknown"
+        return f"name:{self._normalize_key(player_name)}|team:{self._normalize_key(str(team_key))}"
+
+    def _normalize_key(self, value):
+        normalized = unicodedata.normalize("NFKD", value or "")
+        normalized = "".join(char for char in normalized if not unicodedata.combining(char))
+        return re.sub(r"[^a-z0-9]+", "-", normalized.lower()).strip("-") or "unknown"
+
+    def _safe_int(self, value):
+        return int(value or 0)
+
+    def _safe_nullable_int(self, value):
+        return None if value is None else int(value)
+
 
 class FootballDataSyncService:
     """Synchronizes football-data.org match results into local Match records.
@@ -92,16 +233,18 @@ class FootballDataSyncService:
     def __init__(self, client=None):
         self.client = client or FootballDataClient()
 
-    def sync_queryset(self, queryset):
+    def sync_queryset(self, queryset, *, refresh_scorers=True):
         result = FootballDataSyncResult()
         for match in queryset:
-            match_result = self.sync_match(match)
+            match_result = self.sync_match(match, refresh_scorers=False)
             result.checked += match_result.checked
             result.updated += match_result.updated
             result.skipped += match_result.skipped
+        if refresh_scorers and result.updated:
+            self._refresh_scorers(result)
         return result
 
-    def sync_match(self, match):
+    def sync_match(self, match, *, refresh_scorers=True):
         result = FootballDataSyncResult(checked=1)
         if not match.football_data_match_id:
             result.skipped = 1
@@ -115,8 +258,21 @@ class FootballDataSyncService:
         updated = self._update_match_from_fixture(match, fixture)
         if updated:
             result.updated = 1
+            if refresh_scorers:
+                self._refresh_scorers(result)
 
         return result
+
+    def _refresh_scorers(self, result):
+        try:
+            scorer_result = FootballDataTopScorersService(client=self.client).refresh()
+        except (FootballDataConfigError, FootballDataClientError) as exc:
+            result.scorer_error = str(exc)
+            return
+
+        result.scorers_refreshed = True
+        result.scorer_rows_updated = scorer_result.updated
+        result.scorer_rows_deleted = scorer_result.deleted
 
     def _update_match_from_fixture(self, match, fixture):
         update_fields = []

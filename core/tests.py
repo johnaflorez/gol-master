@@ -2,6 +2,7 @@ from datetime import datetime, time, timedelta
 from unittest.mock import patch
 
 from django.contrib.auth.models import User
+from django.core.management.base import CommandError
 from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
@@ -311,5 +312,162 @@ class SuggestionViewTests(TestCase):
 		self.assertRedirects(response, reverse("suggestion_list"))
 		suggestion.refresh_from_db()
 		self.assertTrue(suggestion.is_resolved)
+
+
+class FootballDataCommandViewTests(TestCase):
+
+	def setUp(self):
+		self.user = User.objects.create_user(username="regular-user", password="secret123")
+		self.superuser = User.objects.create_superuser(username="command-admin", password="secret123")
+
+	def test_requires_superuser(self):
+		self.client.login(username="regular-user", password="secret123")
+
+		response = self.client.get(reverse("football_data_commands"))
+
+		self.assertEqual(response.status_code, 403)
+
+	def test_superuser_can_view_command_page(self):
+		self.client.login(username="command-admin", password="secret123")
+
+		response = self.client.get(reverse("football_data_commands"))
+
+		self.assertEqual(response.status_code, 200)
+		self.assertContains(response, "Comandos football-data")
+		self.assertContains(response, "Sincronizar marcadores en vivo")
+		self.assertContains(response, "Importar partidos faltantes")
+		self.assertContains(response, "Actualizar tabla de goleadores")
+
+	@patch("core.views.call_command")
+	def test_superuser_runs_sync_live_command(self, call_command_mock):
+		def fake_call_command(command_name, *args, stdout=None, stderr=None, verbosity=None):
+			stdout.write("football-data.org sync OK")
+
+		call_command_mock.side_effect = fake_call_command
+		self.client.login(username="command-admin", password="secret123")
+
+		response = self.client.post(
+			reverse("football_data_commands"),
+			{
+				"operation": "sync_live_matches",
+				"days_back": "1",
+				"days_forward": "1",
+				"max_drift_minutes": "180",
+				"fetch_padding_days": "1",
+			},
+		)
+
+		self.assertEqual(response.status_code, 200)
+		call_command_mock.assert_called_once_with(
+			"sync_football_data",
+			"--live",
+			"--days-back",
+			"1",
+			"--days-forward",
+			"1",
+			stdout=call_command_mock.call_args.kwargs["stdout"],
+			stderr=call_command_mock.call_args.kwargs["stderr"],
+			verbosity=2,
+		)
+		self.assertContains(response, "football-data.org sync OK")
+		self.assertContains(response, "python manage.py sync_football_data --live")
+
+	@patch("core.views.call_command")
+	def test_superuser_runs_map_command_with_commit(self, call_command_mock):
+		call_command_mock.side_effect = lambda *args, stdout=None, **kwargs: stdout.write("mapped=1")
+		self.client.login(username="command-admin", password="secret123")
+
+		response = self.client.post(
+			reverse("football_data_commands"),
+			{
+				"operation": "map_football_data_matches",
+				"date": "2026-06-26",
+				"commit": "on",
+				"include_mapped": "on",
+				"days_back": "1",
+				"days_forward": "1",
+				"max_drift_minutes": "90",
+				"fetch_padding_days": "2",
+			},
+		)
+
+		self.assertEqual(response.status_code, 200)
+		called_args = call_command_mock.call_args.args
+		self.assertEqual(called_args[0], "map_football_data_matches")
+		self.assertIn("--date", called_args)
+		self.assertIn("2026-06-26", called_args)
+		self.assertIn("--commit", called_args)
+		self.assertIn("--include-mapped", called_args)
+		self.assertContains(response, "mapped=1")
+
+	@patch("core.views.call_command")
+	def test_superuser_runs_import_command_with_status(self, call_command_mock):
+		call_command_mock.side_effect = lambda *args, stdout=None, **kwargs: stdout.write("created=1")
+		self.client.login(username="command-admin", password="secret123")
+
+		response = self.client.post(
+			reverse("football_data_commands"),
+			{
+				"operation": "import_football_data_matches",
+				"from_date": "2026-06-26",
+				"to_date": "2026-06-27",
+				"status": "TIMED",
+				"commit": "on",
+				"days_back": "1",
+				"days_forward": "1",
+				"max_drift_minutes": "180",
+				"fetch_padding_days": "1",
+			},
+		)
+
+		self.assertEqual(response.status_code, 200)
+		called_args = call_command_mock.call_args.args
+		self.assertEqual(called_args[0], "import_football_data_matches")
+		self.assertIn("--from-date", called_args)
+		self.assertIn("2026-06-26", called_args)
+		self.assertIn("--status", called_args)
+		self.assertIn("TIMED", called_args)
+		self.assertContains(response, "created=1")
+
+	@patch("core.views.call_command")
+	def test_superuser_runs_refresh_scorers_command(self, call_command_mock):
+		call_command_mock.side_effect = lambda *args, stdout=None, **kwargs: stdout.write("scorers updated=3")
+		self.client.login(username="command-admin", password="secret123")
+
+		response = self.client.post(
+			reverse("football_data_commands"),
+			{
+				"operation": "refresh_football_data_scorers",
+				"days_back": "1",
+				"days_forward": "1",
+				"max_drift_minutes": "180",
+				"fetch_padding_days": "1",
+			},
+		)
+
+		self.assertEqual(response.status_code, 200)
+		called_args = call_command_mock.call_args.args
+		self.assertEqual(called_args[0], "refresh_football_data_scorers")
+		self.assertContains(response, "scorers updated=3")
+		self.assertContains(response, "python manage.py refresh_football_data_scorers")
+
+	@patch("core.views.call_command")
+	def test_command_error_is_displayed(self, call_command_mock):
+		call_command_mock.side_effect = CommandError("FOOTBALL_DATA_TOKEN is not configured")
+		self.client.login(username="command-admin", password="secret123")
+
+		response = self.client.post(
+			reverse("football_data_commands"),
+			{
+				"operation": "sync_live_matches",
+				"days_back": "1",
+				"days_forward": "1",
+				"max_drift_minutes": "180",
+				"fetch_padding_days": "1",
+			},
+		)
+
+		self.assertEqual(response.status_code, 200)
+		self.assertContains(response, "FOOTBALL_DATA_TOKEN is not configured")
 
 

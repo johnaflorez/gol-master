@@ -1,7 +1,10 @@
+from django.contrib.auth.models import User
 from django.test import TestCase
+from django.urls import reverse
 from django.utils import timezone
 
 from matches.models import Match
+from stats.models import TopScorerStanding
 from stats.services.group_standings import GroupStandingsService
 from teams.models import Team
 
@@ -68,4 +71,52 @@ class GroupStandingsServiceTests(TestCase):
         self.assertEqual(len(colombia_only), 1)
         self.assertEqual(colombia_only[0]["code"], "A")
         self.assertEqual([row["team"].code for row in colombia_only[0]["rows"]], ["COL"])
+
+
+class TopScorersViewTests(TestCase):
+
+    def setUp(self):
+        self.user = User.objects.create_user(username="scorers-user", password="secret123")
+        self.team = Team.objects.create(name="Colombia", code="COL", tla="COL", flag="https://crests.example/col.svg")
+
+    def test_requires_login(self):
+        response = self.client.get(reverse("top_scorers"))
+
+        self.assertEqual(response.status_code, 302)
+
+    def test_top_scorers_view_lists_persisted_standings(self):
+        self.client.login(username="scorers-user", password="secret123")
+        TopScorerStanding.objects.create(
+            competition_code="WC",
+            season=2026,
+            rank=1,
+            external_key="player:10",
+            football_data_player_id=10,
+            player_name="Luis Díaz",
+            team=self.team,
+            team_name="Colombia",
+            team_tla="COL",
+            played_matches=3,
+            goals=4,
+            assists=1,
+            penalties=0,
+        )
+
+        response = self.client.get(reverse("top_scorers"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Tabla de goleadores")
+        self.assertContains(response, "Luis Díaz")
+        self.assertContains(response, "Colombia")
+        self.assertContains(response, "4")
+
+    def test_sidebar_links_to_top_scorers(self):
+        self.client.login(username="scorers-user", password="secret123")
+
+        response = self.client.get(reverse("dashboard"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, reverse("top_scorers"))
+        self.assertContains(response, "Goleadores")
+
 

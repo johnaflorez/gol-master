@@ -9,8 +9,9 @@ from django.urls import reverse
 from django.utils import timezone
 
 from matches.models import Match
-from matches.services.football_data import FootballDataSyncResult, FootballDataSyncService
-from teams.models import Team
+from matches.services.football_data import FootballDataSyncResult, FootballDataSyncService, FootballDataTopScorersService
+from stats.models import TopScorerStanding
+from teams.models import Player, Team
 
 
 class MatchListViewTests(TestCase):
@@ -331,11 +332,15 @@ class MatchFinishedAtTests(TestCase):
 
 
 class FakeFootballDataClient:
-    def __init__(self, fixture):
+    def __init__(self, fixture, scorers=None):
         self.fixture = fixture
+        self.scorers = scorers if scorers is not None else []
 
     def get_match(self, match_id):
         return self.fixture
+
+    def get_scorers(self, *, competition_code=None, season=None, limit=None):
+        return self.scorers[:limit] if limit else self.scorers
 
 
 class FakeFootballDataListClient:
@@ -456,6 +461,38 @@ class FootballDataSyncServiceTests(TestCase):
         self.assertEqual(match.home_score, 3)
         self.assertEqual(match.away_score, 2)
 
+    def test_sync_match_refreshes_top_scorers_when_score_changes(self):
+        self.team_a.tla = "COL"
+        self.team_a.save(update_fields=["tla"])
+        Player.objects.create(team=self.team_a, name="Luis Díaz")
+        match = self._match()
+        fixture = {
+            "id": 12345,
+            "status": "IN_PLAY",
+            "homeTeam": {"id": 100, "name": "Colombia", "tla": "COL", "crest": "https://crests.example/col.svg"},
+            "awayTeam": {},
+            "score": {"fullTime": {"home": 1, "away": 0}},
+        }
+        scorers = [
+            {
+                "player": {"id": 10, "name": "Luis Díaz"},
+                "team": {"id": 100, "name": "Colombia", "tla": "COL", "crest": "https://crests.example/col.svg"},
+                "playedMatches": 1,
+                "goals": 2,
+                "assists": 1,
+                "penalties": 0,
+            }
+        ]
+
+        result = FootballDataSyncService(client=FakeFootballDataClient(fixture, scorers=scorers)).sync_match(match)
+
+        standing = TopScorerStanding.objects.get(football_data_player_id=10)
+        self.assertTrue(result.scorers_refreshed)
+        self.assertEqual(standing.player_name, "Luis Díaz")
+        self.assertEqual(standing.team, self.team_a)
+        self.assertEqual(standing.goals, 2)
+        self.assertEqual(standing.assists, 1)
+
     def test_sync_match_skips_without_football_data_match_id(self):
         match = self._match(match_id=None)
         service = FootballDataSyncService(client=FakeFootballDataClient({}))
@@ -463,6 +500,45 @@ class FootballDataSyncServiceTests(TestCase):
         result = service.sync_match(match)
 
         self.assertEqual(result.skipped, 1)
+
+    def test_top_scorers_refresh_upserts_and_deletes_stale_rows(self):
+        self.team_a.football_data_team_id = 100
+        self.team_a.tla = "COL"
+        self.team_a.save(update_fields=["football_data_team_id", "tla"])
+        stale = TopScorerStanding.objects.create(
+            competition_code="WC",
+            season=2026,
+            rank=1,
+            external_key="player:999",
+            football_data_player_id=999,
+            player_name="Jugador viejo",
+            team_name="Viejo",
+            goals=1,
+        )
+        scorers = [
+            {
+                "player": {"id": 10, "name": "Luis Díaz"},
+                "team": {"id": 100, "name": "Colombia", "tla": "COL", "crest": "https://crests.example/col.svg"},
+                "playedMatches": 3,
+                "goals": 4,
+                "assists": None,
+                "penalties": 1,
+            }
+        ]
+
+        result = FootballDataTopScorersService(client=FakeFootballDataClient({}, scorers=scorers)).refresh()
+
+        self.assertEqual(result.checked, 1)
+        self.assertEqual(result.updated, 1)
+        self.assertEqual(result.deleted, 1)
+        self.assertFalse(TopScorerStanding.objects.filter(pk=stale.pk).exists())
+        standing = TopScorerStanding.objects.get(football_data_player_id=10)
+        self.assertEqual(standing.rank, 1)
+        self.assertEqual(standing.player_name, "Luis Díaz")
+        self.assertEqual(standing.team, self.team_a)
+        self.assertEqual(standing.team_tla, "COL")
+        self.assertEqual(standing.goals, 4)
+        self.assertEqual(standing.penalties, 1)
 
 
 class SyncFootballDataCommandTests(TestCase):
@@ -476,6 +552,36 @@ class SyncFootballDataCommandTests(TestCase):
 
         self.assertIn("football-data.org sync OK", out.getvalue())
         self.assertIn("checked=1", out.getvalue())
+
+    @patch("matches.management.commands.sync_football_data.FootballDataSyncService")
+    def test_command_prints_scorer_refresh_summary(self, service_cls):
+        service_cls.return_value.sync_queryset.return_value = FootballDataSyncResult(
+            checked=1,
+            updated=1,
+            scorers_refreshed=True,
+            scorer_rows_updated=2,
+            scorer_rows_deleted=1,
+        )
+        out = StringIO()
+
+        call_command("sync_football_data", "--live", stdout=out)
+
+        self.assertIn("football-data.org scorers OK", out.getvalue())
+        self.assertIn("updated=2", out.getvalue())
+        self.assertIn("deleted=1", out.getvalue())
+
+    @patch("matches.management.commands.refresh_football_data_scorers.FootballDataTopScorersService")
+    def test_refresh_football_data_scorers_command(self, service_cls):
+        service_cls.return_value.refresh.return_value.checked = 3
+        service_cls.return_value.refresh.return_value.updated = 3
+        service_cls.return_value.refresh.return_value.deleted = 0
+        out = StringIO()
+
+        call_command("refresh_football_data_scorers", stdout=out)
+
+        service_cls.return_value.refresh.assert_called_once_with(limit=None)
+        self.assertIn("football-data.org scorers OK", out.getvalue())
+        self.assertIn("checked=3", out.getvalue())
 
 
 class MapFootballDataMatchesCommandTests(TestCase):

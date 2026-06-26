@@ -196,6 +196,8 @@ CORS_ALLOW_CREDENTIALS = True
 FOOTBALL_DATA_TOKEN = os.environ.get('FOOTBALL_DATA_TOKEN', '54825cc619d144d0977380aaa2fd67a6')
 FOOTBALL_DATA_BASE_URL = os.environ.get('FOOTBALL_DATA_BASE_URL', 'https://api.football-data.org/v4')
 FOOTBALL_DATA_TIMEOUT = int(os.environ.get('FOOTBALL_DATA_TIMEOUT', '15'))
+FOOTBALL_DATA_COMPETITION_CODE = os.environ.get('FOOTBALL_DATA_COMPETITION_CODE', 'WC')
+FOOTBALL_DATA_SEASON = int(os.environ.get('FOOTBALL_DATA_SEASON', '2026'))
 
 # Accept HTTPS form posts from Render/custom domains when DEBUG=False
 CSRF_TRUSTED_ORIGINS = _split_env_list(

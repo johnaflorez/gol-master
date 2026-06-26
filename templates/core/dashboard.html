@@ -37,7 +37,7 @@
                                 <div>
                                     <div class="d-none d-sm-block fw-semibold">{{ item.user.get_full_name|default:item.user.username }}</div>
                                     <div class="d-sm-none text-truncate fw-semibold max-width-120" title="{{ item.user.get_full_name|default:item.user.username }}">{{ item.user.get_full_name|default:item.user.username|truncatewords:2 }}</div>
-                                    <small class="text-muted d-block">{{ item.user|user_bio_or_username }}</small>
+                                    <div class="small text-muted user-rich-bio">{{ item.user|user_bio_or_username }}</div>
                                 </div>
                             </div>
                             <div>

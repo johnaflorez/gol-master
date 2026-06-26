@@ -1,5 +1,7 @@
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
+from django.core.management import call_command
+from django.core.management.base import CommandError
 from django.http import JsonResponse
 from django.db.models import Exists, OuterRef
 from django.shortcuts import get_object_or_404, redirect
@@ -8,8 +10,9 @@ from django.utils.http import url_has_allowed_host_and_scheme
 from django.utils import timezone
 from django.views import View
 from django.views.generic import CreateView, ListView, TemplateView
+from io import StringIO
 
-from core.forms import SuggestionForm
+from core.forms import FootballDataCommandForm, SuggestionForm
 from core.models import Suggestion
 from matches.models import Match
 from core.services.final_match_announcements import get_recent_final_match_announcements
@@ -153,6 +156,46 @@ class SuggestionCreateView(LoginRequiredMixin, CreateView):
 class SuperuserRequiredMixin(UserPassesTestMixin):
   def test_func(self):
     return self.request.user.is_superuser
+
+
+class FootballDataCommandView(LoginRequiredMixin, SuperuserRequiredMixin, TemplateView):
+  template_name = "core/admin/football_data_commands.html"
+
+  def get_context_data(self, **kwargs):
+    context = super().get_context_data(**kwargs)
+    context.setdefault("form", FootballDataCommandForm())
+    context.setdefault("command_output", "")
+    context.setdefault("command_error", "")
+    context.setdefault("executed_command", "")
+    return context
+
+  def post(self, request, *args, **kwargs):
+    form = FootballDataCommandForm(request.POST)
+    context = self.get_context_data(form=form)
+
+    if not form.is_valid():
+      messages.error(request, "Revisa los campos del formulario antes de ejecutar el comando.")
+      return self.render_to_response(context)
+
+    command_name, command_args = form.build_command()
+    stdout = StringIO()
+    stderr = StringIO()
+    context["executed_command"] = "python manage.py " + " ".join([command_name, *command_args, "--verbosity", "2"])
+
+    try:
+      call_command(command_name, *command_args, stdout=stdout, stderr=stderr, verbosity=2)
+    except CommandError as exc:
+      context["command_error"] = str(exc)
+      messages.error(request, "El comando terminó con error.")
+    else:
+      messages.success(request, "Comando ejecutado correctamente.")
+
+    context["command_output"] = stdout.getvalue()
+    stderr_output = stderr.getvalue()
+    if stderr_output:
+      context["command_error"] = "\n".join(part for part in [context["command_error"], stderr_output] if part)
+
+    return self.render_to_response(context)
 
 
 class SuggestionListView(LoginRequiredMixin, SuperuserRequiredMixin, ListView):

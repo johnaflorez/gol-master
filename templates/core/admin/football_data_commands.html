@@ -1,0 +1,163 @@
+{% extends "base.html" %}
+
+{% block title %}⚙️ Comandos football-data - Mundial Familiar 2026{% endblock %}
+
+{% block content %}
+<div class="mb-4 d-flex align-items-start justify-content-between gap-3 flex-wrap">
+    <div>
+        <h1 class="page-title mb-1">
+            <i class="fas fa-terminal text-mundial-blue"></i> Comandos football-data
+        </h1>
+        <p class="text-muted mb-0">Sección administrativa para ejecutar sincronizaciones manuales de football-data.org.</p>
+    </div>
+    <a href="{% url 'dashboard' %}" class="btn btn-outline-primary btn-sm">
+        <i class="fas fa-arrow-left me-1"></i>Volver al inicio
+    </a>
+</div>
+
+<div class="alert alert-warning d-flex gap-2" role="alert">
+    <i class="fas fa-triangle-exclamation mt-1"></i>
+    <div>
+        <strong>Solo superusuarios.</strong> Primero ejecuta mapear/importar en modo prueba con <strong>Guardar cambios</strong> desmarcado.
+        La actualización de goleadores consulta football-data.org y actualiza directamente la tabla persistida.
+    </div>
+</div>
+
+<div class="row g-4">
+    <div class="col-lg-5">
+        <div class="card h-100">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-sliders me-2 text-mundial-red"></i>Ejecutar comando</h5>
+            </div>
+            <div class="card-body">
+                <form method="post" novalidate>
+                    {% csrf_token %}
+
+                    {% if form.non_field_errors %}
+                        <div class="alert alert-danger">
+                            <i class="fas fa-circle-exclamation me-2"></i>{{ form.non_field_errors|striptags }}
+                        </div>
+                    {% endif %}
+
+                    <div class="mb-3">
+                        <label for="{{ form.operation.id_for_label }}" class="form-label fw-semibold">{{ form.operation.label }}</label>
+                        {{ form.operation }}
+                        {% if form.operation.errors %}<div class="text-danger small mt-1">{{ form.operation.errors|striptags }}</div>{% endif %}
+                    </div>
+
+                    <div class="row g-3">
+                        <div class="col-12">
+                            <label for="{{ form.date.id_for_label }}" class="form-label">{{ form.date.label }}</label>
+                            {{ form.date }}
+                            <div class="form-text">{{ form.date.help_text }}</div>
+                            {% if form.date.errors %}<div class="text-danger small mt-1">{{ form.date.errors|striptags }}</div>{% endif %}
+                        </div>
+                        <div class="col-sm-6">
+                            <label for="{{ form.from_date.id_for_label }}" class="form-label">{{ form.from_date.label }}</label>
+                            {{ form.from_date }}
+                            {% if form.from_date.errors %}<div class="text-danger small mt-1">{{ form.from_date.errors|striptags }}</div>{% endif %}
+                        </div>
+                        <div class="col-sm-6">
+                            <label for="{{ form.to_date.id_for_label }}" class="form-label">{{ form.to_date.label }}</label>
+                            {{ form.to_date }}
+                            {% if form.to_date.errors %}<div class="text-danger small mt-1">{{ form.to_date.errors|striptags }}</div>{% endif %}
+                        </div>
+                    </div>
+
+                    <hr>
+
+                    <div class="row g-3">
+                        <div class="col-sm-6">
+                            <label for="{{ form.days_back.id_for_label }}" class="form-label">{{ form.days_back.label }}</label>
+                            {{ form.days_back }}
+                            <div class="form-text">{{ form.days_back.help_text }}</div>
+                            {% if form.days_back.errors %}<div class="text-danger small mt-1">{{ form.days_back.errors|striptags }}</div>{% endif %}
+                        </div>
+                        <div class="col-sm-6">
+                            <label for="{{ form.days_forward.id_for_label }}" class="form-label">{{ form.days_forward.label }}</label>
+                            {{ form.days_forward }}
+                            <div class="form-text">{{ form.days_forward.help_text }}</div>
+                            {% if form.days_forward.errors %}<div class="text-danger small mt-1">{{ form.days_forward.errors|striptags }}</div>{% endif %}
+                        </div>
+                        <div class="col-sm-6">
+                            <label for="{{ form.max_drift_minutes.id_for_label }}" class="form-label">{{ form.max_drift_minutes.label }}</label>
+                            {{ form.max_drift_minutes }}
+                            <div class="form-text">{{ form.max_drift_minutes.help_text }}</div>
+                            {% if form.max_drift_minutes.errors %}<div class="text-danger small mt-1">{{ form.max_drift_minutes.errors|striptags }}</div>{% endif %}
+                        </div>
+                        <div class="col-sm-6">
+                            <label for="{{ form.fetch_padding_days.id_for_label }}" class="form-label">{{ form.fetch_padding_days.label }}</label>
+                            {{ form.fetch_padding_days }}
+                            <div class="form-text">{{ form.fetch_padding_days.help_text }}</div>
+                            {% if form.fetch_padding_days.errors %}<div class="text-danger small mt-1">{{ form.fetch_padding_days.errors|striptags }}</div>{% endif %}
+                        </div>
+                        <div class="col-12">
+                            <label for="{{ form.status.id_for_label }}" class="form-label">{{ form.status.label }}</label>
+                            {{ form.status }}
+                            <div class="form-text">{{ form.status.help_text }}</div>
+                            {% if form.status.errors %}<div class="text-danger small mt-1">{{ form.status.errors|striptags }}</div>{% endif %}
+                        </div>
+                    </div>
+
+                    <div class="mt-3 d-flex flex-column gap-2">
+                        <div class="form-check">
+                            {{ form.commit }}
+                            <label class="form-check-label fw-semibold" for="{{ form.commit.id_for_label }}">{{ form.commit.label }}</label>
+                            <div class="form-text">{{ form.commit.help_text }}</div>
+                        </div>
+                        <div class="form-check">
+                            {{ form.include_mapped }}
+                            <label class="form-check-label" for="{{ form.include_mapped.id_for_label }}">{{ form.include_mapped.label }}</label>
+                            <div class="form-text">{{ form.include_mapped.help_text }}</div>
+                        </div>
+                    </div>
+
+                    <div class="border-top mt-4 pt-3 d-flex gap-2 flex-wrap">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-play me-1"></i>Ejecutar
+                        </button>
+                        <a href="{% url 'football_data_commands' %}" class="btn btn-outline-secondary">
+                            <i class="fas fa-rotate-left me-1"></i>Limpiar
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-7">
+        <div class="card h-100">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-receipt me-2 text-mundial-gold"></i>Resultado</h5>
+            </div>
+            <div class="card-body">
+                {% if executed_command %}
+                    <div class="mb-3">
+                        <div class="small fw-bold text-muted text-uppercase mb-1">Comando ejecutado</div>
+                        <code class="d-block bg-light border rounded p-2 text-break">{{ executed_command }}</code>
+                    </div>
+                {% endif %}
+
+                {% if command_error %}
+                    <div class="alert alert-danger">
+                        <div class="fw-bold mb-2"><i class="fas fa-circle-exclamation me-1"></i>Error</div>
+                        <pre class="mb-0" style="white-space: pre-wrap;">{{ command_error }}</pre>
+                    </div>
+                {% endif %}
+
+                {% if command_output %}
+                    <div class="bg-dark text-light rounded p-3 overflow-auto">
+                        <pre class="mb-0" style="white-space: pre-wrap;">{{ command_output }}</pre>
+                    </div>
+                {% else %}
+                    <div class="text-center text-muted py-5">
+                        <i class="fas fa-terminal icon-size-2"></i>
+                        <p class="mt-3 mb-0">Ejecuta un comando para ver aquí la salida.</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

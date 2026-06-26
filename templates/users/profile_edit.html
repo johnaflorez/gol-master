@@ -12,7 +12,7 @@
     </div>
 
     <div class="row justify-content-center">
-        <div class="col-lg-6">
+        <div class="col-lg-8">
             <div class="card">
                 <div class="card-header">
                     <h5 class="mb-0"><i class="fas fa-cog me-2 text-mundial-blue"></i>Configuración de perfil</h5>
@@ -58,11 +58,43 @@
                             <label for="{{ form.bio.id_for_label }}" class="form-label">
                                 <i class="fas fa-pencil-alt me-2 text-mundial-blue"></i>Sobre Ti
                             </label>
+                            <div class="rich-bio-editor border rounded-3 overflow-hidden">
+                                <div class="rich-bio-toolbar d-flex flex-wrap align-items-center gap-2 p-2 border-bottom bg-light" aria-label="Herramientas de formato">
+                                    <button type="button" class="btn btn-outline-secondary btn-sm" data-rich-command="bold" title="Negrita"><i class="fas fa-bold"></i></button>
+                                    <button type="button" class="btn btn-outline-secondary btn-sm" data-rich-command="italic" title="Cursiva"><i class="fas fa-italic"></i></button>
+                                    <button type="button" class="btn btn-outline-secondary btn-sm" data-rich-command="underline" title="Subrayado"><i class="fas fa-underline"></i></button>
+                                    <button type="button" class="btn btn-outline-secondary btn-sm" data-rich-command="insertUnorderedList" title="Lista"><i class="fas fa-list-ul"></i></button>
+                                    <select class="form-select form-select-sm width-auto" data-rich-font-size aria-label="Tamaño de texto">
+                                        <option value="">Tamaño</option>
+                                        <option value="0.9rem">Pequeño</option>
+                                        <option value="1.05rem">Normal</option>
+                                        <option value="1.25rem">Grande</option>
+                                        <option value="1.5rem">Muy grande</option>
+                                    </select>
+                                    <label class="small fw-semibold text-muted d-inline-flex align-items-center gap-1 mb-0">
+                                        Color
+                                        <input type="color" class="form-control form-control-color form-control-sm" data-rich-color value="#1D3557" title="Color de texto">
+                                    </label>
+                                    <div class="rich-bio-emoji-picker position-relative">
+                                        <button type="button" class="btn btn-outline-secondary btn-sm" data-rich-emoji-toggle aria-expanded="false" aria-controls="rich-bio-emoji-panel" title="Abrir selector de emojis">
+                                            😀 Emoji
+                                        </button>
+                                        <div id="rich-bio-emoji-panel" class="rich-bio-emoji-panel d-none" data-rich-emoji-panel role="dialog" aria-label="Selector de emojis">
+                                            <input type="search" class="form-control form-control-sm mb-2" data-rich-emoji-search placeholder="Buscar emoji: risa, pulgar, corazón..." aria-label="Buscar emoji">
+                                            <div class="rich-bio-emoji-tabs d-flex flex-wrap gap-1 mb-2" data-rich-emoji-tabs role="tablist" aria-label="Categorías de emojis"></div>
+                                            <div class="rich-bio-emoji-grid" data-rich-emoji-grid aria-live="polite"></div>
+                                            <div class="rich-bio-emoji-empty d-none small text-muted text-center py-3" data-rich-emoji-empty>No se encontraron emojis.</div>
+                                        </div>
+                                    </div>
+                                    <button type="button" class="btn btn-outline-danger btn-sm" data-rich-command="removeFormat" title="Quitar formato"><i class="fas fa-eraser me-1"></i>Limpiar</button>
+                                </div>
+                                <div id="profile-rich-bio-editor" class="rich-bio-editable p-3" contenteditable="true" role="textbox" aria-multiline="true" aria-label="Sobre ti con formato">{{ form.bio.value|default_if_none:""|rich_profile_bio }}</div>
+                            </div>
                             {{ form.bio }}
                             {% if form.bio.errors %}
                                 <div class="text-danger small mt-2"><i class="fas fa-circle-exclamation me-1"></i>{{ form.bio.errors|striptags }}</div>
                             {% endif %}
-                            <small class="text-muted d-block mt-2">Máximo 500 caracteres</small>
+                            <small class="text-muted d-block mt-2">Puedes usar colores, tamaños, negrita, cursiva y emojis. Máximo 5000 caracteres.</small>
                         </div>
 
 
@@ -80,5 +112,277 @@
             </div>
         </div>
     </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    const editor = document.getElementById("profile-rich-bio-editor");
+    const textarea = document.getElementById("{{ form.bio.id_for_label }}");
+    if (!editor || !textarea) {
+        return;
+    }
+
+    textarea.classList.add("d-none");
+
+    const EMOJI_CATEGORIES = [
+        {
+            id: "caras",
+            label: "Caritas",
+            emojis: [
+                ["😀", "feliz sonrisa carita"], ["😃", "sonrisa feliz"], ["😄", "sonrisa ojos"], ["😁", "sonrisa dientes"],
+                ["😂", "risa carcajada lágrimas"], ["🤣", "risa suelo"], ["😊", "sonrisa tímida"], ["😍", "amor enamorado corazones"],
+                ["😘", "beso cariño"], ["😎", "cool gafas"], ["🤩", "estrellas emoción"], ["🥳", "fiesta celebración"],
+                ["😢", "triste lágrima"], ["😭", "llorando lágrimas"], ["😱", "sorpresa susto"], ["🤔", "pensando duda"],
+                ["🙄", "ojos arriba"], ["😴", "dormido sueño"], ["🤯", "explota cabeza"], ["😇", "angel bueno"],
+            ],
+        },
+        {
+            id: "gestos",
+            label: "Gestos",
+            emojis: [
+                ["👍", "pulgar arriba like bien"], ["👎", "pulgar abajo dislike mal"], ["👏", "aplausos bravo"], ["🙌", "manos arriba celebración"],
+                ["🙏", "gracias rezar por favor"], ["💪", "fuerza músculo"], ["🤝", "acuerdo saludo"], ["👊", "puño choque"],
+                ["✌️", "paz victoria"], ["👌", "ok perfecto"], ["🤞", "dedos cruzados suerte"], ["👋", "hola adiós saludo"],
+            ],
+        },
+        {
+            id: "corazones",
+            label: "Corazones",
+            emojis: [
+                ["❤️", "corazón rojo amor"], ["🧡", "corazón naranja"], ["💛", "corazón amarillo"], ["💚", "corazón verde"],
+                ["💙", "corazón azul"], ["💜", "corazón morado"], ["🖤", "corazón negro"], ["🤍", "corazón blanco"],
+                ["💔", "corazón roto"], ["💕", "dos corazones"], ["💯", "cien perfecto"], ["✨", "brillo estrellas"],
+            ],
+        },
+        {
+            id: "celebracion",
+            label: "Celebración",
+            emojis: [
+                ["🎉", "fiesta celebración confeti"], ["🎊", "confeti celebración"], ["🔥", "fuego genial"], ["⭐", "estrella"],
+                ["🏆", "trofeo campeón"], ["🥇", "oro primer lugar"], ["🥈", "plata segundo"], ["🥉", "bronce tercero"],
+                ["🎯", "objetivo diana"], ["🚀", "cohete rápido"], ["💥", "explosión impacto"], ["🙈", "mono no ver"],
+            ],
+        },
+        {
+            id: "futbol",
+            label: "Fútbol",
+            emojis: [
+                ["⚽", "fútbol balón gol"], ["🥅", "arco portería gol"], ["🏟️", "estadio"], ["📣", "megáfono barra"],
+                ["🇨🇴", "colombia bandera"], ["🇦🇷", "argentina bandera"], ["🇧🇷", "brasil bandera"], ["🇺🇾", "uruguay bandera"],
+                ["🇪🇸", "españa bandera"], ["🇩🇪", "alemania bandera"], ["🇫🇷", "francia bandera"], ["🇺🇸", "estados unidos bandera"],
+            ],
+        },
+    ];
+
+    let savedSelectionRange = null;
+
+    function normalizeLegacyFontElements() {
+        editor.querySelectorAll("font").forEach((font) => {
+            const span = document.createElement("span");
+            if (font.getAttribute("color")) {
+                span.style.color = font.getAttribute("color");
+            }
+            if (font.getAttribute("size") === "4") {
+                span.style.fontSize = "1.25rem";
+            }
+            span.innerHTML = font.innerHTML;
+            font.replaceWith(span);
+        });
+    }
+
+    function syncTextarea() {
+        normalizeLegacyFontElements();
+        textarea.value = editor.innerHTML.trim();
+    }
+
+    function focusEditor() {
+        editor.focus();
+    }
+
+    function saveEditorSelection() {
+        const selection = window.getSelection();
+        if (!selection || selection.rangeCount === 0) {
+            return;
+        }
+        const range = selection.getRangeAt(0);
+        if (editor.contains(range.commonAncestorContainer)) {
+            savedSelectionRange = range.cloneRange();
+        }
+    }
+
+    function restoreEditorSelection() {
+        focusEditor();
+        if (!savedSelectionRange) {
+            return;
+        }
+        const selection = window.getSelection();
+        selection.removeAllRanges();
+        selection.addRange(savedSelectionRange);
+    }
+
+    document.querySelectorAll("[data-rich-command]").forEach((button) => {
+        button.addEventListener("click", function () {
+            focusEditor();
+            document.execCommand(button.dataset.richCommand, false, null);
+            syncTextarea();
+        });
+    });
+
+    const colorInput = document.querySelector("[data-rich-color]");
+    if (colorInput) {
+        colorInput.addEventListener("input", function () {
+            focusEditor();
+            document.execCommand("foreColor", false, colorInput.value);
+            syncTextarea();
+        });
+    }
+
+    const sizeSelect = document.querySelector("[data-rich-font-size]");
+    if (sizeSelect) {
+        sizeSelect.addEventListener("change", function () {
+            if (!sizeSelect.value) {
+                return;
+            }
+            focusEditor();
+            document.execCommand("fontSize", false, "4");
+            editor.querySelectorAll("font[size='4']").forEach((font) => {
+                const span = document.createElement("span");
+                span.style.fontSize = sizeSelect.value;
+                span.innerHTML = font.innerHTML;
+                font.replaceWith(span);
+            });
+            sizeSelect.value = "";
+            syncTextarea();
+        });
+    }
+
+    const emojiToggle = document.querySelector("[data-rich-emoji-toggle]");
+    const emojiPanel = document.querySelector("[data-rich-emoji-panel]");
+    const emojiSearch = document.querySelector("[data-rich-emoji-search]");
+    const emojiTabs = document.querySelector("[data-rich-emoji-tabs]");
+    const emojiGrid = document.querySelector("[data-rich-emoji-grid]");
+    const emojiEmpty = document.querySelector("[data-rich-emoji-empty]");
+    let activeEmojiCategory = EMOJI_CATEGORIES[0].id;
+
+    function getActiveEmojiItems() {
+        const searchTerm = (emojiSearch?.value || "").trim().toLowerCase();
+        const categories = searchTerm ? EMOJI_CATEGORIES : EMOJI_CATEGORIES.filter((category) => category.id === activeEmojiCategory);
+        return categories.flatMap((category) => category.emojis).filter(([emoji, keywords]) => {
+            return !searchTerm || emoji.includes(searchTerm) || keywords.toLowerCase().includes(searchTerm);
+        });
+    }
+
+    function renderEmojiTabs() {
+        if (!emojiTabs) {
+            return;
+        }
+        emojiTabs.innerHTML = EMOJI_CATEGORIES.map((category) => {
+            const activeClass = category.id === activeEmojiCategory ? "btn-primary" : "btn-outline-secondary";
+            return `<button type="button" class="btn btn-sm ${activeClass}" data-rich-emoji-category="${category.id}">${category.label}</button>`;
+        }).join("");
+    }
+
+    function renderEmojiGrid() {
+        if (!emojiGrid || !emojiEmpty) {
+            return;
+        }
+        const items = getActiveEmojiItems();
+        emojiGrid.innerHTML = items.map(([emoji, keywords]) => {
+            const title = keywords.split(" ").slice(0, 4).join(" ");
+            return `<button type="button" class="rich-bio-emoji-option" data-rich-emoji-value="${emoji}" title="${title}">${emoji}</button>`;
+        }).join("");
+        emojiEmpty.classList.toggle("d-none", items.length > 0);
+    }
+
+    function renderEmojiPicker() {
+        renderEmojiTabs();
+        renderEmojiGrid();
+    }
+
+    function openEmojiPicker() {
+        if (!emojiPanel || !emojiToggle) {
+            return;
+        }
+        saveEditorSelection();
+        emojiPanel.classList.remove("d-none");
+        emojiToggle.setAttribute("aria-expanded", "true");
+        renderEmojiPicker();
+        setTimeout(() => emojiSearch?.focus(), 0);
+    }
+
+    function closeEmojiPicker() {
+        if (!emojiPanel || !emojiToggle) {
+            return;
+        }
+        emojiPanel.classList.add("d-none");
+        emojiToggle.setAttribute("aria-expanded", "false");
+    }
+
+    if (emojiToggle && emojiPanel) {
+        renderEmojiPicker();
+
+        emojiToggle.addEventListener("click", function (event) {
+            event.stopPropagation();
+            if (emojiPanel.classList.contains("d-none")) {
+                openEmojiPicker();
+            } else {
+                closeEmojiPicker();
+            }
+        });
+
+        emojiPanel.addEventListener("click", function (event) {
+            event.stopPropagation();
+        });
+
+        emojiSearch?.addEventListener("input", renderEmojiGrid);
+
+        emojiTabs?.addEventListener("click", function (event) {
+            const categoryButton = event.target.closest("[data-rich-emoji-category]");
+            if (!categoryButton) {
+                return;
+            }
+            activeEmojiCategory = categoryButton.dataset.richEmojiCategory;
+            if (emojiSearch) {
+                emojiSearch.value = "";
+            }
+            renderEmojiPicker();
+        });
+
+        emojiGrid?.addEventListener("click", function (event) {
+            const emojiButton = event.target.closest("[data-rich-emoji-value]");
+            if (!emojiButton) {
+                return;
+            }
+            restoreEditorSelection();
+            document.execCommand("insertText", false, emojiButton.dataset.richEmojiValue);
+            syncTextarea();
+            saveEditorSelection();
+        });
+
+        document.addEventListener("click", function (event) {
+            const eventPath = typeof event.composedPath === "function" ? event.composedPath() : [];
+            const clickedInsidePicker = eventPath.includes(emojiPanel) || eventPath.includes(emojiToggle) || emojiPanel.contains(event.target) || emojiToggle.contains(event.target);
+            if (!clickedInsidePicker) {
+                closeEmojiPicker();
+            }
+        });
+
+        document.addEventListener("keydown", function (event) {
+            if (event.key === "Escape") {
+                closeEmojiPicker();
+            }
+        });
+    }
+
+    editor.addEventListener("input", syncTextarea);
+    editor.addEventListener("keyup", saveEditorSelection);
+    editor.addEventListener("mouseup", saveEditorSelection);
+    const form = textarea.closest("form");
+    if (form) {
+        form.addEventListener("submit", syncTextarea);
+    }
+});
+</script>
 {% endblock %}
 

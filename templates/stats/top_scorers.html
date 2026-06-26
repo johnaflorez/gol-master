@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+{% load team_flags %}
+
+{% block title %}⚽ Goleadores - Mundial Familiar 2026{% endblock %}
+
+{% block content %}
+<div class="mb-4 d-flex align-items-start justify-content-between gap-3 flex-wrap">
+    <div>
+        <h1 class="page-title mb-1">
+            <i class="fas fa-medal text-mundial-gold"></i> Tabla de goleadores
+        </h1>
+        <p class="text-muted mb-0">Consulta los máximos goleadores sincronizados desde football-data.org.</p>
+    </div>
+    <a href="{% url 'dashboard' %}" class="btn btn-outline-primary btn-sm">
+        <i class="fas fa-arrow-left me-1"></i>Volver al inicio
+    </a>
+</div>
+
+<div class="card">
+    <div class="card-header d-flex align-items-center justify-content-between gap-2 flex-wrap">
+        <h5 class="mb-0"><i class="fas fa-ranking-star me-2 text-mundial-red"></i>Ranking de goleadores</h5>
+        {% if scorers %}
+            <span class="badge text-bg-light">{{ page_obj.paginator.count }} jugadores</span>
+        {% endif %}
+    </div>
+    <div class="card-body p-0">
+        {% if scorers %}
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead>
+                        <tr>
+                            <th class="text-center">#</th>
+                            <th>Jugador</th>
+                            <th>Selección</th>
+                            <th class="text-center">PJ</th>
+                            <th class="text-center">Goles</th>
+                            <th class="text-center">Asist.</th>
+                            <th class="text-center">Pen.</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for scorer in scorers %}
+                            <tr>
+                                <td class="text-center fw-bold">
+                                    {% if scorer.rank <= 3 %}
+                                        <span class="badge rounded-pill {% if scorer.rank == 1 %}text-bg-warning{% elif scorer.rank == 2 %}text-bg-secondary{% else %}text-bg-light{% endif %}">{{ scorer.rank }}</span>
+                                    {% else %}
+                                        {{ scorer.rank }}
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <div class="fw-bold">{{ scorer.player_name }}</div>
+                                    {% if scorer.football_data_player_id %}
+                                        <div class="small text-muted">ID football-data: {{ scorer.football_data_player_id }}</div>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if scorer.team %}
+                                        {{ scorer.team|team_with_flag }}
+                                    {% else %}
+                                        <span class="d-inline-flex align-items-center gap-1">
+                                            {% if scorer.team_crest %}
+                                                <img src="{{ scorer.team_crest }}" alt="Bandera {{ scorer.team_tla }}" loading="lazy" width="18" height="14" class="top-scorer-team-crest">
+                                            {% endif %}
+                                            <span>{{ scorer.team_name|default:"Sin selección" }}</span>
+                                        </span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-center">{{ scorer.played_matches }}</td>
+                                <td class="text-center fw-bold text-mundial-red">{{ scorer.goals }}</td>
+                                <td class="text-center">{{ scorer.assists|default:"—" }}</td>
+                                <td class="text-center">{{ scorer.penalties|default:"—" }}</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="text-center py-5 px-3">
+                <i class="fas fa-futbol icon-size-3 text-muted"></i>
+                <h5 class="mt-3">Aún no hay goleadores sincronizados</h5>
+                <p class="text-muted mb-0">Un superusuario puede actualizar la tabla desde la sección Football-data.</p>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+

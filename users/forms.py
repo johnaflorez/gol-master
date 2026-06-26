@@ -1,10 +1,22 @@
 from django import forms
 
 from users.models import UserProfile
+from users.services.rich_text import MAX_PROFILE_BIO_LENGTH, sanitize_profile_bio
 
 
 class UserProfileForm(forms.ModelForm):
     MAX_AVATAR_SIZE = 5 * 1024 * 1024
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if self.instance and self.instance.bio:
+            self.initial["bio"] = sanitize_profile_bio(self.instance.bio)
+
+    def clean_bio(self):
+        bio = sanitize_profile_bio(self.cleaned_data.get("bio"))
+        if len(bio) > MAX_PROFILE_BIO_LENGTH:
+            raise forms.ValidationError(f"La bio no puede superar {MAX_PROFILE_BIO_LENGTH} caracteres.")
+        return bio
 
     def clean_avatar(self):
         avatar = self.cleaned_data.get("avatar")
@@ -26,8 +38,8 @@ class UserProfileForm(forms.ModelForm):
         widgets = {
             "bio": forms.Textarea(
                 attrs={
-                    "class": "form-control",
-                    "rows": 4,
+                    "class": "form-control rich-bio-textarea",
+                    "rows": 6,
                     "placeholder": "Cuéntanos sobre ti...",
                 }
             ),

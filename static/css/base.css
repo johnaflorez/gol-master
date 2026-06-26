@@ -387,6 +387,11 @@ body {
     justify-content: center;
 }
 
+.top-scorer-team-crest {
+    border-radius: 2px;
+    object-fit: contain;
+}
+
 .tournament-team-flag .d-inline-flex {
     justify-content: center;
 }
@@ -935,6 +940,110 @@ h2 {
 .card-header .small {
     color: #263B5E !important;
     font-weight: 700;
+}
+
+.rich-bio-editor {
+    background: #fff;
+}
+
+.rich-bio-toolbar .width-auto {
+    width: auto;
+}
+
+.rich-bio-emoji-panel {
+    background: #fff;
+    border: 1.5px solid var(--border-color);
+    border-radius: 0.9rem;
+    box-shadow: 0 14px 34px rgba(15, 27, 46, 0.18);
+    left: 0;
+    max-width: min(92vw, 360px);
+    padding: 0.8rem;
+    position: absolute;
+    top: calc(100% + 0.4rem);
+    width: 360px;
+    z-index: 1050;
+}
+
+.rich-bio-emoji-tabs .btn {
+    min-height: 34px;
+    padding: 0.35rem 0.55rem;
+}
+
+.rich-bio-emoji-grid {
+    display: grid;
+    gap: 0.35rem;
+    grid-template-columns: repeat(8, minmax(0, 1fr));
+    max-height: 220px;
+    overflow-y: auto;
+    padding-right: 0.15rem;
+}
+
+.rich-bio-emoji-option {
+    align-items: center;
+    background: #fff;
+    border: 1px solid transparent;
+    border-radius: 0.55rem;
+    display: inline-flex;
+    font-size: 1.25rem;
+    height: 2.25rem;
+    justify-content: center;
+    line-height: 1;
+    padding: 0;
+    transition: all 0.15s ease;
+    width: 100%;
+}
+
+.rich-bio-emoji-option:hover,
+.rich-bio-emoji-option:focus-visible {
+    background: rgba(203, 180, 245, 0.22);
+    border-color: var(--mundial-red);
+    outline: none;
+    transform: scale(1.08);
+}
+
+@media (max-width: 576px) {
+    .rich-bio-emoji-panel {
+        left: auto;
+        right: 0;
+        width: min(86vw, 340px);
+    }
+
+    .rich-bio-emoji-grid {
+        grid-template-columns: repeat(7, minmax(0, 1fr));
+        max-height: 210px;
+    }
+}
+
+.rich-bio-editable {
+    min-height: 9rem;
+    outline: none;
+    overflow-wrap: anywhere;
+}
+
+.rich-bio-editable:focus {
+    box-shadow: inset 0 0 0 0.15rem rgba(29, 53, 87, 0.16);
+}
+
+.user-rich-bio {
+    display: inline-block;
+    max-width: 100%;
+    overflow-wrap: anywhere;
+}
+
+.user-rich-bio p,
+.user-rich-bio div,
+.user-rich-bio ul,
+.user-rich-bio ol,
+.user-rich-bio blockquote {
+    margin-bottom: 0.25rem;
+}
+
+.user-rich-bio p:last-child,
+.user-rich-bio div:last-child,
+.user-rich-bio ul:last-child,
+.user-rich-bio ol:last-child,
+.user-rich-bio blockquote:last-child {
+    margin-bottom: 0;
 }
 
 hr {

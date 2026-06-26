@@ -107,4 +107,13 @@ class Command(BaseCommand):
                 f"selected={selected_count}, checked={result.checked}, updated={result.updated}, skipped={result.skipped}"
             )
         )
+        if result.scorers_refreshed:
+            self.stdout.write(
+                self.style.SUCCESS(
+                    "football-data.org scorers OK: "
+                    f"updated={result.scorer_rows_updated}, deleted={result.scorer_rows_deleted}"
+                )
+            )
+        elif result.scorer_error:
+            self.stdout.write(self.style.WARNING(f"football-data.org scorers WARNING: {result.scorer_error}"))
 

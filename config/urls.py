@@ -29,6 +29,7 @@ urlpatterns = [
     path("matches/", include("matches.urls")),
     path("predictions/", include("predictions.urls")),
     path("ranking/", include("rankings.urls")),
+    path("stats/", include("stats.urls")),
     path('admin/', admin.site.urls),
 ]
 

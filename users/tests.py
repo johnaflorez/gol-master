@@ -9,7 +9,10 @@ from django.test import TestCase, override_settings
 from django.urls import reverse
 from PIL import Image
 
+from users.forms import UserProfileForm
 from users.models import UserProfile
+from users.services.rich_text import MAX_PROFILE_BIO_LENGTH, sanitize_profile_bio
+from users.templatetags.user_extras import rich_profile_bio, user_bio_or_username
 
 
 def make_image_file(name="avatar.png", image_format="PNG", content_type="image/png"):
@@ -17,6 +20,75 @@ def make_image_file(name="avatar.png", image_format="PNG", content_type="image/p
 	buffer = BytesIO()
 	image.save(buffer, format=image_format)
 	return SimpleUploadedFile(name, buffer.getvalue(), content_type=content_type)
+
+
+class RichTextProfileBioTests(TestCase):
+
+	def test_sanitizer_preserves_allowed_formatting_and_emojis(self):
+		html = '<p><strong>Gol</strong> <span style="color:#ff0000;font-size:1.5rem;text-align:center">⚽</span></p>'
+
+		cleaned = sanitize_profile_bio(html)
+
+		self.assertIn("<strong>Gol</strong>", cleaned)
+		self.assertIn('style="color:#ff0000;font-size:1.5rem;text-align:center;"', cleaned)
+		self.assertIn("⚽", cleaned)
+
+	def test_sanitizer_removes_scripts_events_images_and_unsafe_css(self):
+		html = '<span style="position:absolute;color:red;background-color:url(javascript:alert(1));font-size:999px" onclick="alert(1)">X</span><script>alert(2)</script><img src=x onerror=alert(3)>'
+
+		cleaned = sanitize_profile_bio(html)
+
+		self.assertEqual(cleaned, '<span style="color:red;">X</span>')
+		self.assertNotIn("onclick", cleaned)
+		self.assertNotIn("script", cleaned.lower())
+		self.assertNotIn("alert", cleaned)
+		self.assertNotIn("img", cleaned.lower())
+		self.assertNotIn("position", cleaned.lower())
+		self.assertNotIn("javascript", cleaned.lower())
+		self.assertNotIn("url", cleaned.lower())
+		self.assertNotIn("999px", cleaned.lower())
+
+	def test_sanitizer_removes_css_expression_values(self):
+		cleaned = sanitize_profile_bio('<span style="color:expression(alert(1));font-size:1.25rem">Seguro</span>')
+
+		self.assertEqual(cleaned, '<span style="font-size:1.25rem;">Seguro</span>')
+		self.assertNotIn("expression", cleaned.lower())
+		self.assertNotIn("alert", cleaned.lower())
+
+	def test_sanitizer_removes_empty_style_attributes(self):
+		cleaned = sanitize_profile_bio('<span style="color:expression(alert(1));font-size:999px">Seguro</span>')
+
+		self.assertEqual(cleaned, "<span>Seguro</span>")
+		self.assertNotIn("style=", cleaned.lower())
+
+	def test_sanitizer_allows_safe_links_and_removes_unsafe_protocols(self):
+		html = '<a href="javascript:alert(1)" title="bad">bad</a><a href="https://example.com" title="ok">ok</a>'
+
+		cleaned = sanitize_profile_bio(html)
+
+		self.assertIn('<a title="bad">bad</a>', cleaned)
+		self.assertIn('<a href="https://example.com" title="ok">ok</a>', cleaned)
+		self.assertNotIn("javascript", cleaned.lower())
+		self.assertNotIn("alert", cleaned)
+
+	def test_profile_form_sanitizes_bio_before_saving(self):
+		form = UserProfileForm(data={"bio": '<b>Hola</b><iframe src="https://example.com"></iframe>'})
+
+		self.assertTrue(form.is_valid())
+		self.assertEqual(form.cleaned_data["bio"], "<b>Hola</b>")
+
+	def test_profile_form_rejects_bio_longer_than_limit(self):
+		form = UserProfileForm(data={"bio": "x" * (MAX_PROFILE_BIO_LENGTH + 1)})
+
+		self.assertFalse(form.is_valid())
+		self.assertIn("bio", form.errors)
+
+	def test_rich_profile_bio_filter_returns_safe_sanitized_html(self):
+		rendered = str(rich_profile_bio('<u>Subrayado</u><script>alert(1)</script>'))
+
+		self.assertEqual(rendered, "<u>Subrayado</u>")
+		self.assertNotIn("script", rendered.lower())
+		self.assertNotIn("alert", rendered)
 
 
 class UserProfileUpdateViewTests(TestCase):
@@ -43,6 +115,24 @@ class UserProfileUpdateViewTests(TestCase):
 		self.assertRedirects(response, reverse("dashboard"))
 		self.assertEqual(profile.bio, "Mi bio")
 		self.assertTrue(profile.avatar.name.startswith("avatars/"))
+
+	def test_profile_update_saves_sanitized_rich_bio(self):
+		with override_settings(MEDIA_ROOT=self.temp_media_root):
+			response = self.client.post(
+				reverse("profile_edit"),
+				{
+					"bio": '<p><span style="color:#ff0000;font-size:1.5rem;position:absolute">Grande ⚽</span><script>alert(1)</script><img src=x onerror=alert(1)></p>',
+				}
+			)
+
+		profile = UserProfile.objects.get(user=self.user)
+		self.assertRedirects(response, reverse("dashboard"))
+		self.assertIn('style="color:#ff0000;font-size:1.5rem;"', profile.bio)
+		self.assertIn("Grande ⚽", profile.bio)
+		self.assertNotIn("script", profile.bio.lower())
+		self.assertNotIn("alert(1)", profile.bio)
+		self.assertNotIn("onerror", profile.bio.lower())
+		self.assertNotIn("position", profile.bio.lower())
 
 	def test_profile_update_accepts_valid_image_with_non_standard_content_type(self):
 		with override_settings(MEDIA_ROOT=self.temp_media_root):
@@ -145,6 +235,40 @@ class UserProfileUpdateViewTests(TestCase):
 		self.assertEqual(response.status_code, 200)
 		self.assertContains(response, "avatarPreviewModal")
 		self.assertContains(response, "avatarPreviewModalImage")
+
+	def test_profile_edit_includes_rich_bio_editor(self):
+		response = self.client.get(reverse("profile_edit"))
+
+		self.assertEqual(response.status_code, 200)
+		self.assertContains(response, "profile-rich-bio-editor")
+		self.assertContains(response, "data-rich-command=\"bold\"")
+		self.assertContains(response, "data-rich-color")
+		self.assertContains(response, "data-rich-emoji-toggle")
+		self.assertContains(response, "data-rich-emoji-panel")
+		self.assertContains(response, "data-rich-emoji-search")
+		self.assertContains(response, "data-rich-emoji-tabs")
+		self.assertContains(response, "data-rich-emoji-grid")
+		self.assertContains(response, "EMOJI_CATEGORIES")
+		self.assertContains(response, "pulgar")
+		self.assertContains(response, "Caritas")
+		self.assertContains(response, "Fútbol")
+		self.assertContains(response, "event.stopPropagation")
+		self.assertContains(response, "event.composedPath")
+		self.assertContains(response, "clickedInsidePicker")
+
+	def test_user_bio_or_username_renders_sanitized_html(self):
+		profile = UserProfile.objects.create(
+			user=self.user,
+			bio='<span style="color:blue" onclick="alert(1)">Azul 💙</span><script>alert(1)</script>',
+		)
+
+		rendered = str(user_bio_or_username(profile.user))
+
+		self.assertIn('style="color:blue;"', rendered)
+		self.assertIn("Azul 💙", rendered)
+		self.assertNotIn("onclick", rendered)
+		self.assertNotIn("script", rendered)
+		self.assertNotIn("alert(1)", rendered)
 
 	def test_pages_include_responsive_sidebar_navigation(self):
 		response = self.client.get(reverse("profile_edit"))

@@ -191,7 +191,7 @@
                                 {% include "includes/user_avatar.html" with user=prediction.user %}
                                 <div>
                                     <div class="fw-semibold">{{ prediction.user.get_full_name|default:prediction.user.username }}</div>
-                                    <small class="text-muted">{{ prediction.user|user_bio_or_username }}</small>
+                                    <div class="small text-muted user-rich-bio">{{ prediction.user|user_bio_or_username }}</div>
                                 </div>
                             </div>
                         </td>

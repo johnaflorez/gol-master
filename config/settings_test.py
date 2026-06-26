@@ -44,6 +44,8 @@ STATICFILES_STORAGE = "django.contrib.staticfiles.storage.StaticFilesStorage"
 
 # Evita llamadas lentas accidentales a proveedores externos durante tests.
 FOOTBALL_DATA_TIMEOUT = 1
+FOOTBALL_DATA_COMPETITION_CODE = "WC"
+FOOTBALL_DATA_SEASON = 2026
 EMAIL_BACKEND = "django.core.mail.backends.locmem.EmailBackend"
 
 # Silencia trazas esperadas en tests que fuerzan errores de storage.
