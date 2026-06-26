@@ -8,6 +8,7 @@ from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
 from django.conf import settings
+from django.utils.dateparse import parse_date
 
 from matches.models import Match
 from stats.models import TopScorerStanding
@@ -39,6 +40,21 @@ class FootballDataTopScorersResult:
     checked: int = 0
     updated: int = 0
     deleted: int = 0
+
+
+@dataclass
+class FootballDataPlayersImportResult:
+    checked_teams: int = 0
+    matched_teams: int = 0
+    skipped_teams: int = 0
+    detail_fetches: int = 0
+    checked_players: int = 0
+    created: int = 0
+    updated: int = 0
+    unchanged: int = 0
+    reactivated: int = 0
+    skipped_players: int = 0
+    deactivated: int = 0
 
 
 class FootballDataClient:
@@ -102,6 +118,168 @@ class FootballDataClient:
                 "limit": limit,
             },
         ).get("scorers", [])
+
+    def get_competition_teams(self, *, competition_code=None, season=None):
+        competition_code = competition_code or settings.FOOTBALL_DATA_COMPETITION_CODE
+        return self._request(
+            f"competitions/{competition_code}/teams",
+            {"season": season if season is not None else settings.FOOTBALL_DATA_SEASON},
+        ).get("teams", [])
+
+    def get_team(self, team_id):
+        return self._request(f"teams/{team_id}")
+
+
+class FootballDataPlayersImportService:
+    """Imports national-team squad players from football-data.org into Player."""
+
+    def __init__(self, client=None, competition_code=None, season=None):
+        self.client = client or FootballDataClient()
+        self.competition_code = competition_code or settings.FOOTBALL_DATA_COMPETITION_CODE
+        self.season = season if season is not None else settings.FOOTBALL_DATA_SEASON
+
+    def import_players(self, *, commit=False, deactivate_missing=False):
+        competition_teams = self.client.get_competition_teams(
+            competition_code=self.competition_code,
+            season=self.season,
+        )
+        result = FootballDataPlayersImportResult(checked_teams=len(competition_teams))
+        seen_player_ids = set()
+        seen_team_player_keys = set()
+        seen_team_ids = set()
+
+        for team_payload in competition_teams:
+            local_team = self._find_team(team_payload)
+            if not local_team:
+                result.skipped_teams += 1
+                continue
+
+            result.matched_teams += 1
+            seen_team_ids.add(local_team.id)
+            if commit:
+                self._update_team_from_payload(local_team, team_payload)
+
+            squad = team_payload.get("squad") or []
+            if not squad and team_payload.get("id"):
+                detailed_team_payload = self.client.get_team(team_payload["id"])
+                result.detail_fetches += 1
+                squad = detailed_team_payload.get("squad") or []
+                if commit:
+                    self._update_team_from_payload(local_team, detailed_team_payload)
+
+            for player_payload in squad:
+                outcome, player_key = self._upsert_player(local_team, player_payload, commit=commit)
+                setattr(result, outcome, getattr(result, outcome) + 1)
+                result.checked_players += 1
+                if player_payload.get("id"):
+                    seen_player_ids.add(player_payload["id"])
+                if player_key:
+                    seen_team_player_keys.add(player_key)
+
+        if commit and deactivate_missing:
+            result.deactivated = self._deactivate_missing(seen_player_ids, seen_team_player_keys, seen_team_ids)
+
+        return result
+
+    def _upsert_player(self, team, player_payload, *, commit):
+        name = (player_payload.get("name") or "").strip()
+        if not name:
+            return "skipped_players", ""
+
+        player = self._find_player(team, player_payload, name)
+        defaults = self._player_defaults(player_payload)
+        team_player_key = f"{team.pk}:{name.casefold()}"
+
+        if not player:
+            if commit:
+                Player.objects.create(team=team, name=name, active=True, **defaults)
+            return "created", team_player_key
+
+        changed_fields = []
+        if player.team_id != team.id:
+            player.team = team
+            changed_fields.append("team")
+        if player.name != name:
+            player.name = name
+            changed_fields.append("name")
+        if not player.active:
+            player.active = True
+            changed_fields.append("active")
+        for field, value in defaults.items():
+            if getattr(player, field) != value:
+                setattr(player, field, value)
+                changed_fields.append(field)
+
+        if changed_fields:
+            if commit:
+                player.save(update_fields=[*dict.fromkeys(changed_fields), "updated_at"])
+            if "active" in changed_fields and len(changed_fields) == 1:
+                return "reactivated", team_player_key
+            return "updated", team_player_key
+
+        return "unchanged", team_player_key
+
+    def _find_team(self, team_payload):
+        football_data_team_id = team_payload.get("id")
+        if football_data_team_id:
+            team = Team.objects.filter(football_data_team_id=football_data_team_id).first()
+            if team:
+                return team
+
+        tla = (team_payload.get("tla") or "").strip().upper()
+        if tla:
+            team = Team.objects.filter(tla__iexact=tla).first() or Team.objects.filter(code__iexact=tla).first()
+            if team:
+                return team
+        return None
+
+    def _find_player(self, team, player_payload, name):
+        football_data_player_id = player_payload.get("id")
+        if football_data_player_id:
+            player = Player.objects.filter(football_data_player_id=football_data_player_id).first()
+            if player:
+                return player
+        return Player.objects.filter(team=team, name__iexact=name).first()
+
+    def _player_defaults(self, player_payload):
+        raw_date_of_birth = player_payload.get("dateOfBirth") or player_payload.get("date_of_birth")
+        defaults = {
+            "position": (player_payload.get("position") or "").strip(),
+            "date_of_birth": parse_date(raw_date_of_birth) if raw_date_of_birth else None,
+            "nationality": (player_payload.get("nationality") or "").strip(),
+        }
+        if player_payload.get("id"):
+            defaults["football_data_player_id"] = player_payload["id"]
+        return defaults
+
+    def _update_team_from_payload(self, team, team_payload):
+        updates = {}
+        football_data_team_id = team_payload.get("id")
+        tla = (team_payload.get("tla") or "").strip().upper()
+        crest = (team_payload.get("crest") or "").strip()
+        if football_data_team_id and team.football_data_team_id != football_data_team_id:
+            updates["football_data_team_id"] = football_data_team_id
+        if tla and team.tla != tla:
+            updates["tla"] = tla
+        if crest and team.flag != crest:
+            updates["flag"] = crest
+        if updates:
+            Team.objects.filter(pk=team.pk).update(**updates)
+            for field, value in updates.items():
+                setattr(team, field, value)
+
+    def _deactivate_missing(self, seen_player_ids, seen_team_player_keys, seen_team_ids):
+        queryset = Player.objects.filter(active=True, team_id__in=seen_team_ids)
+        deactivated = 0
+        for player in queryset.select_related("team"):
+            if player.football_data_player_id and player.football_data_player_id in seen_player_ids:
+                continue
+            if f"{player.team_id}:{player.name.casefold()}" in seen_team_player_keys:
+                continue
+            player.active = False
+            player.save(update_fields=["active", "updated_at"])
+            deactivated += 1
+        return deactivated
 
 
 class FootballDataTopScorersService:

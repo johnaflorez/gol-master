@@ -1,7 +1,12 @@
 {% extends "base.html" %}
+{% load static %}
 {% load team_flags %}
 
 {% block title %}⚽ Goleadores - Mundial Familiar 2026{% endblock %}
+
+{% block extra_css %}
+    <link rel="stylesheet" href="{% static 'css/pages/matches.css' %}">
+{% endblock %}
 
 {% block content %}
 <div class="mb-4 d-flex align-items-start justify-content-between gap-3 flex-wrap">
@@ -15,6 +20,40 @@
         <i class="fas fa-arrow-left me-1"></i>Volver al inicio
     </a>
 </div>
+
+<form method="get" class="matches-toolbar standings-filter-bar d-flex align-items-center gap-2 flex-wrap mb-3">
+    <div class="standings-filter-control standings-country-control">
+        <label for="scorer-player-filter" class="small fw-semibold text-muted mb-0">
+            <i class="fas fa-user me-1"></i>Jugador
+        </label>
+        <select id="scorer-player-filter" name="player_id" class="form-select form-select-sm standings-country-input">
+            <option value="">Todos los jugadores</option>
+            {% for player in player_options %}
+                <option value="{{ player.id }}" {% if selected_player_id == player.id %}selected{% endif %}>
+                    {{ player.name }}{% if player.team %} · {{ player.team.name }}{% endif %}
+                </option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="standings-filter-control standings-country-control">
+        <label for="scorer-country-filter" class="small fw-semibold text-muted mb-0">
+            <i class="fas fa-flag me-1"></i>País
+        </label>
+        <input id="scorer-country-filter" name="country" list="scorer-country-options" class="form-control form-control-sm standings-country-input"
+               placeholder="Escribe un país..." value="{{ selected_country_label }}">
+        <datalist id="scorer-country-options">
+            {% for country in country_options %}
+                <option value="{{ country.code|upper }} - {{ country.name }}"></option>
+            {% endfor %}
+        </datalist>
+    </div>
+    <button type="submit" class="btn btn-primary btn-sm">
+        <i class="fas fa-filter me-1"></i>Aplicar
+    </button>
+    {% if selected_player or selected_country %}
+        <a href="{% url 'top_scorers' %}" class="btn btn-outline-primary btn-sm">Limpiar</a>
+    {% endif %}
+</form>
 
 <div class="card">
     <div class="card-header d-flex align-items-center justify-content-between gap-2 flex-wrap">
@@ -84,5 +123,50 @@
         {% endif %}
     </div>
 </div>
+
+{% if is_paginated %}
+    <div class="mt-4 d-flex justify-content-between align-items-center flex-wrap gap-3">
+        <span class="text-muted small">
+            <i class="fas fa-bookmark me-1"></i>Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }} · {{ page_obj.paginator.count }} goleadores
+        </span>
+        <nav aria-label="Paginación de goleadores">
+            <ul class="pagination pagination-sm mb-0">
+                {% if page_obj.has_previous %}
+                    <li class="page-item">
+                        <a class="page-link" href="?{% if filters_query %}{{ filters_query }}&amp;{% endif %}page=1">
+                            <i class="fas fa-chevron-double-left me-1"></i>Primera
+                        </a>
+                    </li>
+                    <li class="page-item">
+                        <a class="page-link" href="?{% if filters_query %}{{ filters_query }}&amp;{% endif %}page={{ page_obj.previous_page_number }}">
+                            <i class="fas fa-chevron-left me-1"></i>Anterior
+                        </a>
+                    </li>
+                {% else %}
+                    <li class="page-item disabled"><span class="page-link"><i class="fas fa-chevron-double-left me-1"></i>Primera</span></li>
+                    <li class="page-item disabled"><span class="page-link"><i class="fas fa-chevron-left me-1"></i>Anterior</span></li>
+                {% endif %}
+
+                <li class="page-item active" aria-current="page"><span class="page-link">{{ page_obj.number }}</span></li>
+
+                {% if page_obj.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="?{% if filters_query %}{{ filters_query }}&amp;{% endif %}page={{ page_obj.next_page_number }}">
+                            Siguiente<i class="fas fa-chevron-right ms-1"></i>
+                        </a>
+                    </li>
+                    <li class="page-item">
+                        <a class="page-link" href="?{% if filters_query %}{{ filters_query }}&amp;{% endif %}page={{ page_obj.paginator.num_pages }}">
+                            Última<i class="fas fa-chevron-double-right ms-1"></i>
+                        </a>
+                    </li>
+                {% else %}
+                    <li class="page-item disabled"><span class="page-link">Siguiente<i class="fas fa-chevron-right ms-1"></i></span></li>
+                    <li class="page-item disabled"><span class="page-link">Última<i class="fas fa-chevron-double-right ms-1"></i></span></li>
+                {% endif %}
+            </ul>
+        </nav>
+    </div>
+{% endif %}
 {% endblock %}
 

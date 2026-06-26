@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+{% load static %}
+{% load team_flags %}
+
+{% block title %}🏆 Esquema de clasificación - Mundial Familiar 2026{% endblock %}
+
+{% block extra_css %}
+    <link rel="stylesheet" href="{% static 'css/pages/matches.css' %}">
+{% endblock %}
+
+{% block content %}
+    <div class="mb-3 d-flex justify-content-between align-items-start flex-wrap gap-3">
+        <div>
+            <h1 class="page-title mb-1">
+                <i class="fas fa-sitemap text-mundial-gold"></i> Esquema de clasificación
+            </h1>
+            <p class="text-muted mb-0">Cuadro de eliminatorias desde dieciséisavos de final hasta la final.</p>
+        </div>
+        <div class="d-flex gap-2 flex-wrap">
+            <a href="{% url 'match_list' %}" class="btn btn-outline-primary btn-sm">
+                <i class="fas fa-futbol me-1"></i>Ver partidos
+            </a>
+            <a href="{% url 'group_standings' %}" class="btn btn-outline-primary btn-sm">
+                <i class="fas fa-table-list me-1"></i>Tabla de posiciones
+            </a>
+        </div>
+    </div>
+
+    <div class="card knockout-summary-card mb-4">
+        <div class="card-body d-flex justify-content-between align-items-center flex-wrap gap-3">
+            <div>
+                <h5 class="mb-1"><i class="fas fa-route me-2 text-mundial-blue"></i>Ruta al campeón</h5>
+                <p class="text-muted mb-0 small">Los ganadores se resaltan automáticamente cuando el partido está finalizado.</p>
+            </div>
+            <span class="badge text-bg-primary">
+                <i class="fas fa-calendar-check me-1"></i>{{ bracket.total_matches }} partidos cargados
+            </span>
+        </div>
+    </div>
+
+    <div class="knockout-bracket-shell" aria-label="Cuadro tradicional de eliminatorias">
+        <div class="knockout-bracket-grid knockout-bracket-grid--traditional">
+            {% for phase in bracket.layout_columns %}
+                <section class="knockout-phase knockout-phase--{{ phase.side }} knockout-phase--{{ phase.code }}" aria-labelledby="knockout-phase-{{ phase.side }}-{{ phase.code }}">
+                    <div class="knockout-phase-header">
+                        <h2 id="knockout-phase-{{ phase.side }}-{{ phase.code }}" class="knockout-phase-title">{{ phase.short_label }}</h2>
+                        <span class="badge text-bg-light">{{ phase.matches_count }}</span>
+                    </div>
+                    <div class="knockout-phase-subtitle">{{ phase.label }}</div>
+
+                    <div class="knockout-slots">
+                        {% for slot in phase.slots %}
+                            <article class="knockout-match-card {% if not slot.match %}knockout-match-card--empty{% endif %}" aria-label="{{ phase.short_label }} partido {{ slot.position }}">
+                                <div class="knockout-match-meta">
+                                    <span class="fw-bold">Partido {{ slot.position }}</span>
+                                    <span class="badge {{ slot.status_class }}">{{ slot.status_label }}</span>
+                                </div>
+
+                                {% if slot.match %}
+                                    <div class="knockout-team-row {% if slot.winner_side == 'home' %}knockout-team-row--winner{% endif %}">
+                                        <div class="knockout-team-name">
+                                            {% if slot.winner_side == 'home' %}<i class="fas fa-crown text-mundial-gold me-1" title="Clasificado"></i>{% endif %}
+                                            <span class="knockout-team-full">{{ slot.match.home_team|team_with_flag }}</span>
+                                            <span class="knockout-team-short">{{ slot.match.home_team.tla|default:slot.match.home_team.code }}</span>
+                                        </div>
+                                        <span class="knockout-score">{% if slot.match.finished %}{{ slot.match.home_score }}{% else %}-{% endif %}</span>
+                                    </div>
+                                    <div class="knockout-team-row {% if slot.winner_side == 'away' %}knockout-team-row--winner{% endif %}">
+                                        <div class="knockout-team-name">
+                                            {% if slot.winner_side == 'away' %}<i class="fas fa-crown text-mundial-gold me-1" title="Clasificado"></i>{% endif %}
+                                            <span class="knockout-team-full">{{ slot.match.away_team|team_with_flag }}</span>
+                                            <span class="knockout-team-short">{{ slot.match.away_team.tla|default:slot.match.away_team.code }}</span>
+                                        </div>
+                                        <span class="knockout-score">{% if slot.match.finished %}{{ slot.match.away_score }}{% else %}-{% endif %}</span>
+                                    </div>
+                                    <div class="knockout-match-footer">
+                                        <i class="far fa-clock me-1"></i>{{ slot.match.kickoff_at|date:"d/m/Y H:i" }}
+                                        {% if slot.winner_team %}
+                                            <span class="knockout-qualified ms-auto"><i class="fas fa-arrow-right me-1"></i>Clasifica {{ slot.winner_team.name }}</span>
+                                        {% endif %}
+                                    </div>
+                                {% else %}
+                                    <div class="knockout-empty-slot">
+                                        <i class="fas fa-hourglass-half"></i>
+                                        <span>Partido pendiente por cargar</span>
+                                    </div>
+                                {% endif %}
+                            </article>
+                        {% endfor %}
+                    </div>
+                </section>
+            {% endfor %}
+        </div>
+    </div>
+
+    {% if not bracket.has_matches %}
+        <div class="alert alert-info mt-4 mb-0">
+            <i class="fas fa-circle-info me-2"></i>
+            Aún no hay partidos de eliminatorias cargados. El esquema muestra los espacios esperados desde 16avos hasta la final.
+        </div>
+    {% endif %}
+{% endblock %}
+

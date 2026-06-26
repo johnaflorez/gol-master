@@ -6,7 +6,7 @@ from django.utils import timezone
 from matches.models import Match
 from stats.models import TopScorerStanding
 from stats.services.group_standings import GroupStandingsService
-from teams.models import Team
+from teams.models import Player, Team
 
 
 class GroupStandingsServiceTests(TestCase):
@@ -109,6 +109,126 @@ class TopScorersViewTests(TestCase):
         self.assertContains(response, "Luis Díaz")
         self.assertContains(response, "Colombia")
         self.assertContains(response, "4")
+
+    def test_top_scorers_view_filters_by_player_and_country(self):
+        self.client.login(username="scorers-user", password="secret123")
+        brasil = Team.objects.create(name="Brasil", code="BRA", tla="BRA")
+        TopScorerStanding.objects.create(
+            competition_code="WC",
+            season=2026,
+            rank=1,
+            external_key="player:10",
+            football_data_player_id=10,
+            player_name="Luis Díaz",
+            team=self.team,
+            team_name="Colombia",
+            team_tla="COL",
+            goals=4,
+        )
+        TopScorerStanding.objects.create(
+            competition_code="WC",
+            season=2026,
+            rank=2,
+            external_key="player:11",
+            football_data_player_id=11,
+            player_name="Neymar",
+            team=brasil,
+            team_name="Brasil",
+            team_tla="BRA",
+            goals=3,
+        )
+
+        response = self.client.get(reverse("top_scorers"), {"player": "Luis", "country": "COL - Colombia"})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Luis Díaz")
+        self.assertContains(response, "Colombia")
+        self.assertNotContains(response, "Neymar")
+        self.assertEqual(response.context["selected_player"], "Luis")
+        self.assertEqual(response.context["selected_country"], "COL")
+
+    def test_top_scorers_view_filters_by_player_table_selection(self):
+        self.client.login(username="scorers-user", password="secret123")
+        brasil = Team.objects.create(name="Brasil", code="BRA", tla="BRA")
+        player = Player.objects.create(
+            team=self.team,
+            name="Luis Díaz",
+            football_data_player_id=10,
+            position="Attacker",
+            nationality="Colombia",
+        )
+        Player.objects.create(team=brasil, name="Neymar", football_data_player_id=11)
+        TopScorerStanding.objects.create(
+            competition_code="WC",
+            season=2026,
+            rank=1,
+            external_key="player:10",
+            football_data_player_id=10,
+            player_name="Luis Díaz",
+            team=self.team,
+            team_name="Colombia",
+            team_tla="COL",
+            goals=4,
+        )
+        TopScorerStanding.objects.create(
+            competition_code="WC",
+            season=2026,
+            rank=2,
+            external_key="player:11",
+            football_data_player_id=11,
+            player_name="Neymar",
+            team=brasil,
+            team_name="Brasil",
+            team_tla="BRA",
+            goals=3,
+        )
+        TopScorerStanding.objects.create(
+            competition_code="WC",
+            season=2026,
+            rank=3,
+            external_key="player:99",
+            football_data_player_id=99,
+            player_name="Luis Díaz",
+            team=brasil,
+            team_name="Brasil",
+            team_tla="BRA",
+            goals=2,
+        )
+
+        response = self.client.get(reverse("top_scorers"), {"player_id": str(player.id)})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Luis Díaz")
+        self.assertContains(response, "Colombia")
+        self.assertEqual([scorer.player_name for scorer in response.context["scorers"]], ["Luis Díaz"])
+        self.assertEqual(response.context["selected_player_id"], player.id)
+        self.assertEqual(response.context["selected_player"], "Luis Díaz")
+        self.assertEqual(list(response.context["player_options"]), list(Player.objects.select_related("team").order_by("name", "team__name")))
+
+    def test_top_scorers_view_paginates_and_preserves_filters(self):
+        self.client.login(username="scorers-user", password="secret123")
+        for index in range(55):
+            TopScorerStanding.objects.create(
+                competition_code="WC",
+                season=2026,
+                rank=index + 1,
+                external_key=f"player:{index}",
+                football_data_player_id=index,
+                player_name=f"Jugador Colombia {index:02d}",
+                team=self.team,
+                team_name="Colombia",
+                team_tla="COL",
+                goals=max(0, 55 - index),
+            )
+
+        response = self.client.get(reverse("top_scorers"), {"player": "Jugador", "country": "COL"})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.context["is_paginated"])
+        self.assertEqual(len(response.context["scorers"]), 50)
+        self.assertContains(response, "Página 1 de 2")
+        self.assertContains(response, "player=Jugador&amp;country=COL&amp;page=2")
+        self.assertContains(response, "55 goleadores")
 
     def test_sidebar_links_to_top_scorers(self):
         self.client.login(username="scorers-user", password="secret123")

@@ -21,6 +21,12 @@
             </a>
         </li>
         <li>
+            <a class="app-sidebar-link {% if request.resolver_match.url_name == 'knockout_bracket' %}active{% endif %}"
+               href="{% url 'knockout_bracket' %}" title="Ver esquema de clasificación">
+                <i class="fas fa-sitemap"></i><span>Clasificación</span>
+            </a>
+        </li>
+        <li>
             <a class="app-sidebar-link {% if request.resolver_match.url_name == 'top_scorers' %}active{% endif %}"
                href="{% url 'top_scorers' %}" title="Ver tabla de goleadores">
                 <i class="fas fa-medal"></i><span>Goleadores</span>

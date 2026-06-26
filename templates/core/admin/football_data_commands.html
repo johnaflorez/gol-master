@@ -19,7 +19,7 @@
     <i class="fas fa-triangle-exclamation mt-1"></i>
     <div>
         <strong>Solo superusuarios.</strong> Primero ejecuta mapear/importar en modo prueba con <strong>Guardar cambios</strong> desmarcado.
-        La actualización de goleadores consulta football-data.org y actualiza directamente la tabla persistida.
+        La importación de jugadores también soporta modo prueba; la actualización de goleadores consulta football-data.org y actualiza directamente la tabla persistida.
     </div>
 </div>
 
@@ -96,6 +96,12 @@
                             {{ form.status }}
                             <div class="form-text">{{ form.status.help_text }}</div>
                             {% if form.status.errors %}<div class="text-danger small mt-1">{{ form.status.errors|striptags }}</div>{% endif %}
+                        </div>
+                        <div class="col-12">
+                            <div class="alert alert-info small mb-0">
+                                <i class="fas fa-circle-info me-1"></i>
+                                Para importar jugadores/squads solo necesitas seleccionar esa acción y marcar <strong>Guardar cambios en la DB</strong> cuando quieras persistir.
+                            </div>
                         </div>
                     </div>
 

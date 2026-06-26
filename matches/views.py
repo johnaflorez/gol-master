@@ -5,6 +5,7 @@ from django.utils import timezone
 from django.views.generic import ListView, TemplateView
 
 from matches.models import Match
+from matches.services.knockout_bracket import KnockoutBracketService
 from stats.services.group_standings import GroupStandingsService
 from teams.models import Team
 from teams.utils import get_country_label, get_country_options, match_country_q, parse_country_filter
@@ -96,4 +97,14 @@ class GroupStandingsView(LoginRequiredMixin, TemplateView):
             match_name=True,
         )
         return context
+
+
+class KnockoutBracketView(LoginRequiredMixin, TemplateView):
+    template_name = "matches/knockout_bracket.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["bracket"] = KnockoutBracketService().get_bracket()
+        return context
+
 

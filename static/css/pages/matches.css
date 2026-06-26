@@ -223,3 +223,336 @@
     padding-top: 0.65rem;
     padding-bottom: 0.65rem;
 }
+
+.knockout-summary-card {
+    background: linear-gradient(135deg, rgba(29, 53, 87, 0.06), rgba(247, 127, 0, 0.12));
+    border: 1px solid rgba(247, 127, 0, 0.25);
+}
+
+.knockout-bracket-shell {
+    background:
+        radial-gradient(circle at center, rgba(247, 127, 0, 0.16), transparent 20rem),
+        linear-gradient(135deg, rgba(15, 27, 46, 0.98), rgba(8, 15, 28, 0.98));
+    border-radius: 1.35rem;
+    box-shadow: 0 18px 44px rgba(15, 27, 46, 0.18);
+    overflow: visible;
+    padding: clamp(0.65rem, 1.6vw, 1.15rem);
+}
+
+.knockout-bracket-grid {
+    align-items: stretch;
+    display: grid;
+    gap: clamp(0.28rem, 0.7vw, 0.65rem);
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    width: 100%;
+}
+
+.knockout-bracket-grid--traditional {
+    align-items: stretch;
+    grid-template-columns: 1.18fr 1.05fr 0.96fr 0.9fr 1.2fr 0.9fr 0.96fr 1.05fr 1.18fr;
+    margin-inline: auto;
+    max-width: 1320px;
+}
+
+.knockout-phase {
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    border-radius: 0.85rem;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    overflow: visible;
+    position: relative;
+}
+
+.knockout-phase--center {
+    align-self: center;
+    background: linear-gradient(180deg, rgba(247, 127, 0, 0.28), rgba(255, 255, 255, 0.1));
+    border: 2px solid rgba(247, 127, 0, 0.62);
+    box-shadow: 0 14px 34px rgba(247, 127, 0, 0.2);
+    min-height: 14rem;
+}
+
+.knockout-phase--center::before {
+    color: rgba(255, 255, 255, 0.2);
+    content: "🏆";
+    font-size: clamp(2.2rem, 5vw, 4.7rem);
+    left: 50%;
+    line-height: 1;
+    pointer-events: none;
+    position: absolute;
+    top: 50%;
+    transform: translate(-50%, -35%);
+    z-index: 0;
+}
+
+.knockout-phase--right .knockout-phase-header {
+    background: linear-gradient(135deg, rgba(247, 127, 0, 0.9), rgba(214, 40, 40, 0.9));
+}
+
+.knockout-phase-header {
+    align-items: center;
+    background: linear-gradient(135deg, rgba(42, 30, 92, 0.95), rgba(29, 53, 87, 0.95));
+    border-radius: 0.75rem 0.75rem 0 0;
+    color: #fff;
+    display: flex;
+    justify-content: space-between;
+    gap: 0.35rem;
+    min-width: 0;
+    padding: clamp(0.32rem, 0.7vw, 0.5rem) clamp(0.38rem, 0.8vw, 0.62rem);
+}
+
+.knockout-phase-header .badge {
+    font-size: clamp(0.52rem, 0.8vw, 0.68rem);
+    padding: 0.18rem 0.38rem;
+}
+
+.knockout-phase-title {
+    color: #fff;
+    font-size: clamp(0.62rem, 1vw, 0.9rem);
+    font-weight: 900;
+    letter-spacing: -0.02em;
+    margin: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.knockout-phase-subtitle {
+    background: rgba(255, 255, 255, 0.08);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+    color: rgba(255, 255, 255, 0.82);
+    font-size: clamp(0.48rem, 0.78vw, 0.68rem);
+    font-weight: 800;
+    overflow: hidden;
+    padding: 0.24rem clamp(0.38rem, 0.8vw, 0.62rem);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.knockout-slots {
+    display: grid;
+    gap: clamp(0.26rem, 0.62vw, 0.55rem);
+    padding: clamp(0.35rem, 0.8vw, 0.65rem);
+    position: relative;
+    z-index: 1;
+}
+
+.knockout-bracket-grid--traditional .knockout-slots {
+    align-content: space-around;
+    flex: 1 1 auto;
+}
+
+.knockout-phase--DR .knockout-slots { gap: clamp(0.22rem, 0.48vw, 0.42rem); }
+.knockout-phase--OF .knockout-slots { gap: clamp(0.58rem, 1.25vw, 1.05rem); }
+.knockout-phase--CF .knockout-slots { gap: clamp(1.15rem, 2.7vw, 2.35rem); }
+.knockout-phase--SF .knockout-slots { gap: clamp(2.1rem, 5.2vw, 4.85rem); }
+.knockout-phase--F .knockout-slots { gap: 0.65rem; }
+
+.knockout-match-card {
+    background: rgba(255, 255, 255, 0.96);
+    border: 1px solid rgba(255, 255, 255, 0.62);
+    border-radius: 0.58rem;
+    box-shadow: 0 5px 14px rgba(0, 0, 0, 0.16);
+    min-width: 0;
+    overflow: hidden;
+    position: relative;
+}
+
+.knockout-match-card--empty {
+    background: rgba(255, 255, 255, 0.14);
+    border-color: rgba(255, 255, 255, 0.2);
+    box-shadow: none;
+}
+
+.knockout-match-meta,
+.knockout-match-footer {
+    align-items: center;
+    color: #6B7280;
+    display: flex;
+    font-size: clamp(0.48rem, 0.75vw, 0.64rem);
+    gap: 0.24rem;
+    justify-content: space-between;
+    min-width: 0;
+    padding: 0.22rem clamp(0.26rem, 0.6vw, 0.45rem);
+}
+
+.knockout-match-meta {
+    border-bottom: 1px solid rgba(224, 231, 255, 0.75);
+}
+
+.knockout-match-footer {
+    border-top: 1px solid rgba(224, 231, 255, 0.75);
+}
+
+.knockout-match-meta .badge {
+    font-size: clamp(0.46rem, 0.68vw, 0.58rem);
+    padding: 0.12rem 0.28rem;
+}
+
+.knockout-team-row {
+    align-items: center;
+    display: flex;
+    gap: 0.25rem;
+    justify-content: space-between;
+    min-width: 0;
+    padding: clamp(0.24rem, 0.62vw, 0.42rem) clamp(0.28rem, 0.65vw, 0.48rem);
+}
+
+.knockout-team-row + .knockout-team-row {
+    border-top: 1px solid rgba(224, 231, 255, 0.55);
+}
+
+.knockout-team-row--winner {
+    background: rgba(16, 185, 129, 0.12);
+    color: #065F46;
+    font-weight: 800;
+}
+
+.knockout-team-name {
+    font-size: clamp(0.55rem, 0.82vw, 0.72rem);
+    font-weight: 800;
+    min-width: 0;
+    overflow: hidden;
+}
+
+.knockout-team-full {
+    display: block;
+    min-width: 0;
+    overflow: hidden;
+}
+
+.knockout-team-short {
+    display: none;
+    letter-spacing: 0.02em;
+}
+
+.knockout-team-name .d-inline-flex {
+    max-width: 100%;
+}
+
+.knockout-team-name .d-inline-flex span {
+    display: inline-block;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.knockout-score {
+    align-items: center;
+    background: var(--mundial-blue);
+    border-radius: 0.4rem;
+    color: #fff;
+    display: inline-flex;
+    flex: 0 0 auto;
+    font-size: clamp(0.54rem, 0.82vw, 0.72rem);
+    font-weight: 900;
+    justify-content: center;
+    min-width: clamp(1.15rem, 1.8vw, 1.55rem);
+    padding: 0.1rem 0.24rem;
+}
+
+.knockout-qualified {
+    color: #065F46;
+    font-weight: 800;
+    white-space: nowrap;
+}
+
+.knockout-empty-slot {
+    align-items: center;
+    color: rgba(255, 255, 255, 0.74);
+    display: flex;
+    flex-direction: column;
+    font-size: clamp(0.48rem, 0.78vw, 0.68rem);
+    font-weight: 700;
+    gap: 0.2rem;
+    min-height: clamp(2.45rem, 4.8vw, 4.1rem);
+    justify-content: center;
+    padding: 0.38rem;
+    text-align: center;
+}
+
+.knockout-empty-slot i {
+    color: var(--mundial-gold);
+    font-size: clamp(0.75rem, 1.35vw, 1.1rem);
+}
+
+@media (max-width: 991.98px) {
+    .knockout-summary-card .card-body {
+        padding: 0.75rem;
+    }
+
+    .knockout-phase-subtitle,
+    .knockout-match-footer,
+    .knockout-match-meta .badge,
+    .knockout-empty-slot i {
+        display: none;
+    }
+
+    .knockout-match-meta {
+        justify-content: center;
+        padding-block: 0.14rem;
+    }
+}
+
+@media (max-width: 767.98px) {
+    .knockout-bracket-shell {
+        border-radius: 0.85rem;
+        margin-inline: -0.75rem;
+        padding: 0.42rem;
+    }
+
+    .knockout-bracket-grid--traditional {
+        gap: 0.2rem;
+        grid-template-columns: repeat(9, minmax(0, 1fr));
+    }
+
+    .knockout-phase {
+        border-radius: 0.45rem;
+    }
+
+    .knockout-phase-header {
+        border-radius: 0.4rem 0.4rem 0 0;
+        justify-content: center;
+        padding: 0.18rem 0.12rem;
+    }
+
+    .knockout-phase-header .badge {
+        display: none;
+    }
+
+    .knockout-phase-title {
+        font-size: clamp(0.42rem, 1.9vw, 0.66rem);
+    }
+
+    .knockout-slots {
+        padding: 0.16rem;
+    }
+
+    .knockout-team-full,
+    .knockout-match-meta,
+    .knockout-empty-slot span {
+        display: none;
+    }
+
+    .knockout-team-short {
+        display: inline;
+    }
+
+    .knockout-team-row {
+        justify-content: center;
+        padding: 0.18rem 0.08rem;
+    }
+
+    .knockout-score {
+        display: none;
+    }
+
+    .knockout-empty-slot {
+        min-height: 1.5rem;
+        padding: 0.1rem;
+    }
+}
+
+

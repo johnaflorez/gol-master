@@ -26,12 +26,14 @@ class FootballDataCommandForm(forms.Form):
     OPERATION_MAP_MATCHES = "map_football_data_matches"
     OPERATION_IMPORT_MATCHES = "import_football_data_matches"
     OPERATION_REFRESH_SCORERS = "refresh_football_data_scorers"
+    OPERATION_IMPORT_PLAYERS = "import_football_data_players"
 
     OPERATION_CHOICES = [
         (OPERATION_SYNC_LIVE, "Sincronizar marcadores en vivo"),
         (OPERATION_MAP_MATCHES, "Asignar football_data_match_id a partidos existentes"),
         (OPERATION_IMPORT_MATCHES, "Importar partidos faltantes desde football-data.org"),
         (OPERATION_REFRESH_SCORERS, "Actualizar tabla de goleadores"),
+        (OPERATION_IMPORT_PLAYERS, "Importar jugadores/squads desde football-data.org"),
     ]
 
     STATUS_CHOICES = [
@@ -150,6 +152,12 @@ class FootballDataCommandForm(forms.Form):
 
         if operation == self.OPERATION_REFRESH_SCORERS:
             return "refresh_football_data_scorers", []
+
+        if operation == self.OPERATION_IMPORT_PLAYERS:
+            args = []
+            if self.cleaned_data.get("commit"):
+                args.append("--commit")
+            return "import_football_data_players", args
 
         args = ["--fetch-padding-days", str(self.cleaned_data["fetch_padding_days"])]
         self._append_date_args(args)

@@ -337,6 +337,7 @@ class FootballDataCommandViewTests(TestCase):
 		self.assertContains(response, "Sincronizar marcadores en vivo")
 		self.assertContains(response, "Importar partidos faltantes")
 		self.assertContains(response, "Actualizar tabla de goleadores")
+		self.assertContains(response, "Importar jugadores/squads")
 
 	@patch("core.views.call_command")
 	def test_superuser_runs_sync_live_command(self, call_command_mock):
@@ -450,6 +451,30 @@ class FootballDataCommandViewTests(TestCase):
 		self.assertEqual(called_args[0], "refresh_football_data_scorers")
 		self.assertContains(response, "scorers updated=3")
 		self.assertContains(response, "python manage.py refresh_football_data_scorers")
+
+	@patch("core.views.call_command")
+	def test_superuser_runs_import_players_command_with_commit(self, call_command_mock):
+		call_command_mock.side_effect = lambda *args, stdout=None, **kwargs: stdout.write("players created=46")
+		self.client.login(username="command-admin", password="secret123")
+
+		response = self.client.post(
+			reverse("football_data_commands"),
+			{
+				"operation": "import_football_data_players",
+				"commit": "on",
+				"days_back": "1",
+				"days_forward": "1",
+				"max_drift_minutes": "180",
+				"fetch_padding_days": "1",
+			},
+		)
+
+		self.assertEqual(response.status_code, 200)
+		called_args = call_command_mock.call_args.args
+		self.assertEqual(called_args[0], "import_football_data_players")
+		self.assertIn("--commit", called_args)
+		self.assertContains(response, "players created=46")
+		self.assertContains(response, "python manage.py import_football_data_players --commit")
 
 	@patch("core.views.call_command")
 	def test_command_error_is_displayed(self, call_command_mock):

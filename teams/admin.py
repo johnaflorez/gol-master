@@ -27,9 +27,9 @@ class TeamAdmin(admin.ModelAdmin):
 
 @admin.register(Player)
 class PlayerAdmin(admin.ModelAdmin):
-    list_display = ("name", "team", "active", "photo", "updated_at")
-    list_filter = ("active", "team")
-    search_fields = ("name", "team__name", "team__code")
+    list_display = ("name", "team", "football_data_player_id", "position", "nationality", "active", "photo", "updated_at")
+    list_filter = ("active", "team", "position", "nationality")
+    search_fields = ("name", "=football_data_player_id", "team__name", "team__code", "team__tla")
     autocomplete_fields = ("team",)
     ordering = ("team__name", "name")
 

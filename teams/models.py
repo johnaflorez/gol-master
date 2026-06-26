@@ -52,6 +52,15 @@ class Team(models.Model):
 class Player(models.Model):
     team = models.ForeignKey(Team, related_name="players", on_delete=models.CASCADE)
     name = models.CharField(max_length=120)
+    football_data_player_id = models.PositiveIntegerField(
+        blank=True,
+        null=True,
+        unique=True,
+        help_text="ID externo del jugador en football-data.org",
+    )
+    position = models.CharField(max_length=100, blank=True, default="")
+    date_of_birth = models.DateField(blank=True, null=True)
+    nationality = models.CharField(max_length=100, blank=True, default="")
     photo = models.ImageField(upload_to="players/", blank=True, null=True, help_text="Imagen del jugador")
     active = models.BooleanField(default=True, help_text="Disponible para elegir como goleador")
     created_at = models.DateTimeField(auto_now_add=True)
