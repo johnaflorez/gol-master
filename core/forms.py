@@ -117,7 +117,7 @@ class FootballDataCommandForm(forms.Form):
         initial=1,
         label="Días extra consulta API",
         widget=forms.NumberInput(attrs={"class": "form-control"}),
-        help_text="Aplica para mapear/importar por diferencias UTC.",
+        help_text="Aplica para sync live, mapear/importar por diferencias UTC.",
     )
 
     def clean(self):
@@ -136,6 +136,7 @@ class FootballDataCommandForm(forms.Form):
                 "--live",
                 "--days-back", str(self.cleaned_data["days_back"]),
                 "--days-forward", str(self.cleaned_data["days_forward"]),
+                "--fetch-padding-days", str(self.cleaned_data["fetch_padding_days"]),
             ]
 
         if operation == self.OPERATION_MAP_MATCHES:

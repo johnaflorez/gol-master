@@ -242,6 +242,32 @@ class DashboardViewTests(TestCase):
 		payload = response.json()
 		self.assertEqual([match["id"] for match in payload["matches"]], [upcoming.id, finished_early.id])
 
+	def test_dashboard_includes_active_match_that_crossed_midnight(self):
+		today = datetime(2026, 6, 27).date()
+		fixed_now = timezone.make_aware(datetime.combine(today, time(hour=0, minute=30)))
+		cross_midnight = self._create_match(fixed_now - timedelta(hours=1))
+		cross_midnight.live_status = "LIVE"
+		cross_midnight.save(update_fields=["live_status"])
+
+		with patch("core.views.timezone.now", return_value=fixed_now):
+			response = self.client.get(reverse("dashboard"))
+
+		self.assertEqual(response.status_code, 200)
+		matches = list(response.context["matches"])
+		self.assertIn(cross_midnight, matches)
+
+	def test_live_snapshot_includes_recent_unfinished_match_that_crossed_midnight(self):
+		today = datetime(2026, 6, 27).date()
+		fixed_now = timezone.make_aware(datetime.combine(today, time(hour=0, minute=30)))
+		cross_midnight = self._create_match(fixed_now - timedelta(hours=1))
+
+		with patch("core.views.timezone.now", return_value=fixed_now):
+			response = self.client.get(reverse("dashboard_live_snapshot"))
+
+		self.assertEqual(response.status_code, 200)
+		payload = response.json()
+		self.assertIn(cross_midnight.id, [match["id"] for match in payload["matches"]])
+
 
 class SuggestionViewTests(TestCase):
 
@@ -365,6 +391,8 @@ class FootballDataCommandViewTests(TestCase):
 			"--days-back",
 			"1",
 			"--days-forward",
+			"1",
+			"--fetch-padding-days",
 			"1",
 			stdout=call_command_mock.call_args.kwargs["stdout"],
 			stderr=call_command_mock.call_args.kwargs["stderr"],

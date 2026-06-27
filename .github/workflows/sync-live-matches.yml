@@ -32,6 +32,7 @@ jobs:
         run: |
           echo "event_name=${{ github.event_name }}"
           echo "scheduled_at_utc=$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+          echo "scheduled_at_bogota=$(TZ='America/Bogota' date +'%Y-%m-%dT%H:%M:%S%z')"
           echo "ref=${{ github.ref }}"
 
       - name: Checkout repository
@@ -50,5 +51,5 @@ jobs:
       - name: Run football-data.org live sync
         if: env.FOOTBALL_DATA_TOKEN != ''
         run: |
-          python manage.py sync_football_data --live --days-back 1 --days-forward 1 --no-refresh-scorers --verbosity 2
+          python manage.py sync_football_data --live --days-back 1 --days-forward 1 --fetch-padding-days 1 --no-refresh-scorers --verbosity 2
 

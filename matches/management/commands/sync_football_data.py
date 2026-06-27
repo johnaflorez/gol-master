@@ -53,6 +53,15 @@ class Command(BaseCommand):
             action="store_true",
             help="No actualiza la tabla de goleadores al terminar la sincronización de marcadores.",
         )
+        parser.add_argument(
+            "--fetch-padding-days",
+            type=int,
+            default=1,
+            help=(
+                "Días extra para consultar football-data.org antes/después del rango local en modo --live. "
+                "Evita perder partidos nocturnos por diferencias UTC. Default: 1."
+            ),
+        )
 
     def handle(self, *args, **options):
         queryset = Match.objects.exclude(
@@ -105,10 +114,15 @@ class Command(BaseCommand):
         try:
             if options.get("live") and selected_count:
                 date_bounds = list(queryset.dates("kickoff_at", "day", order="ASC"))
+                fetch_padding = timedelta(days=options["fetch_padding_days"])
+                date_from = date_bounds[0] - fetch_padding
+                date_to = date_bounds[-1] + fetch_padding
+                if options.get("verbosity", 1) >= 2:
+                    self.stdout.write(f"football-data.org fetched range: dateFrom={date_from}, dateTo={date_to}")
                 result = service.sync_queryset_from_match_list(
                     queryset,
-                    date_from=date_bounds[0],
-                    date_to=date_bounds[-1],
+                    date_from=date_from,
+                    date_to=date_to,
                     refresh_scorers=refresh_scorers,
                 )
             else:

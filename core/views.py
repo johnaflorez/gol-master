@@ -1,9 +1,10 @@
+from datetime import timedelta
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.core.management import call_command
 from django.core.management.base import CommandError
 from django.http import JsonResponse
-from django.db.models import Exists, OuterRef
+from django.db.models import Exists, OuterRef, Q
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse_lazy
 from django.utils.http import url_has_allowed_host_and_scheme
@@ -22,6 +23,29 @@ from rankings.services.ranking_service import RankingService
 from stats.services.tournament_stats import TournamentStatsService
 
 
+LIVE_DASHBOARD_STATUSES = ["LIVE", "HT"]
+RECENT_STARTED_MATCH_WINDOW = timedelta(hours=12)
+
+
+def get_dashboard_matches_queryset(now=None):
+    """Matches visible on the dashboard, including active matches that cross midnight."""
+    now = now or timezone.now()
+    today = timezone.localdate(now)
+    recent_started_at = now - RECENT_STARTED_MATCH_WINDOW
+
+    return Match.objects.select_related(
+        "home_team",
+        "away_team"
+    ).prefetch_related(
+        "events",
+        "events__team",
+    ).filter(
+        Q(kickoff_at__date=today)
+        | Q(finished=False, live_status__in=LIVE_DASHBOARD_STATUSES, kickoff_at__gte=recent_started_at)
+        | (Q(finished=False, kickoff_at__gte=recent_started_at, kickoff_at__lte=now) & ~Q(live_status="FT"))
+    )
+
+
 class HomeView(TemplateView):
     template_name = "core/home.html"
 
@@ -31,7 +55,7 @@ class DashboardView(LoginRequiredMixin, TemplateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        today = timezone.localdate()
+        now = timezone.now()
 
         user_predictions = Prediction.objects.filter(
             user=self.request.user,
@@ -39,15 +63,7 @@ class DashboardView(LoginRequiredMixin, TemplateView):
         )
 
         latest_matches = order_with_finished_last(
-            Match.objects.select_related(
-                "home_team",
-                "away_team"
-            ).prefetch_related(
-                "events",
-                "events__team",
-            ).filter(
-                kickoff_at__date=today
-            ).annotate(
+            get_dashboard_matches_queryset(now=now).annotate(
                 has_prediction=Exists(user_predictions),
             ),
             "kickoff_at",
@@ -63,7 +79,7 @@ class DashboardView(LoginRequiredMixin, TemplateView):
                 "matches": latest_matches,
                 "ranking": ranking,
                 "tournament_stats": tournament_stats,
-                "now": timezone.now(),
+                "now": now,
             }
         )
 
@@ -74,18 +90,9 @@ class DashboardLiveSnapshotView(LoginRequiredMixin, View):
 
     def get(self, request, *args, **kwargs):
         now = timezone.now()
-        today = timezone.localdate()
 
         matches = order_with_finished_last(
-            Match.objects.select_related(
-                "home_team",
-                "away_team",
-            ).prefetch_related(
-                "events",
-                "events__team",
-            ).filter(
-                kickoff_at__date=today,
-            ),
+            get_dashboard_matches_queryset(now=now),
             "kickoff_at",
             "id",
         )

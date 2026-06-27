@@ -939,6 +939,32 @@ class SyncFootballDataCommandTests(TestCase):
         service_cls.return_value.sync_queryset.assert_not_called()
         self.assertFalse(service_cls.return_value.sync_queryset_from_match_list.call_args.kwargs["refresh_scorers"])
 
+    @patch("matches.management.commands.sync_football_data.timezone.localdate")
+    @patch("matches.management.commands.sync_football_data.FootballDataSyncService")
+    def test_live_command_fetches_padded_dates_for_night_matches(self, service_cls, localdate_mock):
+        localdate_mock.return_value = datetime(2026, 6, 26).date()
+        service_cls.return_value.sync_queryset_from_match_list.return_value = FootballDataSyncResult(checked=1, updated=1)
+        team_a = Team.objects.create(name="Night A", code="NTA")
+        team_b = Team.objects.create(name="Night B", code="NTB")
+        Match.objects.create(
+            home_team=team_a,
+            away_team=team_b,
+            kickoff_at=datetime(2026, 6, 27, 2, 0, tzinfo=dt_timezone.utc),
+            football_data_match_id=2101,
+        )
+
+        call_command(
+            "sync_football_data",
+            "--live",
+            "--days-back", "0",
+            "--days-forward", "0",
+            stdout=StringIO(),
+        )
+
+        call_kwargs = service_cls.return_value.sync_queryset_from_match_list.call_args.kwargs
+        self.assertEqual(call_kwargs["date_from"].isoformat(), "2026-06-25")
+        self.assertEqual(call_kwargs["date_to"].isoformat(), "2026-06-27")
+
     @patch("matches.management.commands.refresh_football_data_scorers.FootballDataTopScorersService")
     def test_refresh_football_data_scorers_command(self, service_cls):
         service_cls.return_value.refresh.return_value.checked = 3
