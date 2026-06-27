@@ -441,6 +441,7 @@ class FootballDataCommandViewTests(TestCase):
 				"from_date": "2026-06-26",
 				"to_date": "2026-06-27",
 				"status": "TIMED",
+				"stage": "LAST_32",
 				"commit": "on",
 				"days_back": "1",
 				"days_forward": "1",
@@ -456,6 +457,8 @@ class FootballDataCommandViewTests(TestCase):
 		self.assertIn("2026-06-26", called_args)
 		self.assertIn("--status", called_args)
 		self.assertIn("TIMED", called_args)
+		self.assertIn("--stage", called_args)
+		self.assertIn("LAST_32", called_args)
 		self.assertContains(response, "created=1")
 
 	@patch("core.views.call_command")

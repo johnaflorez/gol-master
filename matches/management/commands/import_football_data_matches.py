@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta, timezone as dt_timezone
 
+from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError
 from django.db import IntegrityError
 from django.utils import timezone
@@ -50,6 +51,26 @@ class Command(BaseCommand):
             help="Status opcional para football-data.org (por ejemplo SCHEDULED, TIMED, IN_PLAY, FINISHED).",
         )
         parser.add_argument(
+            "--stage",
+            help="Stage opcional de football-data.org (por ejemplo LAST_32, LAST_16, QUARTER_FINALS).",
+        )
+        parser.add_argument(
+            "--competition",
+            default=settings.FOOTBALL_DATA_COMPETITION_CODE,
+            help="Código de competencia football-data.org. Default: FOOTBALL_DATA_COMPETITION_CODE.",
+        )
+        parser.add_argument(
+            "--season",
+            type=int,
+            default=settings.FOOTBALL_DATA_SEASON,
+            help="Temporada football-data.org. Default: FOOTBALL_DATA_SEASON.",
+        )
+        parser.add_argument(
+            "--global-matches",
+            action="store_true",
+            help="Usa el endpoint global /matches. Por defecto usa /competitions/<competition>/matches.",
+        )
+        parser.add_argument(
             "--commit",
             action="store_true",
             help="Crea los partidos. Sin esta opción el comando es dry-run.",
@@ -62,19 +83,34 @@ class Command(BaseCommand):
 
         client = FootballDataClient()
         try:
-            fixtures = client.get_matches(date_from=query_from, date_to=query_to, status=options.get("status"))
+            if options.get("global_matches"):
+                fixtures = client.get_matches(date_from=query_from, date_to=query_to, status=options.get("status"))
+                source = "matches"
+            else:
+                fixtures = client.get_competition_matches(
+                    competition_code=options.get("competition"),
+                    season=options.get("season"),
+                    date_from=query_from,
+                    date_to=query_to,
+                    status=options.get("status"),
+                    stage=options.get("stage"),
+                )
+                source = f"competitions/{options.get('competition')}/matches"
         except (FootballDataConfigError, FootballDataClientError) as exc:
             raise CommandError(str(exc)) from exc
 
         mode = "COMMIT" if options["commit"] else "DRY-RUN"
         self.stdout.write(
-            f"football-data.org importer {mode}: local_range={from_date}..{to_date}, "
-            f"fetched_range={query_from}..{query_to}, fixtures={len(fixtures)}"
+            f"football-data.org importer {mode}: source={source}, local_range={from_date}..{to_date}, "
+            f"fetched_range={query_from}..{query_to}, status={options.get('status') or 'ALL'}, "
+            f"stage={options.get('stage') or 'ALL'}, fixtures={len(fixtures)}"
         )
 
         proposed = 0
         created = 0
+        updated = 0
         skipped = 0
+        out_of_range = 0
 
         for fixture in fixtures:
             fixture_datetime = self._fixture_datetime(fixture)
@@ -85,6 +121,7 @@ class Command(BaseCommand):
 
             local_date = timezone.localtime(fixture_datetime).date()
             if not from_date <= local_date <= to_date:
+                out_of_range += 1
                 continue
 
             external_id = fixture.get("id")
@@ -113,13 +150,26 @@ class Command(BaseCommand):
                 )
                 continue
 
-            if self._similar_local_match_exists(home_team, away_team, fixture_datetime):
-                skipped += 1
-                if options.get("verbosity", 1) >= 2:
-                    self.stdout.write(f"YA EXISTE SIMILAR: {home_team} vs {away_team} | {fixture_datetime.isoformat()}")
+            match_data = self._match_data_from_fixture(fixture, home_team, away_team, fixture_datetime)
+
+            similar_match = self._find_similar_local_match(home_team, away_team, fixture_datetime)
+            if similar_match:
+                proposed += 1
+                self.stdout.write(
+                    f"UPDATE EXISTENTE: match_id={similar_match.id} -> football_data_match_id={external_id} "
+                    f"phase={match_data['phase']} bracket_position={match_data.get('bracket_position') or '-'} "
+                    f"status={match_data['live_status']} finished={match_data['finished']} | "
+                    f"{home_team} vs {away_team} | kickoff_at={fixture_datetime.isoformat()}"
+                )
+                if options["commit"]:
+                    for field, value in match_data.items():
+                        setattr(similar_match, field, value)
+                    similar_match.save(update_fields=list(match_data.keys()))
+                    self._update_team_from_fixture(home_team, fixture.get("homeTeam") or {})
+                    self._update_team_from_fixture(away_team, fixture.get("awayTeam") or {})
+                    updated += 1
                 continue
 
-            match_data = self._match_data_from_fixture(fixture, home_team, away_team, fixture_datetime)
             proposed += 1
             self.stdout.write(
                 f"CREATE: football_data_match_id={external_id} phase={match_data['phase']} "
@@ -142,7 +192,8 @@ class Command(BaseCommand):
 
         self.stdout.write(
             self.style.SUCCESS(
-                f"football-data.org importer OK: mode={mode}, proposed={proposed}, created={created}, skipped={skipped}"
+                f"football-data.org importer OK: mode={mode}, proposed={proposed}, created={created}, "
+                f"updated={updated}, skipped={skipped}, out_of_range={out_of_range}"
             )
         )
 
@@ -173,6 +224,12 @@ class Command(BaseCommand):
         return parsed.astimezone(dt_timezone.utc)
 
     def _find_team(self, fixture_team):
+        football_data_team_id = fixture_team.get("id")
+        if football_data_team_id:
+            team = Team.objects.filter(football_data_team_id=football_data_team_id).first()
+            if team:
+                return team
+
         tla = (fixture_team.get("tla") or "").strip().upper()
         if not tla:
             return None
@@ -180,16 +237,21 @@ class Command(BaseCommand):
         matches = list(Team.objects.filter(tla__iexact=tla).order_by("id")[:2])
         if len(matches) == 1:
             return matches[0]
+
+        code_matches = list(Team.objects.filter(code__iexact=tla).order_by("id")[:2])
+        if len(code_matches) == 1:
+            return code_matches[0]
         return None
 
-    def _similar_local_match_exists(self, home_team, away_team, fixture_datetime):
+    def _find_similar_local_match(self, home_team, away_team, fixture_datetime):
         start = fixture_datetime - timedelta(minutes=10)
         end = fixture_datetime + timedelta(minutes=10)
         return Match.objects.filter(
             home_team=home_team,
             away_team=away_team,
             kickoff_at__range=(start, end),
-        ).exists()
+            football_data_match_id__isnull=True,
+        ).order_by("id").first()
 
     def _match_data_from_fixture(self, fixture, home_team, away_team, fixture_datetime):
         status = self._normalize_status(fixture.get("status"))

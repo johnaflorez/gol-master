@@ -44,6 +44,18 @@ class FootballDataCommandForm(forms.Form):
         ("FINISHED", "FINISHED"),
     ]
 
+    STAGE_CHOICES = [
+        ("", "Todos"),
+        ("GROUP_STAGE", "GROUP_STAGE"),
+        ("LAST_32", "LAST_32 / Dieciseisavos"),
+        ("ROUND_OF_32", "ROUND_OF_32 / Dieciseisavos"),
+        ("LAST_16", "LAST_16 / Octavos"),
+        ("ROUND_OF_16", "ROUND_OF_16 / Octavos"),
+        ("QUARTER_FINALS", "QUARTER_FINALS"),
+        ("SEMI_FINALS", "SEMI_FINALS"),
+        ("FINAL", "FINAL"),
+    ]
+
     operation = forms.ChoiceField(
         choices=OPERATION_CHOICES,
         label="Acción",
@@ -86,6 +98,13 @@ class FootballDataCommandForm(forms.Form):
         label="Status football-data.org",
         widget=forms.Select(attrs={"class": "form-select"}),
         help_text="Solo aplica para importar partidos faltantes.",
+    )
+    stage = forms.ChoiceField(
+        required=False,
+        choices=STAGE_CHOICES,
+        label="Stage football-data.org",
+        widget=forms.Select(attrs={"class": "form-select"}),
+        help_text="Solo aplica para importar partidos faltantes. Usa LAST_32 para dieciseisavos.",
     )
     days_back = forms.IntegerField(
         min_value=0,
@@ -164,6 +183,8 @@ class FootballDataCommandForm(forms.Form):
         self._append_date_args(args)
         if self.cleaned_data.get("status"):
             args.extend(["--status", self.cleaned_data["status"]])
+        if self.cleaned_data.get("stage"):
+            args.extend(["--stage", self.cleaned_data["stage"]])
         if self.cleaned_data.get("commit"):
             args.append("--commit")
         return "import_football_data_matches", args

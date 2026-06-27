@@ -558,6 +558,28 @@ class FakeFootballDataListClient:
         self.__class__.calls.append({"date_from": date_from, "date_to": date_to, "status": status})
         return self.__class__.fixtures
 
+    def get_competition_matches(
+        self,
+        *,
+        competition_code=None,
+        season=None,
+        date_from=None,
+        date_to=None,
+        status=None,
+        stage=None,
+    ):
+        self.__class__.calls.append(
+            {
+                "competition_code": competition_code,
+                "season": season,
+                "date_from": date_from,
+                "date_to": date_to,
+                "status": status,
+                "stage": stage,
+            }
+        )
+        return self.__class__.fixtures
+
 
 class FakeFootballDataTeamsClient:
     teams = []
@@ -1211,8 +1233,13 @@ class ImportFootballDataMatchesCommandTests(TestCase):
         self,
         *,
         fixture_id=7001,
+        utc_datetime=None,
+        home_id=100,
         home_tla="COL",
+        home_name="Colombia",
+        away_id=200,
         away_tla="BRA",
+        away_name="Brazil",
         stage="GROUP_STAGE",
         matchday=1,
         status="TIMED",
@@ -1221,19 +1248,19 @@ class ImportFootballDataMatchesCommandTests(TestCase):
     ):
         return {
             "id": fixture_id,
-            "utcDate": self.kickoff.isoformat().replace("+00:00", "Z"),
+            "utcDate": (utc_datetime or self.kickoff).isoformat().replace("+00:00", "Z"),
             "stage": stage,
             "matchday": matchday,
             "status": status,
             "homeTeam": {
-                "id": 100,
-                "name": "Colombia",
+                "id": home_id,
+                "name": home_name,
                 "tla": home_tla,
                 "crest": "https://crests.example/col.svg",
             },
             "awayTeam": {
-                "id": 200,
-                "name": "Brazil",
+                "id": away_id,
+                "name": away_name,
                 "tla": away_tla,
                 "crest": "https://crests.example/bra.svg",
             },
@@ -1274,7 +1301,7 @@ class ImportFootballDataMatchesCommandTests(TestCase):
         self.assertIn("created=1", out.getvalue())
 
     @patch("matches.management.commands.import_football_data_matches.FootballDataClient", FakeFootballDataListClient)
-    def test_import_football_data_matches_rejects_when_tla_is_missing_locally(self):
+    def test_import_football_data_matches_uses_code_when_tla_is_missing_locally(self):
         self.colombia.tla = ""
         self.colombia.save(update_fields=["tla"])
         FakeFootballDataListClient.fixtures = [self._fixture(fixture_id=7003)]
@@ -1282,8 +1309,8 @@ class ImportFootballDataMatchesCommandTests(TestCase):
 
         call_command("import_football_data_matches", "--date", "2026-06-25", "--commit", stdout=out)
 
-        self.assertFalse(Match.objects.exists())
-        self.assertIn("SIN EQUIPO LOCAL", out.getvalue())
+        self.assertTrue(Match.objects.filter(football_data_match_id=7003, home_team=self.colombia).exists())
+        self.assertIn("created=1", out.getvalue())
 
     @patch("matches.management.commands.import_football_data_matches.FootballDataClient", FakeFootballDataListClient)
     def test_import_football_data_matches_skips_existing_external_id(self):
@@ -1335,6 +1362,92 @@ class ImportFootballDataMatchesCommandTests(TestCase):
         match = Match.objects.get(football_data_match_id=7006)
         self.assertEqual(match.phase, "DR")
         self.assertEqual(match.bracket_position, 9)
+
+    @patch("matches.management.commands.import_football_data_matches.FootballDataClient", FakeFootballDataListClient)
+    def test_import_football_data_matches_uses_competition_endpoint_with_stage(self):
+        FakeFootballDataListClient.fixtures = [self._fixture(fixture_id=7007, stage="LAST_32", matchday=2)]
+        out = StringIO()
+
+        call_command(
+            "import_football_data_matches",
+            "--date",
+            "2026-06-25",
+            "--stage",
+            "LAST_32",
+            "--commit",
+            stdout=out,
+        )
+
+        self.assertEqual(FakeFootballDataListClient.calls[0]["competition_code"], "WC")
+        self.assertEqual(FakeFootballDataListClient.calls[0]["season"], 2026)
+        self.assertEqual(FakeFootballDataListClient.calls[0]["stage"], "LAST_32")
+        self.assertIn("source=competitions/WC/matches", out.getvalue())
+        self.assertTrue(Match.objects.filter(football_data_match_id=7007, phase="DR", bracket_position=2).exists())
+
+    @patch("matches.management.commands.import_football_data_matches.FootballDataClient", FakeFootballDataListClient)
+    def test_import_football_data_matches_updates_similar_local_match_without_external_id(self):
+        existing = Match.objects.create(
+            home_team=self.colombia,
+            away_team=self.brasil,
+            kickoff_at=self.kickoff,
+            phase="PR",
+        )
+        FakeFootballDataListClient.fixtures = [self._fixture(fixture_id=7008, stage="LAST_32", matchday=4)]
+        out = StringIO()
+
+        call_command("import_football_data_matches", "--date", "2026-06-25", "--commit", stdout=out)
+
+        self.assertEqual(Match.objects.count(), 1)
+        existing.refresh_from_db()
+        self.assertEqual(existing.football_data_match_id, 7008)
+        self.assertEqual(existing.phase, "DR")
+        self.assertEqual(existing.bracket_position, 4)
+        self.assertIn("UPDATE EXISTENTE", out.getvalue())
+        self.assertIn("updated=1", out.getvalue())
+
+    @patch("matches.management.commands.import_football_data_matches.FootballDataClient", FakeFootballDataListClient)
+    def test_import_football_data_matches_can_create_all_last_32_matches_in_range(self):
+        fixtures = []
+        for position in range(1, 17):
+            home_tla = f"H{position:02d}"
+            away_tla = f"A{position:02d}"
+            Team.objects.create(name=f"Home {position}", code=home_tla, tla=home_tla)
+            Team.objects.create(name=f"Away {position}", code=away_tla, tla=away_tla)
+            fixtures.append(
+                self._fixture(
+                    fixture_id=7100 + position,
+                    utc_datetime=self.kickoff + timedelta(hours=position),
+                    home_id=8100 + position,
+                    home_tla=home_tla,
+                    home_name=f"Home {position}",
+                    away_id=8200 + position,
+                    away_tla=away_tla,
+                    away_name=f"Away {position}",
+                    stage="LAST_32",
+                    matchday=position,
+                )
+            )
+        FakeFootballDataListClient.fixtures = fixtures
+        out = StringIO()
+
+        call_command(
+            "import_football_data_matches",
+            "--from-date",
+            "2026-06-25",
+            "--to-date",
+            "2026-06-26",
+            "--stage",
+            "LAST_32",
+            "--commit",
+            stdout=out,
+        )
+
+        self.assertEqual(Match.objects.filter(phase="DR").count(), 16)
+        self.assertEqual(
+            set(Match.objects.filter(phase="DR").values_list("bracket_position", flat=True)),
+            set(range(1, 17)),
+        )
+        self.assertIn("created=16", out.getvalue())
 
     def test_assign_bracket_positions_command_updates_from_json(self):
         match = Match.objects.create(

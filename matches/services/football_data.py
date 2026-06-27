@@ -107,6 +107,33 @@ class FootballDataClient:
             },
         ).get("matches", [])
 
+    def get_competition_matches(
+        self,
+        *,
+        competition_code=None,
+        season=None,
+        date_from: date | str | None = None,
+        date_to: date | str | None = None,
+        status=None,
+        stage=None,
+    ):
+        competition_code = competition_code or settings.FOOTBALL_DATA_COMPETITION_CODE
+        if isinstance(date_from, date):
+            date_from = date_from.isoformat()
+        if isinstance(date_to, date):
+            date_to = date_to.isoformat()
+
+        return self._request(
+            f"competitions/{competition_code}/matches",
+            {
+                "season": season if season is not None else settings.FOOTBALL_DATA_SEASON,
+                "dateFrom": date_from,
+                "dateTo": date_to,
+                "status": status,
+                "stage": stage,
+            },
+        ).get("matches", [])
+
     def get_scorers(self, *, competition_code=None, season=None, limit=None):
         competition_code = competition_code or settings.FOOTBALL_DATA_COMPETITION_CODE
         if limit is None:

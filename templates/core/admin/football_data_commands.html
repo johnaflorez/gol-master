@@ -91,11 +91,17 @@
                             <div class="form-text">{{ form.fetch_padding_days.help_text }}</div>
                             {% if form.fetch_padding_days.errors %}<div class="text-danger small mt-1">{{ form.fetch_padding_days.errors|striptags }}</div>{% endif %}
                         </div>
-                        <div class="col-12">
+                        <div class="col-sm-6">
                             <label for="{{ form.status.id_for_label }}" class="form-label">{{ form.status.label }}</label>
                             {{ form.status }}
                             <div class="form-text">{{ form.status.help_text }}</div>
                             {% if form.status.errors %}<div class="text-danger small mt-1">{{ form.status.errors|striptags }}</div>{% endif %}
+                        </div>
+                        <div class="col-sm-6">
+                            <label for="{{ form.stage.id_for_label }}" class="form-label">{{ form.stage.label }}</label>
+                            {{ form.stage }}
+                            <div class="form-text">{{ form.stage.help_text }}</div>
+                            {% if form.stage.errors %}<div class="text-danger small mt-1">{{ form.stage.errors|striptags }}</div>{% endif %}
                         </div>
                         <div class="col-12">
                             <div class="alert alert-info small mb-0">
