@@ -2,6 +2,11 @@
     margin-bottom: 1rem;
 }
 
+.ranking-title-cup {
+    height: clamp(2.35rem, 4vw, 3.2rem);
+    width: clamp(2.35rem, 4vw, 3.2rem);
+}
+
 .ranking-score-alert {
     margin-bottom: 1rem !important;
     padding: 0.85rem 1rem;

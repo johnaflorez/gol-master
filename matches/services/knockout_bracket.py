@@ -200,14 +200,9 @@ class KnockoutBracketService:
 			}
 
 		winner_side = ""
-		winner_team = None
-		if match.finished and match.home_score != match.away_score:
-			if match.home_score > match.away_score:
-				winner_side = "home"
-				winner_team = match.home_team
-			else:
-				winner_side = "away"
-				winner_team = match.away_team
+		winner_team = match.winner_team
+		if winner_team:
+			winner_side = match.winner_side
 
 		return {
 			"position": position,
@@ -308,9 +303,7 @@ class KnockoutAdvancementService:
 		)
 
 	def _winner_team(self, match):
-		if not match.finished or match.home_score == match.away_score:
-			return None
-		return match.home_team if match.home_score > match.away_score else match.away_team
+		return match.winner_team if match.finished else None
 
 	def _pair_position(self, bracket_position):
 		return bracket_position + 1 if bracket_position % 2 == 1 else bracket_position - 1

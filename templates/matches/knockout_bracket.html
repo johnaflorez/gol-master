@@ -64,7 +64,11 @@
                                             <span class="knockout-team-full">{{ slot.match.home_team|team_with_flag }}</span>
                                             <span class="knockout-team-short">{{ slot.match.home_team.tla|default:slot.match.home_team.code }}</span>
                                         </div>
-                                        <span class="knockout-score">{% if slot.match.finished %}{{ slot.match.home_score }}{% else %}-{% endif %}</span>
+                                        <span class="knockout-score">
+                                            {% if slot.match.finished %}
+                                                {{ slot.match.home_score }}{% if slot.match.has_penalty_shootout %}<small class="knockout-penalty-score">({{ slot.match.home_penalty_score }})</small>{% endif %}
+                                            {% else %}-{% endif %}
+                                        </span>
                                     </div>
                                     <div class="knockout-team-row {% if slot.winner_side == 'away' %}knockout-team-row--winner{% endif %}">
                                         <div class="knockout-team-name">
@@ -72,10 +76,17 @@
                                             <span class="knockout-team-full">{{ slot.match.away_team|team_with_flag }}</span>
                                             <span class="knockout-team-short">{{ slot.match.away_team.tla|default:slot.match.away_team.code }}</span>
                                         </div>
-                                        <span class="knockout-score">{% if slot.match.finished %}{{ slot.match.away_score }}{% else %}-{% endif %}</span>
+                                        <span class="knockout-score">
+                                            {% if slot.match.finished %}
+                                                {{ slot.match.away_score }}{% if slot.match.has_penalty_shootout %}<small class="knockout-penalty-score">({{ slot.match.away_penalty_score }})</small>{% endif %}
+                                            {% else %}-{% endif %}
+                                        </span>
                                     </div>
                                     <div class="knockout-match-footer">
                                         <i class="far fa-clock me-1"></i>{{ slot.match.kickoff_at|date:"d/m/Y H:i" }}
+                                        {% if slot.match.has_penalty_shootout %}
+                                            <span class="knockout-penalty-label"><i class="fas fa-bullseye me-1"></i>Pen. {{ slot.match.home_penalty_score }}-{{ slot.match.away_penalty_score }}</span>
+                                        {% endif %}
                                         {% if slot.winner_team %}
                                             <span class="knockout-qualified ms-auto"><i class="fas fa-arrow-right me-1"></i>Clasifica {{ slot.winner_team.name }}</span>
                                         {% endif %}
@@ -89,7 +100,6 @@
                                                     <span class="knockout-team-full">{{ projected.team|team_with_flag }}</span>
                                                     <span class="knockout-team-short">{{ projected.team.tla|default:projected.team.code }}</span>
                                                 </div>
-                                                <span class="knockout-projected-label">{{ projected.source_phase }} {{ projected.source_position }}</span>
                                             </div>
                                         {% endfor %}
                                         {% if slot.projected_rows|length == 1 %}

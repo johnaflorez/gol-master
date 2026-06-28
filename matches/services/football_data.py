@@ -512,14 +512,18 @@ class FootballDataSyncService:
         status = self._normalize_status(fixture.get("status"))
         score = fixture.get("score") or {}
         home_score, away_score = self._extract_score(score)
+        home_penalty_score, away_penalty_score = self._extract_penalties(score)
 
         update_fields += self._set_if_changed(match, "live_status", self._map_live_status(status))
         update_fields += self._set_if_changed(match, "finished", status in self.FINISHED_STATUSES)
+        update_fields += self._set_if_changed(match, "football_data_winner", self._normalize_winner(score.get("winner")))
 
         if home_score is not None:
             update_fields += self._set_if_changed(match, "home_score", int(home_score))
         if away_score is not None:
             update_fields += self._set_if_changed(match, "away_score", int(away_score))
+        update_fields += self._set_if_changed(match, "home_penalty_score", home_penalty_score)
+        update_fields += self._set_if_changed(match, "away_penalty_score", away_penalty_score)
 
         home_team = fixture.get("homeTeam") or {}
         away_team = fixture.get("awayTeam") or {}
@@ -539,6 +543,15 @@ class FootballDataSyncService:
                 return home, away
         return None, None
 
+    def _extract_penalties(self, score):
+        penalties = score.get("penalties") or {}
+        home = penalties.get("home")
+        away = penalties.get("away")
+        return (
+            int(home) if home is not None else None,
+            int(away) if away is not None else None,
+        )
+
     def _map_live_status(self, status):
         status = self._normalize_status(status)
         if status in self.FINISHED_STATUSES:
@@ -551,6 +564,10 @@ class FootballDataSyncService:
 
     def _normalize_status(self, status):
         return (status or "SCHEDULED").strip().upper()
+
+    def _normalize_winner(self, winner):
+        winner = (winner or "").strip().upper()
+        return winner if winner in {"HOME_TEAM", "AWAY_TEAM", "DRAW"} else ""
 
     def _update_team_data(self, match, home_team, away_team):
         self._update_single_team_data(match.home_team, match.home_team_id, home_team)

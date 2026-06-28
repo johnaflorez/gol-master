@@ -141,7 +141,7 @@
                                             <div class="today-status-left">
                                                 <span class="badge {% if match.finished %}text-bg-secondary{% elif match.kickoff_at <= now %}text-bg-success{% else %}text-bg-dark{% endif %}" id="live-status-{{ match.id }}">
                                                     {% if match.finished %}
-                                                        <i class="fas fa-check-circle me-1"></i>{{ match.home_score }} - {{ match.away_score }}
+                                                        <i class="fas fa-check-circle me-1"></i>{{ match.score_display }}
                                                     {% elif match.kickoff_at <= now %}
                                                         <i class="fas fa-circle-play me-1"></i>En juego
                                                     {% else %}

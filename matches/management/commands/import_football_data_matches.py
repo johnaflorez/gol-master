@@ -287,7 +287,9 @@ class Command(BaseCommand):
 
     def _match_data_from_fixture(self, fixture, home_team, away_team, fixture_datetime):
         status = self._normalize_status(fixture.get("status"))
-        home_score, away_score = self._extract_score(fixture.get("score") or {})
+        score = fixture.get("score") or {}
+        home_score, away_score = self._extract_score(score)
+        home_penalty_score, away_penalty_score = self._extract_penalties(score)
         finished = status in self.FINISHED_STATUSES
         phase = self._map_phase(fixture)
 
@@ -297,11 +299,14 @@ class Command(BaseCommand):
             "kickoff_at": fixture_datetime,
             "home_score": int(home_score) if home_score is not None else 0,
             "away_score": int(away_score) if away_score is not None else 0,
+            "home_penalty_score": home_penalty_score,
+            "away_penalty_score": away_penalty_score,
             "finished": finished,
             "phase": phase,
             "bracket_position": self._bracket_position_from_fixture(fixture, phase),
             "live_status": self._map_live_status(status),
             "football_data_match_id": fixture.get("id"),
+            "football_data_winner": self._normalize_winner(score.get("winner")),
         }
 
     def _extract_score(self, score):
@@ -312,6 +317,15 @@ class Command(BaseCommand):
             if home is not None or away is not None:
                 return home, away
         return None, None
+
+    def _extract_penalties(self, score):
+        penalties = score.get("penalties") or {}
+        home = penalties.get("home")
+        away = penalties.get("away")
+        return (
+            int(home) if home is not None else None,
+            int(away) if away is not None else None,
+        )
 
     def _map_phase(self, fixture):
         stage = self._normalize_status(fixture.get("stage"))
@@ -345,6 +359,10 @@ class Command(BaseCommand):
 
     def _normalize_status(self, status):
         return (status or "").strip().upper()
+
+    def _normalize_winner(self, winner):
+        winner = (winner or "").strip().upper()
+        return winner if winner in {"HOME_TEAM", "AWAY_TEAM", "DRAW"} else ""
 
     def _update_team_from_fixture(self, team, fixture_team):
         updates = {}

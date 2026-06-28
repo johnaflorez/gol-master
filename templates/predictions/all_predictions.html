@@ -57,7 +57,7 @@
                                         <span><i class="far fa-clock me-1"></i>{{ group.match.kickoff_at|date:"d/m/Y H:i" }}</span>
                                         <span class="badge {{ group.match.phase|phase_color }}">{{ group.match.get_phase_display }}</span>
                                         {% if group.match.finished %}
-                                            <span class="badge text-bg-secondary"><i class="fas fa-check-circle me-1"></i>Final: {{ group.match.home_score }}-{{ group.match.away_score }}</span>
+                                            <span class="badge text-bg-secondary"><i class="fas fa-check-circle me-1"></i>Final: {{ group.match.score_display }}</span>
                                         {% elif group.match.kickoff_at <= now %}
                                             <span class="badge text-bg-success"><i class="fas fa-circle-play me-1"></i>En juego</span>
                                         {% else %}
@@ -178,7 +178,7 @@
                                     <div class="fw-semibold">{{ p.match.home_team|team_with_flag }} vs {{ p.match.away_team|team_with_flag }}</div>
                                     <div class="text-muted small">
                                         {% if p.match.finished %}
-                                            <i class="fas fa-flag-checkered me-1 text-secondary"></i>Final: {{ p.match.home_score }} - {{ p.match.away_score }}
+                                            <i class="fas fa-flag-checkered me-1 text-secondary"></i>Final: {{ p.match.score_display }}
                                         {% elif p.match.kickoff_at <= now %}
                                             <i class="fas fa-circle-play me-1 text-mundial-green"></i>En juego
                                         {% else %}

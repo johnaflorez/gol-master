@@ -11,7 +11,7 @@
 {% block content %}
     <div class="ranking-compact-header">
         <h1 class="page-title mb-1">
-            <img src="{% static 'images/world-cup.png' %}" alt="Copa del mundo" class="wc-icon wc-icon-md me-1"> Ranking Completo
+            <img src="{% static 'images/world-cup.png' %}" alt="Copa del mundo" class="wc-icon ranking-title-cup me-1"> Ranking Completo
         </h1>
         <p class="text-muted mb-0">Tabla de posiciones del torneo</p>
     </div>
@@ -113,7 +113,7 @@
                                   title="Marcadores exactos: {{ item.exact_predictions }}">
                                 <i class="fas fa-bullseye me-1"></i><strong>{{ item.exact_score_points }}</strong>
                             </span>
-                            <div class="small text-muted mt-1">{{ item.exact_predictions }} exactos</div>
+                            <div class="small text-muted mt-1"><strong>{{ item.exact_predictions }} exactos</strong></div>
                         </td>
                         <td data-label="Puntos">
                             <span class="badge {% if item.points == 0 %}text-bg-light border{% else %}text-bg-primary{% endif %} rounded-pill"

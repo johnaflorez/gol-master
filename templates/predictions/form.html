@@ -107,7 +107,7 @@
                                             <span class="badge {{ previous_match.phase|phase_color }} mt-1">{{ previous_match.get_phase_display }}</span>
                                         </td>
                                         <td class="text-muted small"><i class="far fa-clock me-1"></i>{{ previous_match.kickoff_at|date:"d/m/Y H:i" }}</td>
-                                        <td class="text-center"><span class="badge text-bg-primary"><i class="fas fa-check-circle me-1"></i>{{ previous_match.home_score }} - {{ previous_match.away_score }}</span></td>
+                                        <td class="text-center"><span class="badge text-bg-primary"><i class="fas fa-check-circle me-1"></i>{{ previous_match.score_display }}</span></td>
                                         <td>
                                             {% with pred=prediction_map|get_item:previous_match.id %}
                                                 {% if pred %}

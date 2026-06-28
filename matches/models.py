@@ -28,6 +28,16 @@ class Match(models.Model):
     kickoff_at = models.DateTimeField()
     home_score = models.IntegerField(default=0)
     away_score = models.IntegerField(default=0)
+    home_penalty_score = models.PositiveSmallIntegerField(
+        blank=True,
+        null=True,
+        help_text="Goles en tanda de penales del equipo local, si aplica.",
+    )
+    away_penalty_score = models.PositiveSmallIntegerField(
+        blank=True,
+        null=True,
+        help_text="Goles en tanda de penales del equipo visitante, si aplica.",
+    )
     finished = models.BooleanField(default=False)
     finished_at = models.DateTimeField(blank=True, null=True)
     points_calculated = models.BooleanField(default=False)
@@ -46,6 +56,12 @@ class Match(models.Model):
         null=True,
         unique=True,
         help_text="ID externo del partido en football-data.org",
+    )
+    football_data_winner = models.CharField(
+        max_length=10,
+        blank=True,
+        default="",
+        help_text="Ganador reportado por football-data.org: HOME_TEAM, AWAY_TEAM o DRAW.",
     )
 
     def __str__(self):
@@ -88,6 +104,47 @@ class Match(models.Model):
         self.finished = True
         self.live_status = "FT"
         self.save()
+
+    @property
+    def has_penalty_shootout(self):
+        return self.home_penalty_score is not None and self.away_penalty_score is not None
+
+    @property
+    def penalty_score_display(self):
+        if not self.has_penalty_shootout:
+            return ""
+        return f"{self.home_penalty_score} - {self.away_penalty_score} pen."
+
+    @property
+    def score_display(self):
+        score = f"{self.home_score} - {self.away_score}"
+        if self.has_penalty_shootout:
+            return f"{score} ({self.penalty_score_display})"
+        return score
+
+    @property
+    def winner_side(self):
+        if not self.finished:
+            return ""
+        if self.home_score > self.away_score:
+            return "home"
+        if self.away_score > self.home_score:
+            return "away"
+        if self.has_penalty_shootout and self.home_penalty_score != self.away_penalty_score:
+            return "home" if self.home_penalty_score > self.away_penalty_score else "away"
+        if self.football_data_winner == "HOME_TEAM":
+            return "home"
+        if self.football_data_winner == "AWAY_TEAM":
+            return "away"
+        return ""
+
+    @property
+    def winner_team(self):
+        if self.winner_side == "home":
+            return self.home_team
+        if self.winner_side == "away":
+            return self.away_team
+        return None
 
 
 class MatchEvent(models.Model):

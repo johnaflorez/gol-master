@@ -20,13 +20,16 @@ class MatchAdmin(admin.ModelAdmin):
     list_display = (
         "home_team",
         "home_score",
+        "home_penalty_score",
         "away_team",
         "away_score",
+        "away_penalty_score",
         "live_status",
         "live_minute",
         "phase",
         "bracket_position",
         "football_data_match_id",
+        "football_data_winner",
         "kickoff_at",
         "finished"
     )

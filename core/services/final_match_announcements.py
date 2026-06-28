@@ -30,7 +30,7 @@ def build_final_match_announcement(match, exact_predictions=None):
         ).select_related("user").order_by("user__first_name", "user__username")
 
     names = [_user_display_name(prediction.user) for prediction in exact_predictions]
-    score = f"{match.home_score}-{match.away_score}"
+    score = match.score_display.replace(" - ", "-")
     teams = f"{match.home_team} vs {match.away_team}"
 
     if not names:

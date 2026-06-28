@@ -199,7 +199,7 @@
                             <div class="fw-semibold">{{ prediction.match.home_team|team_with_flag }} vs {{ prediction.match.away_team|team_with_flag }}</div>
                             <div class="text-muted small">
                                 {% if prediction.match.finished %}
-                                    <i class="fas fa-flag-checkered me-1 text-mundial-green"></i>Final: {{ prediction.match.home_score }} - {{ prediction.match.away_score }}
+                                    <i class="fas fa-flag-checkered me-1 text-mundial-green"></i>Final: {{ prediction.match.score_display }}
                                 {% elif prediction.match.kickoff_at <= now %}
                                     <i class="fas fa-circle-play me-1 text-mundial-green"></i>En juego
                                 {% else %}
