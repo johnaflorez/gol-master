@@ -4,12 +4,14 @@ from io import StringIO
 from tempfile import NamedTemporaryFile
 from unittest.mock import patch
 
+from django.contrib.admin.sites import AdminSite
 from django.contrib.auth.models import User
 from django.core.management import call_command
-from django.test import TestCase, override_settings
+from django.test import RequestFactory, TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
 
+from matches.admin import MatchAdmin
 from matches.models import Match
 from matches.services.football_data import (
     FootballDataClient,
@@ -18,6 +20,7 @@ from matches.services.football_data import (
     FootballDataSyncService,
     FootballDataTopScorersService,
 )
+from matches.services.knockout_bracket import KnockoutAdvancementService
 from stats.models import TopScorerStanding
 from teams.models import Player, Team
 
@@ -180,9 +183,9 @@ class MatchListViewTests(TestCase):
         response = self.client.get(reverse("match_list"))
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Tabla de posiciones por grupo")
+        self.assertContains(response, "Tabla de grupos")
         self.assertContains(response, reverse("group_standings"))
-        self.assertContains(response, "Ver tabla de posiciones")
+        self.assertContains(response, "Ver tabla de grupos")
         self.assertNotContains(response, "Consulta J, G, E, P, GF, GC, DIF y PTS en una vista dedicada.")
         self.assertNotContains(response, "Grupo A")
         self.assertNotContains(response, "Selecci&oacute;n")
@@ -213,7 +216,7 @@ class MatchListViewTests(TestCase):
         response = self.client.get(reverse("group_standings"))
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Tabla de posiciones")
+        self.assertContains(response, "Tabla de grupos")
         self.assertContains(response, "primera, segunda y tercera ronda")
         self.assertContains(response, 'name="group"')
         self.assertContains(response, 'name="country"')
@@ -301,6 +304,35 @@ class MatchListViewTests(TestCase):
             [row["team"].code for row in response_by_name.context["group_standings"][0]["rows"]],
             ["FRA"],
         )
+
+
+class MatchAdminTests(TestCase):
+
+    def setUp(self):
+        self.team_a = Team.objects.create(name="Equipo A", code="EQA")
+        self.team_b = Team.objects.create(name="Equipo B", code="EQB")
+        self.admin = MatchAdmin(Match, AdminSite())
+        self.request = RequestFactory().get("/admin/matches/match/")
+
+    def _match(self, *, phase, bracket_position=None, kickoff_at=None):
+        return Match.objects.create(
+            home_team=self.team_a,
+            away_team=self.team_b,
+            kickoff_at=kickoff_at or timezone.now(),
+            phase=phase,
+            bracket_position=bracket_position,
+        )
+
+    def test_admin_orders_matches_by_most_advanced_phase_first(self):
+        first_round = self._match(phase="PR")
+        semifinal = self._match(phase="SF")
+        last_32 = self._match(phase="DR")
+        final = self._match(phase="F")
+        quarter_final = self._match(phase="CF")
+
+        matches = list(self.admin.get_queryset(self.request))
+
+        self.assertEqual(matches, [final, semifinal, quarter_final, last_32, first_round])
 
 
 class KnockoutBracketViewTests(TestCase):
@@ -410,9 +442,65 @@ class KnockoutBracketViewTests(TestCase):
         self.assertEqual(dr_slots[8]["position"], 9)
         self.assertEqual(dr_slots[8]["match"], ninth_slot_match)
 
-    def test_knockout_bracket_projects_winners_into_empty_next_round_slot(self):
+    def test_knockout_bracket_projects_single_winner_into_empty_next_round_slot(self):
         self.client.login(username="bracket-user", password="secret123")
         Match.objects.create(
+            home_team=self.colombia,
+            away_team=self.brasil,
+            kickoff_at=timezone.now() - timedelta(days=1),
+            home_score=2,
+            away_score=1,
+            finished=True,
+            phase="DR",
+            bracket_position=1,
+        )
+
+        response = self.client.get(reverse("knockout_bracket"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Clasificado proyectado")
+        self.assertContains(response, "16avos 1")
+        of_slot = response.context["bracket"]["phases"][1]["slots"][0]
+        self.assertIsNone(of_slot["match"])
+        self.assertEqual(of_slot["status_label"], "Parcial")
+        self.assertEqual([row["team"] for row in of_slot["projected_rows"]], [self.colombia])
+        self.assertEqual([row["source_position"] for row in of_slot["projected_rows"]], [1])
+
+    def test_finishing_adjacent_knockout_matches_creates_next_round_match(self):
+        first_source = Match.objects.create(
+            home_team=self.colombia,
+            away_team=self.brasil,
+            kickoff_at=timezone.now() - timedelta(days=1),
+            home_score=2,
+            away_score=1,
+            finished=True,
+            phase="DR",
+            bracket_position=1,
+        )
+
+        self.assertFalse(Match.objects.filter(phase="OF", bracket_position=1).exists())
+
+        Match.objects.create(
+            home_team=self.argentina,
+            away_team=self.uruguay,
+            kickoff_at=timezone.now() - timedelta(days=1),
+            home_score=0,
+            away_score=1,
+            finished=True,
+            phase="DR",
+            bracket_position=2,
+        )
+
+        next_match = Match.objects.get(phase="OF", bracket_position=1)
+        self.assertEqual(next_match.home_team, self.colombia)
+        self.assertEqual(next_match.away_team, self.uruguay)
+        self.assertFalse(next_match.finished)
+        self.assertEqual(next_match.live_status, "NS")
+        self.assertIsNone(next_match.football_data_match_id)
+        self.assertGreater(next_match.kickoff_at, first_source.kickoff_at)
+
+    def test_knockout_advancement_is_idempotent_when_next_match_exists(self):
+        first_source = Match.objects.create(
             home_team=self.colombia,
             away_team=self.brasil,
             kickoff_at=timezone.now() - timedelta(days=1),
@@ -433,17 +521,71 @@ class KnockoutBracketViewTests(TestCase):
             bracket_position=2,
         )
 
+        self.assertEqual(Match.objects.filter(phase="OF", bracket_position=1).count(), 1)
+
+        KnockoutAdvancementService().create_next_round_match_if_ready(first_source)
+
+        self.assertEqual(Match.objects.filter(phase="OF", bracket_position=1).count(), 1)
+
+    def test_knockout_advancement_ignores_tied_finished_match_without_winner(self):
+        Match.objects.create(
+            home_team=self.colombia,
+            away_team=self.brasil,
+            kickoff_at=timezone.now() - timedelta(days=1),
+            home_score=1,
+            away_score=1,
+            finished=True,
+            phase="DR",
+            bracket_position=1,
+        )
+        Match.objects.create(
+            home_team=self.argentina,
+            away_team=self.uruguay,
+            kickoff_at=timezone.now() - timedelta(days=1),
+            home_score=0,
+            away_score=1,
+            finished=True,
+            phase="DR",
+            bracket_position=2,
+        )
+
+        self.assertFalse(Match.objects.filter(phase="OF", bracket_position=1).exists())
+
+    def test_knockout_bracket_view_materializes_existing_ready_pair_without_signals(self):
+        self.client.login(username="bracket-user", password="secret123")
+        kickoff_at = timezone.now() - timedelta(days=1)
+        Match.objects.bulk_create(
+            [
+                Match(
+                    home_team=self.colombia,
+                    away_team=self.brasil,
+                    kickoff_at=kickoff_at,
+                    home_score=2,
+                    away_score=1,
+                    finished=True,
+                    phase="DR",
+                    bracket_position=1,
+                ),
+                Match(
+                    home_team=self.argentina,
+                    away_team=self.uruguay,
+                    kickoff_at=kickoff_at,
+                    home_score=0,
+                    away_score=1,
+                    finished=True,
+                    phase="DR",
+                    bracket_position=2,
+                ),
+            ]
+        )
+
         response = self.client.get(reverse("knockout_bracket"))
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Clasificado proyectado")
-        self.assertContains(response, "16avos 1")
-        self.assertContains(response, "16avos 2")
-        of_slot = response.context["bracket"]["phases"][1]["slots"][0]
-        self.assertIsNone(of_slot["match"])
-        self.assertEqual(of_slot["status_label"], "Parcial")
-        self.assertEqual([row["team"] for row in of_slot["projected_rows"]], [self.colombia, self.uruguay])
-        self.assertEqual([row["source_position"] for row in of_slot["projected_rows"]], [1, 2])
+        next_match = Match.objects.get(phase="OF", bracket_position=1)
+        self.assertEqual(next_match.home_team, self.colombia)
+        self.assertEqual(next_match.away_team, self.uruguay)
+        self.assertEqual(response.context["bracket"]["phases"][1]["slots"][0]["match"], next_match)
 
     def test_knockout_bracket_does_not_project_when_next_round_match_exists(self):
         self.client.login(username="bracket-user", password="secret123")
@@ -1403,6 +1545,49 @@ class ImportFootballDataMatchesCommandTests(TestCase):
         self.assertEqual(existing.phase, "DR")
         self.assertEqual(existing.bracket_position, 4)
         self.assertIn("UPDATE EXISTENTE", out.getvalue())
+        self.assertIn("updated=1", out.getvalue())
+
+    @patch("matches.management.commands.import_football_data_matches.FootballDataClient", FakeFootballDataListClient)
+    def test_import_football_data_matches_updates_knockout_placeholder_by_phase_and_position(self):
+        placeholder = Match.objects.create(
+            home_team=self.colombia,
+            away_team=self.brasil,
+            kickoff_at=timezone.now() + timedelta(days=1),
+            phase="OF",
+            bracket_position=3,
+        )
+        fixture_datetime = self.kickoff + timedelta(days=7)
+        FakeFootballDataListClient.fixtures = [
+            self._fixture(
+                fixture_id=7009,
+                utc_datetime=fixture_datetime,
+                stage="LAST_16",
+                matchday=3,
+            )
+        ]
+        out = StringIO()
+
+        call_command(
+            "import_football_data_matches",
+            "--from-date",
+            "2026-07-02",
+            "--to-date",
+            "2026-07-02",
+            "--fetch-padding-days",
+            "7",
+            "--stage",
+            "LAST_16",
+            "--commit",
+            stdout=out,
+        )
+
+        self.assertEqual(Match.objects.count(), 1)
+        placeholder.refresh_from_db()
+        self.assertEqual(placeholder.football_data_match_id, 7009)
+        self.assertEqual(placeholder.phase, "OF")
+        self.assertEqual(placeholder.bracket_position, 3)
+        self.assertEqual(placeholder.kickoff_at, fixture_datetime)
+        self.assertIn("UPDATE CUADRO", out.getvalue())
         self.assertIn("updated=1", out.getvalue())
 
     @patch("matches.management.commands.import_football_data_matches.FootballDataClient", FakeFootballDataListClient)

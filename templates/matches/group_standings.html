@@ -2,7 +2,7 @@
 {% load static %}
 {% load team_flags %}
 
-{% block title %}📊 Tabla de posiciones - Mundial Familiar 2026{% endblock %}
+{% block title %}📊 Tabla de grupos - Mundial Familiar 2026{% endblock %}
 
 {% block extra_css %}
     <link rel="stylesheet" href="{% static 'css/pages/matches.css' %}">
@@ -12,9 +12,9 @@
     <div class="mb-3 d-flex justify-content-between align-items-start flex-wrap gap-3">
         <div>
             <h1 class="page-title mb-1">
-                <i class="fas fa-table-list text-mundial-gold"></i> Tabla de posiciones
+                <i class="fas fa-table-list text-mundial-gold"></i> Tabla de grupos
             </h1>
-            <p class="text-muted mb-0">Posiciones por grupo calculadas con los partidos finalizados de primera, segunda y tercera ronda.</p>
+            <p class="text-muted mb-0">Posiciones de selecciones por grupo, calculadas con los partidos finalizados de primera, segunda y tercera ronda.</p>
         </div>
         <a href="{% url 'match_list' %}" class="btn btn-outline-primary btn-sm">
             <i class="fas fa-futbol me-1"></i>Ver partidos
@@ -59,7 +59,7 @@
         <div class="card mb-4 group-standings-card">
             <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
                 <div>
-                    <h5 class="mb-0"><i class="fas fa-layer-group me-2 text-mundial-blue"></i>Posiciones por grupo</h5>
+                    <h5 class="mb-0"><i class="fas fa-layer-group me-2 text-mundial-blue"></i>Clasificación por grupo</h5>
                     <small class="text-muted">Incluye resultados de primera, segunda y tercera ronda. J: jugados, G: ganados, E: empatados, P: perdidos, PTS: puntos.</small>
                 </div>
                 <span class="badge text-bg-primary">{{ group_standings|length }} grupos</span>
@@ -129,7 +129,7 @@
         <div class="card">
             <div class="text-center text-muted py-5">
                 <i class="fas fa-table-list icon-size-2-5"></i>
-                <p class="mt-3 mb-0">Aún no hay grupos configurados para mostrar la tabla de posiciones.</p>
+                <p class="mt-3 mb-0">Aún no hay grupos configurados para mostrar la tabla de grupos.</p>
             </div>
         </div>
     {% endif %}

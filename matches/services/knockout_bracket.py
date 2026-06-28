@@ -1,5 +1,7 @@
 from dataclasses import dataclass
+from datetime import timedelta
 
+from django.db import transaction
 from django.db.models import Case, IntegerField, Value, When
 from django.utils import timezone
 
@@ -233,4 +235,95 @@ class KnockoutBracketService:
 		if match.live_status in {"LIVE", "HT"} or match.kickoff_at <= timezone.now():
 			return "text-bg-success"
 		return "text-bg-light"
+
+
+class KnockoutAdvancementService:
+	"""Creates placeholder next-round matches when both knockout rivals are known."""
+
+	def create_next_round_match_if_ready(self, match):
+		if not self._is_eligible_source_match(match):
+			return None
+
+		next_phase = NEXT_PHASE_BY_CODE.get(match.phase)
+		if not next_phase:
+			return None
+
+		with transaction.atomic():
+			match = Match.objects.select_related("home_team", "away_team").get(pk=match.pk)
+			if not self._is_eligible_source_match(match):
+				return None
+
+			pair_position = self._pair_position(match.bracket_position)
+			source_matches = list(
+				Match.objects.select_related("home_team", "away_team")
+				.filter(phase=match.phase, bracket_position__in=[match.bracket_position, pair_position])
+				.order_by("bracket_position", "id")
+			)
+			if not self._has_exact_source_pair(source_matches, match.bracket_position, pair_position):
+				return None
+
+			winners_by_position = {}
+			for source_match in source_matches:
+				winner = self._winner_team(source_match)
+				if not winner:
+					return None
+				winners_by_position[source_match.bracket_position] = winner
+
+			next_position = self._next_position(match.bracket_position)
+			if Match.objects.filter(phase=next_phase, bracket_position=next_position).exists():
+				return None
+
+			odd_position = min(match.bracket_position, pair_position)
+			even_position = max(match.bracket_position, pair_position)
+			return Match.objects.create(
+				home_team=winners_by_position[odd_position],
+				away_team=winners_by_position[even_position],
+				kickoff_at=self._placeholder_kickoff_at(source_matches),
+				phase=next_phase,
+				bracket_position=next_position,
+				live_status="NS",
+				football_data_match_id=None,
+			)
+
+	def create_ready_next_round_matches(self):
+		created_matches = []
+		matches = Match.objects.filter(
+			finished=True,
+			phase__in=NEXT_PHASE_BY_CODE.keys(),
+			bracket_position__isnull=False,
+		).order_by("phase", "bracket_position", "id")
+		for match in matches:
+			created_match = self.create_next_round_match_if_ready(match)
+			if created_match:
+				created_matches.append(created_match)
+		return created_matches
+
+	def _is_eligible_source_match(self, match):
+		return bool(
+			match
+			and match.finished
+			and match.phase in NEXT_PHASE_BY_CODE
+			and match.bracket_position
+			and self._winner_team(match)
+		)
+
+	def _winner_team(self, match):
+		if not match.finished or match.home_score == match.away_score:
+			return None
+		return match.home_team if match.home_score > match.away_score else match.away_team
+
+	def _pair_position(self, bracket_position):
+		return bracket_position + 1 if bracket_position % 2 == 1 else bracket_position - 1
+
+	def _next_position(self, bracket_position):
+		return ((bracket_position - 1) // 2) + 1
+
+	def _has_exact_source_pair(self, source_matches, first_position, second_position):
+		positions = [match.bracket_position for match in source_matches]
+		return len(source_matches) == 2 and sorted(positions) == sorted([first_position, second_position])
+
+	def _placeholder_kickoff_at(self, source_matches):
+		latest_source_kickoff = max(match.kickoff_at for match in source_matches)
+		return max(timezone.now() + timedelta(days=1), latest_source_kickoff + timedelta(days=1))
+
 

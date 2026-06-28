@@ -2,6 +2,7 @@ from django.db.models.signals import post_save
 from django.dispatch import receiver
 
 from matches.models import Match
+from matches.services.knockout_bracket import KnockoutAdvancementService
 from matches.services.result_service import MatchResultService
 from predictions.models import Prediction
 from predictions.services.scoring import ScoreCalculator
@@ -13,6 +14,12 @@ def update_predictions(sender, instance, **kwargs):
     if instance.finished:
         service = MatchResultService()
         service.update_match_result(instance)
+
+
+@receiver(post_save, sender=Match)
+def create_next_knockout_match(sender, instance, **kwargs):
+    if instance.finished:
+        KnockoutAdvancementService().create_next_round_match_if_ready(instance)
 
 
 @receiver(post_save, sender=Match)

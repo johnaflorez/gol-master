@@ -6,6 +6,7 @@ from django.utils import timezone
 from matches.models import Match
 from stats.models import TopScorerStanding
 from stats.services.group_standings import GroupStandingsService
+from stats.services.tournament_stats import TournamentStatsService
 from teams.models import Player, Team
 
 
@@ -71,6 +72,34 @@ class GroupStandingsServiceTests(TestCase):
         self.assertEqual(len(colombia_only), 1)
         self.assertEqual(colombia_only[0]["code"], "A")
         self.assertEqual([row["team"].code for row in colombia_only[0]["rows"]], ["COL"])
+
+
+class TournamentStatsServiceTests(TestCase):
+
+    def setUp(self):
+        self.team_a = Team.objects.create(name="Equipo A", code="EQA")
+        self.team_b = Team.objects.create(name="Equipo B", code="EQB")
+
+    def _match(self, *, home_score, away_score, finished=True):
+        return Match.objects.create(
+            home_team=self.team_a,
+            away_team=self.team_b,
+            kickoff_at=timezone.now(),
+            home_score=home_score,
+            away_score=away_score,
+            finished=finished,
+        )
+
+    def test_get_stats_uses_finished_matches_totals(self):
+        self._match(home_score=2, away_score=1)
+        self._match(home_score=0, away_score=3)
+        self._match(home_score=5, away_score=5, finished=False)
+
+        stats = TournamentStatsService().get_stats()
+
+        self.assertEqual(stats["total_matches"], 2)
+        self.assertEqual(stats["total_goals"], 6)
+        self.assertEqual(stats["avg_goals"], 3)
 
 
 class TopScorersViewTests(TestCase):

@@ -21,12 +21,13 @@ def _join_names(names):
     return f"{', '.join(names[:-1])} y {names[-1]}"
 
 
-def build_final_match_announcement(match):
-    exact_predictions = Prediction.objects.filter(
-        match=match,
-        predicted_home_score=match.home_score,
-        predicted_away_score=match.away_score,
-    ).select_related("user").order_by("user__first_name", "user__username")
+def build_final_match_announcement(match, exact_predictions=None):
+    if exact_predictions is None:
+        exact_predictions = Prediction.objects.filter(
+            match=match,
+            predicted_home_score=match.home_score,
+            predicted_away_score=match.away_score,
+        ).select_related("user").order_by("user__first_name", "user__username")
 
     names = [_user_display_name(prediction.user) for prediction in exact_predictions]
     score = f"{match.home_score}-{match.away_score}"
@@ -49,7 +50,7 @@ def build_final_match_announcement(match):
 def get_recent_final_match_announcements(*, now=None, window=ANNOUNCEMENT_WINDOW):
     now = now or timezone.now()
     since = now - window
-    matches = Match.objects.select_related(
+    matches = list(Match.objects.select_related(
         "home_team",
         "away_team",
     ).filter(
@@ -57,7 +58,24 @@ def get_recent_final_match_announcements(*, now=None, window=ANNOUNCEMENT_WINDOW
         finished_at__isnull=False,
         finished_at__gte=since,
         finished_at__lte=now,
-    ).order_by("-finished_at")
+    ).order_by("-finished_at"))
 
-    return [build_final_match_announcement(match) for match in matches]
+    predictions_by_match = {match.id: [] for match in matches}
+    if matches:
+        predictions = Prediction.objects.filter(match__in=matches).select_related("user").order_by(
+            "user__first_name",
+            "user__username",
+        )
+        scores_by_match = {match.id: (match.home_score, match.away_score) for match in matches}
+        for prediction in predictions:
+            if scores_by_match.get(prediction.match_id) == (
+                prediction.predicted_home_score,
+                prediction.predicted_away_score,
+            ):
+                predictions_by_match[prediction.match_id].append(prediction)
+
+    return [
+        build_final_match_announcement(match, predictions_by_match.get(match.id, []))
+        for match in matches
+    ]
 

@@ -24,7 +24,7 @@
         <div class="col-lg-4 order-lg-1 order-2">
             <div class="card h-100">
                 <div class="card-header">
-                    <h5 class="mb-0"><i class="fas fa-medal me-2 text-mundial-gold"></i>Tabla de Posiciones</h5>
+                        <h5 class="mb-0"><i class="fas fa-medal me-2 text-mundial-gold"></i>Ranking familiar</h5>
                 </div>
                 <div class="card-body">
                     {% for item in ranking %}
@@ -182,5 +182,5 @@
 {% endblock %}
 
 {% block extra_js %}
-    <script src="{% static 'js/pages/dashboard.js' %}"></script>
+    <script src="{% static 'js/pages/dashboard.js' %}" defer></script>
 {% endblock %}

@@ -5,7 +5,7 @@ from django.utils import timezone
 from django.views.generic import ListView, TemplateView
 
 from matches.models import Match
-from matches.services.knockout_bracket import KnockoutBracketService
+from matches.services.knockout_bracket import KnockoutAdvancementService, KnockoutBracketService
 from stats.services.group_standings import GroupStandingsService
 from teams.models import Team
 from teams.utils import get_country_label, get_country_options, match_country_q, parse_country_filter
@@ -37,6 +37,9 @@ class MatchListView(LoginRequiredMixin, ListView):
         context = super().get_context_data(**kwargs)
         selected_country = self._get_selected_country()
         all_matches = list(context["matches"])
+        matches_by_phase = {}
+        for match in all_matches:
+            matches_by_phase.setdefault(match.phase, []).append(match)
 
         context["now"] = timezone.now()
         context["matches_count"] = len(all_matches)
@@ -50,10 +53,10 @@ class MatchListView(LoginRequiredMixin, ListView):
             {
                 "code": phase_code,
                 "label": phase_labels.get(phase_code, phase_code),
-                "matches": [match for match in all_matches if match.phase == phase_code],
+                "matches": matches_by_phase[phase_code],
             }
             for phase_code, _ in Match.PHASE_CHOICES
-            if any(match.phase == phase_code for match in all_matches)
+            if phase_code in matches_by_phase
         ]
 
         query_params = {}
@@ -104,6 +107,7 @@ class KnockoutBracketView(LoginRequiredMixin, TemplateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
+        KnockoutAdvancementService().create_ready_next_round_matches()
         context["bracket"] = KnockoutBracketService().get_bracket()
         return context
 

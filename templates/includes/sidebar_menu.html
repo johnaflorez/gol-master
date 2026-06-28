@@ -2,72 +2,83 @@
 
 <nav class="app-sidebar-menu" aria-label="Menú principal">
     <ul class="app-sidebar-nav">
+        <li class="app-sidebar-section-label">Principal</li>
         <li>
             <a class="app-sidebar-link {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}"
-               href="{% url 'dashboard' %}" title="Ir al inicio">
+               href="{% url 'dashboard' %}" title="Ir al inicio"{% if request.resolver_match.url_name == 'dashboard' %} aria-current="page"{% endif %}>
                 <i class="fas fa-home"></i><span>Inicio</span>
             </a>
         </li>
         <li>
+            <a class="app-sidebar-link {% if request.resolver_match.url_name == 'ranking' %}active{% endif %}"
+               href="{% url 'ranking' %}" title="Ver ranking familiar"{% if request.resolver_match.url_name == 'ranking' %} aria-current="page"{% endif %}>
+                <i class="fas fa-ranking-star"></i><span>Ranking</span>
+            </a>
+        </li>
+        <li class="app-sidebar-section-label">Torneo</li>
+        <li>
             <a class="app-sidebar-link {% if request.resolver_match.url_name == 'match_list' %}active{% endif %}"
-               href="{% url 'match_list' %}" title="Ver partidos">
+               href="{% url 'match_list' %}" title="Ver partidos"{% if request.resolver_match.url_name == 'match_list' %} aria-current="page"{% endif %}>
                 <i class="fas fa-futbol"></i><span>Partidos</span>
             </a>
         </li>
         <li>
             <a class="app-sidebar-link {% if request.resolver_match.url_name == 'group_standings' %}active{% endif %}"
-               href="{% url 'group_standings' %}" title="Ver tabla de posiciones">
-                <i class="fas fa-table-list"></i><span>Tabla de posiciones</span>
+               href="{% url 'group_standings' %}" title="Ver tabla de grupos"{% if request.resolver_match.url_name == 'group_standings' %} aria-current="page"{% endif %}>
+                <i class="fas fa-table-list"></i><span>Tabla de grupos</span>
             </a>
         </li>
         <li>
             <a class="app-sidebar-link {% if request.resolver_match.url_name == 'knockout_bracket' %}active{% endif %}"
-               href="{% url 'knockout_bracket' %}" title="Ver esquema de clasificación">
+               href="{% url 'knockout_bracket' %}" title="Ver esquema de clasificación"{% if request.resolver_match.url_name == 'knockout_bracket' %} aria-current="page"{% endif %}>
                 <i class="fas fa-sitemap"></i><span>Clasificación</span>
             </a>
         </li>
         <li>
             <a class="app-sidebar-link {% if request.resolver_match.url_name == 'top_scorers' %}active{% endif %}"
-               href="{% url 'top_scorers' %}" title="Ver tabla de goleadores">
+               href="{% url 'top_scorers' %}" title="Ver tabla de goleadores"{% if request.resolver_match.url_name == 'top_scorers' %} aria-current="page"{% endif %}>
                 <i class="fas fa-medal"></i><span>Goleadores</span>
             </a>
         </li>
+        <li class="app-sidebar-section-label">Pronósticos</li>
         <li>
             <a class="app-sidebar-link {% if request.resolver_match.url_name == 'my_predictions' %}active{% endif %}"
-               href="{% url 'my_predictions' %}" title="Mis pronósticos">
+               href="{% url 'my_predictions' %}" title="Mis pronósticos"{% if request.resolver_match.url_name == 'my_predictions' %} aria-current="page"{% endif %}>
                 <i class="fas fa-list-check"></i><span>Mis pronósticos</span>
             </a>
         </li>
         <li>
             <a class="app-sidebar-link {% if request.resolver_match.url_name == 'all_predictions' %}active{% endif %}"
-               href="{% url 'all_predictions' %}" title="Ver pronósticos del día e histórico">
+               href="{% url 'all_predictions' %}" title="Ver pronósticos del día e histórico"{% if request.resolver_match.url_name == 'all_predictions' %} aria-current="page"{% endif %}>
                 <i class="fas fa-chart-bar"></i><span>Pronósticos</span>
             </a>
         </li>
         <li>
             <a class="app-sidebar-link {% if request.resolver_match.url_name == 'tournament_prediction' %}active{% endif %}"
-               href="{% url 'tournament_prediction' %}" title="Elegir campeón y goleador">
+               href="{% url 'tournament_prediction' %}" title="Elegir campeón y goleador"{% if request.resolver_match.url_name == 'tournament_prediction' %} aria-current="page"{% endif %}>
                 <i class="fas fa-trophy"></i><span>Campeón y goleador</span>
             </a>
         </li>
         {% if request.user.is_authenticated %}
+            <li class="app-sidebar-section-label">Comunidad</li>
             <li>
                 <a class="app-sidebar-link {% if request.resolver_match.url_name == 'suggestion_create' %}active{% endif %}"
-                   href="{% url 'suggestion_create' %}" title="Enviar sugerencia de mejora">
+                   href="{% url 'suggestion_create' %}" title="Enviar sugerencia de mejora"{% if request.resolver_match.url_name == 'suggestion_create' %} aria-current="page"{% endif %}>
                     <i class="fas fa-lightbulb"></i><span>Sugerencias</span>
                 </a>
             </li>
         {% endif %}
         {% if request.user.is_superuser %}
+            <li class="app-sidebar-section-label">Admin</li>
             <li>
                 <a class="app-sidebar-link {% if request.resolver_match.url_name == 'suggestion_list' %}active{% endif %}"
-                   href="{% url 'suggestion_list' %}" title="Revisar sugerencias pendientes">
+                   href="{% url 'suggestion_list' %}" title="Revisar sugerencias pendientes"{% if request.resolver_match.url_name == 'suggestion_list' %} aria-current="page"{% endif %}>
                     <i class="fas fa-inbox"></i><span>Buzón</span>
                 </a>
             </li>
             <li>
                 <a class="app-sidebar-link {% if request.resolver_match.url_name == 'football_data_commands' %}active{% endif %}"
-                   href="{% url 'football_data_commands' %}" title="Ejecutar comandos football-data">
+                   href="{% url 'football_data_commands' %}" title="Ejecutar comandos football-data"{% if request.resolver_match.url_name == 'football_data_commands' %} aria-current="page"{% endif %}>
                     <i class="fas fa-terminal"></i><span>Football-data</span>
                 </a>
             </li>

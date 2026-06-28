@@ -51,8 +51,11 @@
 
     <div class="card">
         <div class="card-header d-flex justify-content-between align-items-center">
-            <h5 class="mb-0"><i class="fas fa-medal me-2 text-mundial-red"></i>Posiciones finales</h5>
+            <h5 class="mb-0"><i class="fas fa-medal me-2 text-mundial-red"></i>Ranking familiar</h5>
             <span class="badge text-bg-primary">Tabla actualizada</span>
+        </div>
+        <div class="ranking-mobile-hint" aria-hidden="true">
+            <i class="fas fa-hand-pointer"></i> Vista optimizada para móvil
         </div>
         <div class="table-responsive">
             <table class="table table-hover mb-0 align-middle">
@@ -61,14 +64,15 @@
                     <th class="width-80"><i class="fas fa-hashtag me-2"></i>Posición</th>
                     <th><i class="fas fa-user me-2"></i>Jugador</th>
                     <th class="width-150"><i class="fas fa-percent me-2"></i>Acierto</th>
+                    <th class="width-150"><i class="fas fa-bullseye me-2"></i>Pts aciertos totales</th>
                     <th class="width-120"><i class="fas fa-star me-2"></i>Puntos</th>
                 </tr>
                 </thead>
                 <tbody>
                 {% for item in ranking %}
-                    <tr {% if forloop.counter == 1 %}class="border-start ranking-row--first"{% elif forloop.counter == 2 %}class="border-start ranking-row--second"{% elif forloop.counter == 3 %}class="border-start ranking-row--third"{% endif %}>
-                        <td>
-                            <div class="badge text-bg-{{ forloop.counter|add:'0'|stringformat:'d' }} ranking-position-badge {% if forloop.counter == 1 %}ranking-position-badge--first{% elif forloop.counter == 2 %}ranking-position-badge--second{% elif forloop.counter == 3 %}ranking-position-badge--third{% else %}ranking-position-badge--default{% endif %}">
+                    <tr class="{% if forloop.counter == 1 %}border-start ranking-row--first{% elif forloop.counter == 2 %}border-start ranking-row--second{% elif forloop.counter == 3 %}border-start ranking-row--third{% endif %}">
+                        <td data-label="Posición">
+                            <div class="badge ranking-position-badge {% if forloop.counter == 1 %}ranking-position-badge--first{% elif forloop.counter == 2 %}ranking-position-badge--second{% elif forloop.counter == 3 %}ranking-position-badge--third{% else %}ranking-position-badge--default{% endif %}">
                                 {% if forloop.counter == 1 %}
                                     🥇
                                 {% elif forloop.counter == 2 %}
@@ -80,7 +84,7 @@
                                 {% endif %}
                             </div>
                         </td>
-                        <td>
+                        <td data-label="Jugador">
                             <div class="d-flex align-items-center gap-2">
                                 {% include "includes/user_avatar.html" with user=item.user %}
                                 <div>
@@ -89,7 +93,7 @@
                                 </div>
                             </div>
                         </td>
-                        <td>
+                        <td data-label="Acierto">
                             <div class="d-flex align-items-center gap-2">
                                 <div class="progress flex-1 height-6">
                                     <div class="progress-bar bg-success" role="progressbar"
@@ -102,18 +106,27 @@
                             </div>
                             <small class="text-muted">{{ item.correct_predictions }}/{{ item.total_predictions }}</small>
                         </td>
-                        <td>
+                        <td data-label="Pts aciertos totales">
+                            <span class="badge {% if item.exact_score_points == 0 %}text-bg-light border{% else %}text-bg-success{% endif %} rounded-pill"
+                                  data-bs-toggle="tooltip"
+                                  data-bs-placement="left"
+                                  title="Marcadores exactos: {{ item.exact_predictions }}">
+                                <i class="fas fa-bullseye me-1"></i><strong>{{ item.exact_score_points }}</strong>
+                            </span>
+                            <div class="small text-muted mt-1">{{ item.exact_predictions }} exactos</div>
+                        </td>
+                        <td data-label="Puntos">
                             <span class="badge {% if item.points == 0 %}text-bg-light border{% else %}text-bg-primary{% endif %} rounded-pill"
                                   data-bs-toggle="tooltip"
                                   data-bs-placement="left"
-                                  title="Aciertos: {{ item.correct_predictions }} | Tasa: {{ item.hit_rate|floatformat:1 }}%">
+                                  title="Aciertos: {{ item.correct_predictions }} | Exactos: {{ item.exact_predictions }} | Tasa: {{ item.hit_rate|floatformat:1 }}%">
                                 <i class="fas fa-star me-1"></i><strong>{{ item.points }}</strong>
                             </span>
                         </td>
                     </tr>
                 {% empty %}
                     <tr>
-                        <td colspan="4" class="text-center text-muted py-5">
+                        <td colspan="5" class="text-center text-muted py-5">
                             <i class="fas fa-inbox icon-size-2"></i>
                             <p class="mt-3 mb-0">Aun no hay datos de ranking</p>
                         </td>
@@ -126,5 +139,5 @@
 {% endblock %}
 
 {% block extra_js %}
-    <script src="{% static 'js/pages/rankings.js' %}"></script>
+    <script src="{% static 'js/pages/rankings.js' %}" defer></script>
 {% endblock %}

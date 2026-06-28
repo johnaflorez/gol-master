@@ -17,9 +17,9 @@ def parse_country_filter(raw_country):
     if " - " in country:
         country = country.split(" - ", 1)[0].strip()
 
-    team_by_name = Team.objects.filter(name__iexact=country).first()
-    if team_by_name:
-        return team_by_name.code.upper()
+    team_code = Team.objects.filter(name__iexact=country).values_list("code", flat=True).first()
+    if team_code:
+        return team_code.upper()
 
     return country.upper()
 
@@ -59,20 +59,20 @@ def get_country_options(*, unique_by="code"):
     options = []
     seen = set()
 
-    for team in Team.objects.order_by("name"):
+    for team in Team.objects.order_by("name").values("code", "country_code", "name"):
         if unique_by == "name":
-            key = team.name.strip().casefold()
+            key = team["name"].strip().casefold()
         else:
-            key = (team.code or "").upper()
+            key = (team["code"] or "").upper()
 
         if not key or key in seen:
             continue
 
         options.append(
             {
-                "code": team.code,
-                "country_code": team.country_code,
-                "name": team.name,
+                "code": team["code"],
+                "country_code": team["country_code"],
+                "name": team["name"],
             }
         )
         seen.add(key)
@@ -120,7 +120,12 @@ def get_player_options():
             "team_name": player.team.name if player.team_id else "",
             "label": get_player_label(player),
         }
-        for player in Player.objects.select_related("team").order_by("name", "team__name")
+        for player in Player.objects.select_related("team").only(
+            "id",
+            "name",
+            "team__id",
+            "team__name",
+        ).order_by("name", "team__name")
     ]
 
 

@@ -233,6 +233,9 @@ class PredictionDashboardView(LoginRequiredMixin, TemplateView):
         return Match.objects.filter(
             finished=False,
             kickoff_at__gt=timezone.now()
+        ).select_related(
+            "home_team",
+            "away_team",
         ).order_by("kickoff_at", "id")
 
     def post(self, request, *args, **kwargs):
@@ -256,9 +259,9 @@ class PredictionDashboardView(LoginRequiredMixin, TemplateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        predictions = Prediction.objects.filter(user=self.request.user)
+        predictions = list(Prediction.objects.filter(user=self.request.user))
         prediction_map = {p.match_id: p for p in predictions}
-        predicted_match_ids = predictions.values_list("match_id", flat=True)
+        predicted_match_ids = prediction_map.keys()
         matches = self._open_matches().exclude(id__in=predicted_match_ids)
 
         context.update(

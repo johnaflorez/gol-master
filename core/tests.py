@@ -8,6 +8,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 from core.models import Suggestion
+from core.services.final_match_announcements import get_recent_final_match_announcements
 from matches.models import Match, MatchEvent
 from predictions.models import Prediction
 from teams.models import Team
@@ -267,6 +268,50 @@ class DashboardViewTests(TestCase):
 		self.assertEqual(response.status_code, 200)
 		payload = response.json()
 		self.assertIn(cross_midnight.id, [match["id"] for match in payload["matches"]])
+
+
+class FinalMatchAnnouncementServiceTests(TestCase):
+
+	def setUp(self):
+		self.user = User.objects.create_user(username="announcement-user", password="secret123")
+		self.team_a = Team.objects.create(name="Colombia", code="COL")
+		self.team_b = Team.objects.create(name="Brasil", code="BRA")
+
+	def _finished_match(self, *, home_score, away_score):
+		match = Match.objects.create(
+			home_team=self.team_a,
+			away_team=self.team_b,
+			kickoff_at=timezone.now() - timedelta(hours=2),
+			home_score=home_score,
+			away_score=away_score,
+			finished=True,
+		)
+		Match.objects.filter(id=match.id).update(finished_at=timezone.now())
+		match.refresh_from_db()
+		return match
+
+	def test_recent_final_announcements_prefetches_predictions_for_all_matches(self):
+		first_match = self._finished_match(home_score=2, away_score=1)
+		second_match = self._finished_match(home_score=0, away_score=0)
+		Prediction.objects.create(
+			user=self.user,
+			match=first_match,
+			predicted_home_score=2,
+			predicted_away_score=1,
+		)
+		Prediction.objects.create(
+			user=self.user,
+			match=second_match,
+			predicted_home_score=1,
+			predicted_away_score=0,
+		)
+
+		with self.assertNumQueries(2):
+			announcements = get_recent_final_match_announcements(now=timezone.now())
+
+		self.assertEqual(len(announcements), 2)
+		self.assertIn("No hubo", announcements[0]["message"])
+		self.assertIn("Felicitaciones", announcements[1]["message"])
 
 
 class SuggestionViewTests(TestCase):

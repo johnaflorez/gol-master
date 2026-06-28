@@ -192,6 +192,20 @@ body {
     padding: 0;
 }
 
+.app-sidebar-section-label {
+    color: rgba(255, 255, 255, 0.58);
+    font-size: 0.68rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    margin: 0.75rem 0 0.15rem;
+    padding: 0 0.85rem;
+    text-transform: uppercase;
+}
+
+.app-sidebar-section-label:first-child {
+    margin-top: 0;
+}
+
 .app-sidebar-link {
     align-items: center;
     border-radius: 0.75rem;
@@ -214,6 +228,11 @@ body {
     background: rgba(255, 255, 255, 0.14);
     color: #fff !important;
     transform: translateX(4px);
+}
+
+.app-sidebar-link:focus-visible {
+    outline: 3px solid var(--fifa-yellow);
+    outline-offset: 3px;
 }
 
 .app-sidebar-link.active {
@@ -498,6 +517,16 @@ body {
 
 .btn-primary:focus {
     box-shadow: 0 0 0 0.25rem rgba(230, 57, 70, 0.5);
+}
+
+a:focus-visible,
+button:focus-visible,
+.btn:focus-visible,
+.form-control:focus-visible,
+.form-select:focus-visible,
+.page-link:focus-visible {
+    outline: 3px solid var(--mundial-gold);
+    outline-offset: 3px;
 }
 
 .btn-secondary {
@@ -859,6 +888,22 @@ h2 {
 
 .card, .alert {
     animation: fadeInUp 0.3s ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.001ms !important;
+        animation-iteration-count: 1 !important;
+        scroll-behavior: auto !important;
+        transition-duration: 0.001ms !important;
+    }
+
+    .final-match-marquee__track {
+        animation: none !important;
+        transform: none !important;
+    }
 }
 
 @keyframes finalMatchMarqueeRightToLeft {

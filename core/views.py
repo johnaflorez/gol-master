@@ -71,7 +71,7 @@ class DashboardView(LoginRequiredMixin, TemplateView):
         )[:10]
 
         ranking_service = RankingService()
-        ranking = ranking_service.get_ranking()[:10]
+        ranking = ranking_service.get_ranking(limit=10)
         tournament_stats = TournamentStatsService().get_stats()
 
         context.update(
@@ -92,7 +92,19 @@ class DashboardLiveSnapshotView(LoginRequiredMixin, View):
         now = timezone.now()
 
         matches = order_with_finished_last(
-            get_dashboard_matches_queryset(now=now),
+            get_dashboard_matches_queryset(now=now).only(
+                "id",
+                "home_score",
+                "away_score",
+                "finished",
+                "kickoff_at",
+                "live_status",
+                "live_minute",
+                "home_team__id",
+                "home_team__name",
+                "away_team__id",
+                "away_team__name",
+            ),
             "kickoff_at",
             "id",
         )

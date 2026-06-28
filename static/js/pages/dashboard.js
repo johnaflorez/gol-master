@@ -1,11 +1,18 @@
 document.addEventListener('DOMContentLoaded', function () {
-    const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
-    tooltipTriggerList.map(function (tooltipTriggerEl) {
-        return new bootstrap.Tooltip(tooltipTriggerEl);
-    });
+    if (typeof bootstrap !== 'undefined') {
+        const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+        tooltipTriggerList.map(function (tooltipTriggerEl) {
+            return new bootstrap.Tooltip(tooltipTriggerEl);
+        });
+    }
 
     const liveConfig = document.getElementById('dashboard-live-config');
     const liveSnapshotUrl = liveConfig ? liveConfig.dataset.liveSnapshotUrl : '';
+    const baseRefreshDelay = 15000;
+    const maxRefreshDelay = 60000;
+    let refreshDelay = baseRefreshDelay;
+    let refreshTimer = null;
+    let isRefreshing = false;
 
     function renderLiveStatus(match) {
         const statusEl = document.getElementById(`live-status-${match.id}`);
@@ -35,10 +42,12 @@ document.addEventListener('DOMContentLoaded', function () {
         }
 
         if (eventsEl) {
+            eventsEl.replaceChildren();
             if (match.events && match.events.length) {
-                eventsEl.innerHTML = `<i class="fas fa-bolt me-1"></i>${match.events.map((event) => event.text).join(" | ")}`;
-            } else {
-                eventsEl.textContent = "";
+                const icon = document.createElement('i');
+                icon.className = 'fas fa-bolt me-1';
+                eventsEl.appendChild(icon);
+                eventsEl.appendChild(document.createTextNode(match.events.map((event) => event.text).join(' | ')));
             }
         }
     }
@@ -74,31 +83,50 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     async function refreshLiveMatches() {
-        if (!liveSnapshotUrl) {
+        if (!liveSnapshotUrl || isRefreshing || document.hidden) {
             return;
         }
 
+        isRefreshing = true;
         try {
             const response = await fetch(liveSnapshotUrl, {
                 headers: {
                     "X-Requested-With": "XMLHttpRequest"
-                }
+                },
+                cache: "no-store"
             });
 
             if (!response.ok) {
+                refreshDelay = Math.min(refreshDelay * 2, maxRefreshDelay);
                 return;
             }
 
             const payload = await response.json();
             (payload.matches || []).forEach(renderLiveStatus);
             renderFinalMatchAnnouncements(payload.final_match_announcements || []);
+            refreshDelay = baseRefreshDelay;
         } catch (error) {
             // Keep UI stable if network requests fail intermittently.
             console.debug("Live refresh failed", error);
+            refreshDelay = Math.min(refreshDelay * 2, maxRefreshDelay);
+        } finally {
+            isRefreshing = false;
+            scheduleNextRefresh();
         }
     }
 
+    function scheduleNextRefresh() {
+        clearTimeout(refreshTimer);
+        refreshTimer = setTimeout(refreshLiveMatches, refreshDelay);
+    }
+
+    document.addEventListener('visibilitychange', function () {
+        if (!document.hidden) {
+            refreshDelay = baseRefreshDelay;
+            refreshLiveMatches();
+        }
+    });
+
     refreshLiveMatches();
-    setInterval(refreshLiveMatches, 15000);
 });
 

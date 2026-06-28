@@ -152,6 +152,24 @@ class Command(BaseCommand):
 
             match_data = self._match_data_from_fixture(fixture, home_team, away_team, fixture_datetime)
 
+            placeholder_match = self._find_placeholder_knockout_match(match_data)
+            if placeholder_match:
+                proposed += 1
+                self.stdout.write(
+                    f"UPDATE CUADRO: match_id={placeholder_match.id} -> football_data_match_id={external_id} "
+                    f"phase={match_data['phase']} bracket_position={match_data.get('bracket_position') or '-'} "
+                    f"status={match_data['live_status']} finished={match_data['finished']} | "
+                    f"{home_team} vs {away_team} | kickoff_at={fixture_datetime.isoformat()}"
+                )
+                if options["commit"]:
+                    for field, value in match_data.items():
+                        setattr(placeholder_match, field, value)
+                    placeholder_match.save(update_fields=list(match_data.keys()))
+                    self._update_team_from_fixture(home_team, fixture.get("homeTeam") or {})
+                    self._update_team_from_fixture(away_team, fixture.get("awayTeam") or {})
+                    updated += 1
+                continue
+
             similar_match = self._find_similar_local_match(home_team, away_team, fixture_datetime)
             if similar_match:
                 proposed += 1
@@ -250,6 +268,20 @@ class Command(BaseCommand):
             home_team=home_team,
             away_team=away_team,
             kickoff_at__range=(start, end),
+            football_data_match_id__isnull=True,
+        ).order_by("id").first()
+
+    def _find_placeholder_knockout_match(self, match_data):
+        phase = match_data.get("phase")
+        bracket_position = match_data.get("bracket_position")
+        if phase not in self.KNOCKOUT_PHASES or not bracket_position:
+            return None
+
+        return Match.objects.filter(
+            phase=phase,
+            bracket_position=bracket_position,
+            home_team=match_data["home_team"],
+            away_team=match_data["away_team"],
             football_data_match_id__isnull=True,
         ).order_by("id").first()
 
