@@ -54,14 +54,19 @@ class PredictionCreateView(LoginRequiredMixin, FormView):
         user_predictions = Prediction.objects.filter(
             user=self.request.user,
             match_id__in=previous_match_ids
-        ).values_list("match_id", "predicted_home_score", "predicted_away_score", "points")
-        prediction_map = {match_id: {"home": home, "away": away, "points": points}
-                          for match_id, home, away, points in user_predictions}
+        ).values_list("match_id", "predicted_home_score", "predicted_away_score", "predicted_penalty_winner", "points")
+        prediction_map = {match_id: {"home": home, "away": away, "penalty_winner": penalty_winner, "points": points}
+                          for match_id, home, away, penalty_winner, points in user_predictions}
 
         context["match"] = self.match
         context["previous_team_results"] = previous_team_results
         context["prediction_map"] = prediction_map
         return context
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs["match"] = self.match
+        return kwargs
 
     def form_valid(self, form):
         prediction_exists = Prediction.objects.filter(user=self.request.user, match=self.match).exists()

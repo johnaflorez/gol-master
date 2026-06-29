@@ -6,17 +6,30 @@ from teams.models import Player, Team
 
 class PredictionForm(forms.ModelForm):
 
+    def __init__(self, *args, **kwargs):
+        self.match = kwargs.pop("match", None)
+        super().__init__(*args, **kwargs)
+
+        if self.match:
+            self.fields["predicted_penalty_winner"].choices = [
+                ("", "Selecciona ganador por penales"),
+                (Prediction.PENALTY_HOME, f"{self.match.home_team} gana por penales"),
+                (Prediction.PENALTY_AWAY, f"{self.match.away_team} gana por penales"),
+            ]
+
     class Meta:
         model = Prediction
 
         fields = (
             "predicted_home_score",
-            "predicted_away_score"
+            "predicted_away_score",
+            "predicted_penalty_winner",
         )
 
         labels = {
             "predicted_home_score": "Goles local",
             "predicted_away_score": "Goles visitante",
+            "predicted_penalty_winner": "Ganador por penales",
         }
 
         widgets = {
@@ -36,7 +49,37 @@ class PredictionForm(forms.ModelForm):
                     "placeholder": "0",
                 }
             ),
+            "predicted_penalty_winner": forms.Select(
+                attrs={
+                    "class": "form-select",
+                    "data-penalty-winner-field": "true",
+                }
+            ),
         }
+
+    def clean(self):
+        cleaned_data = super().clean()
+        home_score = cleaned_data.get("predicted_home_score")
+        away_score = cleaned_data.get("predicted_away_score")
+        penalty_winner = cleaned_data.get("predicted_penalty_winner") or ""
+
+        if home_score is None or away_score is None:
+            cleaned_data["predicted_penalty_winner"] = ""
+            return cleaned_data
+
+        is_knockout = self.match and self.match.phase in Prediction.KNOCKOUT_PHASES_WITH_PENALTIES
+        predicts_draw = home_score == away_score
+
+        if is_knockout and predicts_draw and not penalty_winner:
+            self.add_error(
+                "predicted_penalty_winner",
+                "Selecciona quién gana por penales cuando pronosticas empate en eliminatorias.",
+            )
+
+        if not is_knockout or not predicts_draw:
+            cleaned_data["predicted_penalty_winner"] = ""
+
+        return cleaned_data
 
 
 class TournamentPredictionForm(forms.ModelForm):

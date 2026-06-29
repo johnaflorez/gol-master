@@ -17,7 +17,7 @@
             <h5 class="mb-0"><i class="fas fa-edit me-2 text-mundial-blue"></i>Mis pronósticos</h5>
         </div>
         <div class="card-body p-0">
-            <form method="post" novalidate>
+            <form method="post" id="prediction-form" novalidate>
                 {% csrf_token %}
 
                 <div class="table-responsive">
@@ -29,12 +29,13 @@
                             <th class="width-120"><i class="fas fa-arrow-left me-1"></i>Goles</th>
                             <th><i class="fas fa-handshake me-2"></i>Equipo Visitante</th>
                             <th><i class="far fa-calendar me-2"></i>Fecha</th>
+                            <th><i class="fas fa-shield-halved me-2"></i>Penales</th>
                         </tr>
                         </thead>
                         <tbody>
                         {% for match in matches %}
                             {% with pred=prediction_map|get_item:match.id %}
-                            <tr>
+                            <tr data-prediction-row data-match-id="{{ match.id }}" data-knockout="{% if match.phase == 'DR' or match.phase == 'OF' or match.phase == 'CF' or match.phase == 'SF' or match.phase == 'F' %}true{% else %}false{% endif %}">
                                 <td>
                                     <div class="fw-semibold">{{ match.home_team|team_with_flag }}</div>
                                 </td>
@@ -45,6 +46,7 @@
                                            min="0"
                                            max="99"
                                            class="form-control form-control-sm"
+                                           data-home-score
                                            placeholder="0">
                                 </td>
                                 <td>
@@ -54,12 +56,25 @@
                                            min="0"
                                            max="99"
                                            class="form-control form-control-sm"
+                                           data-away-score
                                            placeholder="0">
                                 </td>
                                 <td>
                                     <div class="fw-semibold">{{ match.away_team|team_with_flag }}</div>
                                 </td>
                                 <td class="text-muted small"><i class="far fa-clock me-1"></i>{{ match.kickoff_at|date:"d/m/Y H:i" }}</td>
+                                <td>
+                                    {% if match.phase == "DR" or match.phase == "OF" or match.phase == "CF" or match.phase == "SF" or match.phase == "F" %}
+                                        <select name="penalty_winner_{{ match.id }}" class="form-select form-select-sm d-none" data-penalty-select aria-label="Ganador por penales para {{ match }}">
+                                            <option value="">Ganador por penales</option>
+                                            <option value="HOME" {% if pred.predicted_penalty_winner == "HOME" %}selected{% endif %}>{{ match.home_team }} gana</option>
+                                            <option value="AWAY" {% if pred.predicted_penalty_winner == "AWAY" %}selected{% endif %}>{{ match.away_team }} gana</option>
+                                        </select>
+                                        <small class="text-muted d-none" data-penalty-help>Obligatorio si pronosticas empate</small>
+                                    {% else %}
+                                        <span class="text-muted small">-</span>
+                                    {% endif %}
+                                </td>
                             </tr>
                             {% endwith %}
                         {% endfor %}
@@ -86,3 +101,39 @@
         </div>
     </div>
 {% endblock %}
+
+{% block extra_js %}
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            document.querySelectorAll('[data-prediction-row]').forEach(function (row) {
+                const homeInput = row.querySelector('[data-home-score]');
+                const awayInput = row.querySelector('[data-away-score]');
+                const penaltySelect = row.querySelector('[data-penalty-select]');
+                const penaltyHelp = row.querySelector('[data-penalty-help]');
+
+                if (!homeInput || !awayInput || !penaltySelect || row.dataset.knockout !== 'true') {
+                    return;
+                }
+
+                function togglePenaltyWinner() {
+                    const home = homeInput.value.trim();
+                    const away = awayInput.value.trim();
+                    const shouldShow = home !== '' && away !== '' && home === away;
+                    penaltySelect.classList.toggle('d-none', !shouldShow);
+                    penaltySelect.disabled = !shouldShow;
+                    if (penaltyHelp) {
+                        penaltyHelp.classList.toggle('d-none', !shouldShow);
+                    }
+                    if (!shouldShow) {
+                        penaltySelect.value = '';
+                    }
+                }
+
+                homeInput.addEventListener('input', togglePenaltyWinner);
+                awayInput.addEventListener('input', togglePenaltyWinner);
+                togglePenaltyWinner();
+            });
+        });
+    </script>
+{% endblock %}
+

@@ -19,12 +19,13 @@ class PredictionCreateViewTests(TestCase):
 		self.team_a = Team.objects.create(name="Team One", code="ONE")
 		self.team_b = Team.objects.create(name="Team Two", code="TWO")
 
-	def _match(self, *, days_offset, finished=False):
+	def _match(self, *, days_offset, finished=False, phase="PR"):
 		return Match.objects.create(
 			home_team=self.team_a,
 			away_team=self.team_b,
 			kickoff_at=timezone.now() + timedelta(days=days_offset),
 			finished=finished,
+			phase=phase,
 		)
 
 	def test_redirects_if_match_is_finished(self):
@@ -74,6 +75,60 @@ class PredictionCreateViewTests(TestCase):
 				predicted_away_score=1,
 			).exists()
 		)
+
+	def test_create_prediction_shows_penalty_winner_selector_for_knockout_match(self):
+		match = self._match(days_offset=1, phase="DR")
+
+		response = self.client.get(reverse("prediction_create", args=[match.id]))
+
+		self.assertEqual(response.status_code, 200)
+		self.assertContains(response, 'data-penalty-section')
+		self.assertContains(response, 'name="predicted_penalty_winner"')
+		self.assertContains(response, "Team One gana por penales")
+		self.assertContains(response, "Team Two gana por penales")
+		self.assertContains(response, "Empate en eliminatorias")
+
+	def test_create_prediction_does_not_show_penalty_winner_selector_for_group_match(self):
+		match = self._match(days_offset=1, phase="PR")
+
+		response = self.client.get(reverse("prediction_create", args=[match.id]))
+
+		self.assertEqual(response.status_code, 200)
+		self.assertNotContains(response, 'name="predicted_penalty_winner"')
+		self.assertNotContains(response, "Empate en eliminatorias")
+
+	def test_create_prediction_saves_penalty_winner_for_two_two_knockout_draw(self):
+		match = self._match(days_offset=1, phase="DR")
+
+		response = self.client.post(
+			reverse("prediction_create", args=[match.id]),
+			{
+				"predicted_home_score": 2,
+				"predicted_away_score": 2,
+				"predicted_penalty_winner": Prediction.PENALTY_HOME,
+			},
+		)
+
+		self.assertRedirects(response, reverse("dashboard"))
+		prediction = Prediction.objects.get(user=self.user, match=match)
+		self.assertEqual(prediction.predicted_home_score, 2)
+		self.assertEqual(prediction.predicted_away_score, 2)
+		self.assertEqual(prediction.predicted_penalty_winner, Prediction.PENALTY_HOME)
+
+	def test_create_prediction_requires_penalty_winner_for_knockout_draw(self):
+		match = self._match(days_offset=1, phase="DR")
+
+		response = self.client.post(
+			reverse("prediction_create", args=[match.id]),
+			{
+				"predicted_home_score": 2,
+				"predicted_away_score": 2,
+			},
+		)
+
+		self.assertEqual(response.status_code, 200)
+		self.assertContains(response, "Selecciona quién gana por penales")
+		self.assertFalse(Prediction.objects.filter(user=self.user, match=match).exists())
 
 	def test_does_not_create_prediction_when_kickoff_has_passed_but_match_not_finished(self):
 		match = self._match(days_offset=-1, finished=False)
@@ -783,20 +838,35 @@ class ScoreCalculatorTests(TestCase):
 		self.user = User.objects.create_user(username="score-user", password="secret123")
 		self.calculator = ScoreCalculator()
 
-	def _build_match_and_prediction(self, *, real_home, real_away, pred_home, pred_away):
+	def _build_match_and_prediction(
+		self,
+		*,
+		real_home,
+		real_away,
+		pred_home,
+		pred_away,
+		phase="PR",
+		home_penalty_score=None,
+		away_penalty_score=None,
+		predicted_penalty_winner="",
+	):
 		match = Match.objects.create(
 			home_team=self.team_a,
 			away_team=self.team_b,
 			kickoff_at=timezone.now(),
 			home_score=real_home,
 			away_score=real_away,
+			home_penalty_score=home_penalty_score,
+			away_penalty_score=away_penalty_score,
 			finished=True,
+			phase=phase,
 		)
 		prediction = Prediction(
 			user=self.user,
 			match=match,
 			predicted_home_score=pred_home,
 			predicted_away_score=pred_away,
+			predicted_penalty_winner=predicted_penalty_winner,
 		)
 		return prediction, match
 
@@ -819,5 +889,47 @@ class ScoreCalculatorTests(TestCase):
 		)
 
 		self.assertEqual(self.calculator.calculate(prediction, match), 5)
+
+	def test_knockout_draw_with_correct_penalty_winner_gives_three_extra_points(self):
+		prediction, match = self._build_match_and_prediction(
+			real_home=1,
+			real_away=1,
+			pred_home=1,
+			pred_away=1,
+			phase="DR",
+			home_penalty_score=4,
+			away_penalty_score=3,
+			predicted_penalty_winner=Prediction.PENALTY_HOME,
+		)
+
+		self.assertEqual(self.calculator.calculate(prediction, match), 8)
+
+	def test_knockout_draw_with_wrong_penalty_winner_does_not_add_bonus(self):
+		prediction, match = self._build_match_and_prediction(
+			real_home=1,
+			real_away=1,
+			pred_home=1,
+			pred_away=1,
+			phase="OF",
+			home_penalty_score=4,
+			away_penalty_score=5,
+			predicted_penalty_winner=Prediction.PENALTY_HOME,
+		)
+
+		self.assertEqual(self.calculator.calculate(prediction, match), 5)
+
+	def test_penalty_winner_bonus_is_only_for_knockout_draw_predictions(self):
+		prediction, match = self._build_match_and_prediction(
+			real_home=1,
+			real_away=1,
+			pred_home=2,
+			pred_away=1,
+			phase="DR",
+			home_penalty_score=4,
+			away_penalty_score=3,
+			predicted_penalty_winner=Prediction.PENALTY_HOME,
+		)
+
+		self.assertEqual(self.calculator.calculate(prediction, match), 0)
 
 

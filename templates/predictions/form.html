@@ -65,6 +65,25 @@
                             </div>
                         </div>
 
+                        {% if match.phase == "DR" or match.phase == "OF" or match.phase == "CF" or match.phase == "SF" or match.phase == "F" %}
+                            <div class="prediction-penalty-winner mb-4 d-none" data-penalty-section>
+                                <div class="alert alert-warning mb-3">
+                                    <div class="fw-semibold"><i class="fas fa-shield-halved me-2"></i>Empate en eliminatorias</div>
+                                    <div class="small">
+                                        Si pronosticas empate desde 16avos en adelante, elige quién gana por penales.
+                                        Si aciertas, sumas <strong>+3 puntos adicionales</strong>.
+                                    </div>
+                                </div>
+                                <label for="{{ form.predicted_penalty_winner.id_for_label }}" class="form-label fw-semibold">
+                                    <i class="fas fa-bullseye me-1 text-mundial-red"></i>{{ form.predicted_penalty_winner.label }}
+                                </label>
+                                {{ form.predicted_penalty_winner }}
+                                {% if form.predicted_penalty_winner.errors %}
+                                    <div class="text-danger small mt-2"><i class="fas fa-circle-exclamation me-1"></i>{{ form.predicted_penalty_winner.errors|striptags }}</div>
+                                {% endif %}
+                            </div>
+                        {% endif %}
+
                         <div class="prediction-actions pt-3 border-top">
                             <a href="{% url 'match_list' %}" class="btn btn-outline-primary">
                                 <i class="fas fa-times me-1"></i>Cancelar
@@ -111,7 +130,15 @@
                                         <td>
                                             {% with pred=prediction_map|get_item:previous_match.id %}
                                                 {% if pred %}
-                                                    <div class="text-center"><span class="badge text-bg-dark"><i class="fas fa-dice me-1"></i>{{ pred.home }} - {{ pred.away }}</span></div>
+                                                    <div class="text-center">
+                                                        <span class="badge text-bg-dark"><i class="fas fa-dice me-1"></i>{{ pred.home }} - {{ pred.away }}</span>
+                                                        {% if pred.penalty_winner %}
+                                                            <div class="small text-muted mt-1">
+                                                                <i class="fas fa-shield-halved me-1"></i>Penales:
+                                                                {% if pred.penalty_winner == "HOME" %}{{ previous_match.home_team }}{% else %}{{ previous_match.away_team }}{% endif %}
+                                                            </div>
+                                                        {% endif %}
+                                                    </div>
                                                 {% else %}
                                                     <div class="text-center"><span class="text-muted small">-</span></div>
                                                 {% endif %}
@@ -143,3 +170,36 @@
     </div>
 
 {% endblock %}
+
+{% block extra_js %}
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const homeInput = document.getElementById('{{ form.predicted_home_score.id_for_label }}');
+            const awayInput = document.getElementById('{{ form.predicted_away_score.id_for_label }}');
+            const penaltySection = document.querySelector('[data-penalty-section]');
+            const penaltySelect = document.querySelector('[data-penalty-winner-field="true"]');
+
+            if (!homeInput || !awayInput || !penaltySection || !penaltySelect) {
+                return;
+            }
+
+            function togglePenaltyWinner() {
+                const home = homeInput.value.trim();
+                const away = awayInput.value.trim();
+                const shouldShow = home !== '' && away !== '' && Number(home) === Number(away);
+
+                penaltySection.classList.toggle('d-none', !shouldShow);
+                penaltySelect.disabled = !shouldShow;
+
+                if (!shouldShow) {
+                    penaltySelect.value = '';
+                }
+            }
+
+            homeInput.addEventListener('input', togglePenaltyWinner);
+            awayInput.addEventListener('input', togglePenaltyWinner);
+            togglePenaltyWinner();
+        });
+    </script>
+{% endblock %}
+

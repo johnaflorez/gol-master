@@ -10,6 +10,7 @@ class PredictionAdmin(admin.ModelAdmin):
         "match",
         "predicted_home_score",
         "predicted_away_score",
+        "predicted_penalty_winner",
         "points"
     )
     list_filter = ("match__home_team", "match__away_team", "user")
