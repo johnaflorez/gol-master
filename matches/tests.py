@@ -21,6 +21,7 @@ from matches.services.football_data import (
     FootballDataTopScorersService,
 )
 from matches.services.knockout_bracket import KnockoutAdvancementService
+from matches.tasks import sync_live_matches
 from stats.models import TopScorerStanding
 from teams.models import Player, Team
 
@@ -1067,6 +1068,23 @@ class FootballDataSyncServiceTests(TestCase):
 
 
 class SyncFootballDataCommandTests(TestCase):
+
+    @patch("matches.tasks.call_command")
+    def test_celery_sync_live_task_runs_live_sync_command(self, call_command_mock):
+        def fake_call_command(*args, stdout=None, stderr=None, verbosity=None):
+            stdout.write("football-data.org sync OK")
+
+        call_command_mock.side_effect = fake_call_command
+
+        result = sync_live_matches.run()
+
+        call_command_mock.assert_called_once()
+        called_args = call_command_mock.call_args.args
+        self.assertEqual(called_args[0], "sync_football_data")
+        self.assertIn("--live", called_args)
+        self.assertIn("--no-refresh-scorers", called_args)
+        self.assertEqual(call_command_mock.call_args.kwargs["verbosity"], 2)
+        self.assertIn("football-data.org sync OK", result["stdout"])
 
     @override_settings(FOOTBALL_DATA_SCORERS_LIMIT=500)
     def test_football_data_client_requests_configured_scorers_limit_by_default(self):

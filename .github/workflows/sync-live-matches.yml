@@ -1,10 +1,7 @@
 name: Sync live matches
 
 on:
-  schedule:
-    # GitHub scheduled workflows can be delayed or dropped during high-load minutes.
-    # Run every 5 minutes on offset minutes to avoid the most congested :00/:10/:20... slots.
-    - cron: "3,8,13,18,23,28,33,38,43,48,53,58 * * * *"
+  # Fallback manual. The recurring schedule is now owned by Celery Beat in the app.
   workflow_dispatch:
 
 concurrency:

@@ -6,6 +6,7 @@ import os
 from pathlib import Path
 import dj_database_url
 from dotenv import load_dotenv
+from celery.schedules import crontab
 
 load_dotenv()
 
@@ -199,6 +200,28 @@ FOOTBALL_DATA_TIMEOUT = int(os.environ.get('FOOTBALL_DATA_TIMEOUT', '15'))
 FOOTBALL_DATA_COMPETITION_CODE = os.environ.get('FOOTBALL_DATA_COMPETITION_CODE', 'WC')
 FOOTBALL_DATA_SEASON = int(os.environ.get('FOOTBALL_DATA_SEASON', '2026'))
 FOOTBALL_DATA_SCORERS_LIMIT = int(os.environ.get('FOOTBALL_DATA_SCORERS_LIMIT', '500'))
+
+# Celery / Celery Beat
+CELERY_BROKER_URL = os.environ.get('CELERY_BROKER_URL') or os.environ.get('REDIS_URL', 'redis://localhost:6379/0')
+CELERY_RESULT_BACKEND = os.environ.get('CELERY_RESULT_BACKEND', CELERY_BROKER_URL)
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
+CELERY_TIMEZONE = TIME_ZONE
+CELERY_TASK_TRACK_STARTED = True
+CELERY_TASK_SOFT_TIME_LIMIT = int(os.environ.get('CELERY_TASK_SOFT_TIME_LIMIT', '240'))
+CELERY_TASK_TIME_LIMIT = int(os.environ.get('CELERY_TASK_TIME_LIMIT', '300'))
+CELERY_WORKER_PREFETCH_MULTIPLIER = 1
+CELERY_TASK_ACKS_LATE = True
+CELERY_BEAT_SCHEDULE = {
+    'sync-live-matches-every-5-minutes': {
+        'task': 'matches.tasks.sync_live_matches',
+        'schedule': crontab(minute='*/5'),
+        'options': {
+            'expires': int(os.environ.get('CELERY_SYNC_LIVE_EXPIRES', '240')),
+        },
+    },
+}
 
 # Accept HTTPS form posts from Render/custom domains when DEBUG=False
 CSRF_TRUSTED_ORIGINS = _split_env_list(
