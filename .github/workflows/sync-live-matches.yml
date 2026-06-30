@@ -1,12 +1,18 @@
 name: Sync live matches
 
 on:
-  # Fallback manual. The recurring schedule is now owned by Celery Beat in the app.
+  schedule:
+    # Fallback automático mientras Celery Beat/Worker no estén activos en Render.
+    # GitHub scheduled workflows pueden demorarse, pero evitan depender de workers pagos.
+    - cron: "3,8,13,18,23,28,33,38,43,48,53,58 * * * *"
   workflow_dispatch:
 
 concurrency:
   group: sync-live-matches
   cancel-in-progress: false
+
+permissions:
+  contents: read
 
 jobs:
   sync-live-matches:
@@ -32,6 +38,25 @@ jobs:
           echo "scheduled_at_bogota=$(TZ='America/Bogota' date +'%Y-%m-%dT%H:%M:%S%z')"
           echo "ref=${{ github.ref }}"
 
+      - name: Validate required secrets
+        run: |
+          missing=0
+          if [ -z "$SECRET_KEY" ]; then
+            echo "::error::SECRET_KEY secret is not configured"
+            missing=1
+          fi
+          if [ -z "$DATABASE_URL" ]; then
+            echo "::error::DATABASE_URL secret is not configured"
+            missing=1
+          fi
+          if [ -z "$FOOTBALL_DATA_TOKEN" ]; then
+            echo "::error::FOOTBALL_DATA_TOKEN secret is not configured"
+            missing=1
+          fi
+          if [ "$missing" -ne 0 ]; then
+            exit 1
+          fi
+
       - name: Checkout repository
         uses: actions/checkout@v4
 
@@ -46,7 +71,27 @@ jobs:
           pip install -r requirements.txt
 
       - name: Run football-data.org live sync
-        if: env.FOOTBALL_DATA_TOKEN != ''
         run: |
-          python manage.py sync_football_data --live --days-back 1 --days-forward 1 --fetch-padding-days 1 --no-refresh-scorers --verbosity 2
+          set -o pipefail
+          python manage.py sync_football_data --live --days-back 1 --days-forward 1 --fetch-padding-days 1 --no-refresh-scorers --verbosity 2 | tee sync-output.log
+
+      - name: Write sync summary
+        if: always()
+        run: |
+          {
+            echo "## Sync live matches"
+            echo ""
+            echo "- Event: ${{ github.event_name }}"
+            echo "- UTC: $(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+            echo "- Bogotá: $(TZ='America/Bogota' date +'%Y-%m-%dT%H:%M:%S%z')"
+            echo ""
+            echo "### Command output"
+            echo '```text'
+            if [ -f sync-output.log ]; then
+              cat sync-output.log
+            else
+              echo "sync-output.log was not generated"
+            fi
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
 
