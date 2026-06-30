@@ -7,7 +7,12 @@ from django.utils import timezone
 from django.utils.dateparse import parse_datetime
 
 from matches.models import Match
-from matches.services.football_data import FootballDataClient, FootballDataClientError, FootballDataConfigError
+from matches.services.football_data import (
+    FootballDataClient,
+    FootballDataClientError,
+    FootballDataConfigError,
+    extract_football_data_match_score,
+)
 from teams.models import Team
 
 
@@ -133,7 +138,8 @@ class Command(BaseCommand):
             if Match.objects.filter(football_data_match_id=external_id).exists():
                 skipped += 1
                 if options.get("verbosity", 1) >= 2:
-                    self.stdout.write(f"YA EXISTE ID: football_data_match_id={external_id} | {self._fixture_label(fixture)}")
+                    self.stdout.write(
+                        f"YA EXISTE ID: football_data_match_id={external_id} | {self._fixture_label(fixture)}")
                 continue
 
             home_team = self._find_team(fixture.get("homeTeam") or {})
@@ -219,7 +225,8 @@ class Command(BaseCommand):
         if options.get("date"):
             from_date = to_date = self._parse_date(options["date"], "--date")
         else:
-            from_date = self._parse_date(options.get("from_date"), "--from-date") if options.get("from_date") else timezone.localdate()
+            from_date = self._parse_date(options.get("from_date"), "--from-date") if options.get(
+                "from_date") else timezone.localdate()
             to_date = self._parse_date(options.get("to_date"), "--to-date") if options.get("to_date") else from_date
 
         if from_date > to_date:
@@ -287,9 +294,7 @@ class Command(BaseCommand):
 
     def _match_data_from_fixture(self, fixture, home_team, away_team, fixture_datetime):
         status = self._normalize_status(fixture.get("status"))
-        score = fixture.get("score") or {}
-        home_score, away_score = self._extract_score(score)
-        home_penalty_score, away_penalty_score = self._extract_penalties(score)
+        match_score = extract_football_data_match_score(fixture)
         finished = status in self.FINISHED_STATUSES
         phase = self._map_phase(fixture)
 
@@ -297,35 +302,17 @@ class Command(BaseCommand):
             "home_team": home_team,
             "away_team": away_team,
             "kickoff_at": fixture_datetime,
-            "home_score": int(home_score) if home_score is not None else 0,
-            "away_score": int(away_score) if away_score is not None else 0,
-            "home_penalty_score": home_penalty_score,
-            "away_penalty_score": away_penalty_score,
+            "home_score": match_score.home_score if match_score.home_score is not None else 0,
+            "away_score": match_score.away_score if match_score.away_score is not None else 0,
+            "home_penalty_score": match_score.home_penalty_score,
+            "away_penalty_score": match_score.away_penalty_score,
             "finished": finished,
             "phase": phase,
             "bracket_position": self._bracket_position_from_fixture(fixture, phase),
             "live_status": self._map_live_status(status),
             "football_data_match_id": fixture.get("id"),
-            "football_data_winner": self._normalize_winner(score.get("winner")),
+            "football_data_winner": match_score.winner,
         }
-
-    def _extract_score(self, score):
-        for key in ("fullTime", "regularTime", "halfTime"):
-            value = score.get(key) or {}
-            home = value.get("home")
-            away = value.get("away")
-            if home is not None or away is not None:
-                return home, away
-        return None, None
-
-    def _extract_penalties(self, score):
-        penalties = score.get("penalties") or {}
-        home = penalties.get("home")
-        away = penalties.get("away")
-        return (
-            int(home) if home is not None else None,
-            int(away) if away is not None else None,
-        )
 
     def _map_phase(self, fixture):
         stage = self._normalize_status(fixture.get("stage"))
@@ -360,10 +347,6 @@ class Command(BaseCommand):
     def _normalize_status(self, status):
         return (status or "").strip().upper()
 
-    def _normalize_winner(self, winner):
-        winner = (winner or "").strip().upper()
-        return winner if winner in {"HOME_TEAM", "AWAY_TEAM", "DRAW"} else ""
-
     def _update_team_from_fixture(self, team, fixture_team):
         updates = {}
         football_data_team_id = fixture_team.get("id")
@@ -389,4 +372,3 @@ class Command(BaseCommand):
         name = fixture_team.get("name") or "?"
         tla = fixture_team.get("tla") or "?"
         return f"{name} ({tla})"
-

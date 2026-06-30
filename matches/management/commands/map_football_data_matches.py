@@ -155,7 +155,10 @@ class Command(BaseCommand):
             if options["commit"]:
                 try:
                     match.football_data_match_id = fixture_id
-                    match.save(update_fields=["football_data_match_id"])
+                    fixture_datetime = self._fixture_datetime(fixture)
+                    if fixture_datetime:
+                        match.kickoff_at = fixture_datetime
+                    match.save(update_fields=["football_data_match_id", "kickoff_at"])
                     self._update_team_ids(match, fixture)
                     existing_ids.add(fixture_id)
                     mapped += 1

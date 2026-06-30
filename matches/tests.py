@@ -339,7 +339,8 @@ class KnockoutBracketViewTests(TestCase):
 
     def setUp(self):
         self.user = User.objects.create_user(username="bracket-user", password="secret123")
-        self.colombia = Team.objects.create(name="Colombia", code="COL", tla="COL", flag="https://crests.example/col.svg")
+        self.colombia = Team.objects.create(name="Colombia", code="COL", tla="COL",
+                                            flag="https://crests.example/col.svg")
         self.brasil = Team.objects.create(name="Brasil", code="BRA", tla="BRA", flag="https://crests.example/bra.svg")
         self.argentina = Team.objects.create(name="Argentina", code="ARG", tla="ARG")
         self.uruguay = Team.objects.create(name="Uruguay", code="URY", tla="URU")
@@ -381,7 +382,7 @@ class KnockoutBracketViewTests(TestCase):
         self.assertContains(response, "knockout-team-short")
         self.assertContains(response, "COL")
         self.assertContains(response, "2")
-        self.assertContains(response, "Clasifica Colombia")
+        self.assertNotContains(response, "Clasifica Colombia")
         self.assertContains(response, "Partido pendiente por cargar")
         self.assertNotContains(response, "knockout-scroll-hint")
 
@@ -393,7 +394,8 @@ class KnockoutBracketViewTests(TestCase):
             [column["code"] for column in bracket["layout_columns"]],
             ["DR", "OF", "CF", "SF", "F", "SF", "CF", "OF", "DR"],
         )
-        self.assertEqual([column["side"] for column in bracket["layout_columns"]], ["left", "left", "left", "left", "center", "right", "right", "right", "right"])
+        self.assertEqual([column["side"] for column in bracket["layout_columns"]],
+                         ["left", "left", "left", "left", "center", "right", "right", "right", "right"])
         self.assertEqual(bracket["layout_columns"][4]["short_label"], "Final")
         self.assertEqual(len(bracket["phases"][0]["slots"]), 16)
         self.assertEqual(len(bracket["layout_columns"][0]["slots"]), 8)
@@ -458,7 +460,8 @@ class KnockoutBracketViewTests(TestCase):
         response = self.client.get(reverse("knockout_bracket"))
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Clasificado proyectado")
+        self.assertNotContains(response, "Clasificado proyectado")
+        self.assertContains(response, "Colombia")
         self.assertNotContains(response, "16avos 1")
         of_slot = response.context["bracket"]["phases"][1]["slots"][0]
         self.assertIsNone(of_slot["match"])
@@ -479,6 +482,7 @@ class KnockoutBracketViewTests(TestCase):
         )
 
         self.assertFalse(Match.objects.filter(phase="OF", bracket_position=1).exists())
+        expected_min_kickoff = timezone.now() + timedelta(days=6)
 
         Match.objects.create(
             home_team=self.argentina,
@@ -497,7 +501,8 @@ class KnockoutBracketViewTests(TestCase):
         self.assertFalse(next_match.finished)
         self.assertEqual(next_match.live_status, "NS")
         self.assertIsNone(next_match.football_data_match_id)
-        self.assertGreater(next_match.kickoff_at, first_source.kickoff_at)
+        self.assertGreaterEqual(next_match.kickoff_at, expected_min_kickoff)
+        self.assertLessEqual(next_match.kickoff_at, timezone.now() + timedelta(days=6))
 
     def test_knockout_advancement_is_idempotent_when_next_match_exists(self):
         first_source = Match.objects.create(
@@ -598,8 +603,11 @@ class KnockoutBracketViewTests(TestCase):
 
         response = self.client.get(reverse("knockout_bracket"))
 
-        self.assertContains(response, "Pen. 4-3")
-        self.assertContains(response, "Clasifica Colombia")
+        self.assertNotContains(response, "Pen. 4-3")
+        self.assertContains(response, "knockout-penalty-score")
+        self.assertContains(response, "(4)")
+        self.assertContains(response, "(3)")
+        self.assertNotContains(response, "Clasifica Colombia")
 
     def test_knockout_bracket_view_materializes_existing_ready_pair_without_signals(self):
         self.client.login(username="bracket-user", password="secret123")
@@ -751,14 +759,14 @@ class FakeFootballDataListClient:
         return self.__class__.fixtures
 
     def get_competition_matches(
-        self,
-        *,
-        competition_code=None,
-        season=None,
-        date_from=None,
-        date_to=None,
-        status=None,
-        stage=None,
+            self,
+            *,
+            competition_code=None,
+            season=None,
+            date_from=None,
+            date_to=None,
+            status=None,
+            stage=None,
     ):
         self.__class__.calls.append(
             {
@@ -873,6 +881,36 @@ class FootballDataSyncServiceTests(TestCase):
         self.assertEqual(match.football_data_winner, "HOME_TEAM")
         self.assertEqual(match.winner_team, self.team_a)
         self.assertEqual(match.score_display, "1 - 1 (4 - 3 pen.)")
+
+    def test_sync_match_normalizes_cumulative_penalty_shootout_payload(self):
+        match = self._match(match_id=537415)
+        fixture = {
+            "id": 537415,
+            "status": "FINISHED",
+            "stage": "LAST_32",
+            "homeTeam": {},
+            "awayTeam": {},
+            "score": {
+                "winner": None,
+                "duration": "PENALTY_SHOOTOUT",
+                "fullTime": {"home": 5, "away": 6},
+                "halfTime": {"home": 0, "away": 1},
+                "regularTime": {"home": 1, "away": 1},
+                "extraTime": {"home": 0, "away": 0},
+                "penalties": {"home": 5, "away": 5},
+            },
+        }
+
+        FootballDataSyncService(client=FakeFootballDataClient(fixture)).sync_match(match)
+
+        match.refresh_from_db()
+        self.assertEqual(match.home_score, 1)
+        self.assertEqual(match.away_score, 1)
+        self.assertEqual(match.home_penalty_score, 4)
+        self.assertEqual(match.away_penalty_score, 5)
+        self.assertEqual(match.football_data_winner, "AWAY_TEAM")
+        self.assertEqual(match.winner_team, self.team_b)
+        self.assertEqual(match.score_display, "1 - 1 (4 - 5 pen.)")
 
     def test_sync_match_finishes_match_and_sets_finished_at_from_football_data(self):
         match = self._match()
@@ -1083,7 +1121,8 @@ class SyncFootballDataCommandTests(TestCase):
                 "id": 100,
                 "name": "Colombia",
                 "tla": "COL",
-                "squad": [{"id": 10, "name": "Luis Díaz", "position": "Offence", "dateOfBirth": "1997-01-13", "nationality": "Colombia"}],
+                "squad": [{"id": 10, "name": "Luis Díaz", "position": "Offence", "dateOfBirth": "1997-01-13",
+                           "nationality": "Colombia"}],
             }
         ]
         service = FootballDataPlayersImportService(client=FakeFootballDataTeamsClient())
@@ -1103,7 +1142,8 @@ class SyncFootballDataCommandTests(TestCase):
                 "name": "Colombia",
                 "tla": "COL",
                 "crest": "https://crests.example/col.svg",
-                "squad": [{"id": 10, "name": "Luis Díaz", "position": "Offence", "dateOfBirth": "1997-01-13", "nationality": "Colombia"}],
+                "squad": [{"id": 10, "name": "Luis Díaz", "position": "Offence", "dateOfBirth": "1997-01-13",
+                           "nationality": "Colombia"}],
             }
         ]
 
@@ -1162,7 +1202,8 @@ class SyncFootballDataCommandTests(TestCase):
 
     @patch("matches.management.commands.sync_football_data.FootballDataSyncService")
     def test_live_command_uses_batch_sync_and_can_skip_scorers(self, service_cls):
-        service_cls.return_value.sync_queryset_from_match_list.return_value = FootballDataSyncResult(checked=1, updated=1)
+        service_cls.return_value.sync_queryset_from_match_list.return_value = FootballDataSyncResult(checked=1,
+                                                                                                     updated=1)
         team_a = Team.objects.create(name="Live A", code="LVA")
         team_b = Team.objects.create(name="Live B", code="LVB")
         Match.objects.create(
@@ -1182,7 +1223,8 @@ class SyncFootballDataCommandTests(TestCase):
     @patch("matches.management.commands.sync_football_data.FootballDataSyncService")
     def test_live_command_fetches_padded_dates_for_night_matches(self, service_cls, localdate_mock):
         localdate_mock.return_value = datetime(2026, 6, 26).date()
-        service_cls.return_value.sync_queryset_from_match_list.return_value = FootballDataSyncResult(checked=1, updated=1)
+        service_cls.return_value.sync_queryset_from_match_list.return_value = FootballDataSyncResult(checked=1,
+                                                                                                     updated=1)
         team_a = Team.objects.create(name="Night A", code="NTA")
         team_b = Team.objects.create(name="Night B", code="NTB")
         Match.objects.create(
@@ -1285,6 +1327,8 @@ class MapFootballDataMatchesCommandTests(TestCase):
     @patch("matches.management.commands.map_football_data_matches.FootballDataClient", FakeFootballDataListClient)
     def test_map_football_data_matches_commit_updates_match_and_team_ids(self):
         match = self._match()
+        match.kickoff_at = self.kickoff - timedelta(hours=2)
+        match.save(update_fields=["kickoff_at"])
         FakeFootballDataListClient.fixtures = [self._fixture(fixture_id=9002)]
         out = StringIO()
 
@@ -1294,6 +1338,7 @@ class MapFootballDataMatchesCommandTests(TestCase):
         self.team_a.refresh_from_db()
         self.team_b.refresh_from_db()
         self.assertEqual(match.football_data_match_id, 9002)
+        self.assertEqual(match.kickoff_at, self.kickoff)
         self.assertEqual(self.team_a.football_data_team_id, 100)
         self.assertEqual(self.team_b.football_data_team_id, 200)
         self.assertEqual(self.team_a.tla, "COL")
@@ -1447,24 +1492,24 @@ class ImportFootballDataMatchesCommandTests(TestCase):
         self.kickoff = datetime(2026, 6, 25, 20, 0, tzinfo=dt_timezone.utc)
 
     def _fixture(
-        self,
-        *,
-        fixture_id=7001,
-        utc_datetime=None,
-        home_id=100,
-        home_tla="COL",
-        home_name="Colombia",
-        away_id=200,
-        away_tla="BRA",
-        away_name="Brazil",
-        stage="GROUP_STAGE",
-        matchday=1,
-        status="TIMED",
-        home_score=None,
-        away_score=None,
-        home_penalty_score=None,
-        away_penalty_score=None,
-        winner=None,
+            self,
+            *,
+            fixture_id=7001,
+            utc_datetime=None,
+            home_id=100,
+            home_tla="COL",
+            home_name="Colombia",
+            away_id=200,
+            away_tla="BRA",
+            away_name="Brazil",
+            stage="GROUP_STAGE",
+            matchday=1,
+            status="TIMED",
+            home_score=None,
+            away_score=None,
+            home_penalty_score=None,
+            away_penalty_score=None,
+            winner=None,
     ):
         return {
             "id": fixture_id,
@@ -1504,7 +1549,8 @@ class ImportFootballDataMatchesCommandTests(TestCase):
 
     @patch("matches.management.commands.import_football_data_matches.FootballDataClient", FakeFootballDataListClient)
     def test_import_football_data_matches_commit_creates_match_using_tla(self):
-        FakeFootballDataListClient.fixtures = [self._fixture(fixture_id=7002, status="IN_PLAY", home_score=1, away_score=0)]
+        FakeFootballDataListClient.fixtures = [
+            self._fixture(fixture_id=7002, status="IN_PLAY", home_score=1, away_score=0)]
         out = StringIO()
 
         call_command("import_football_data_matches", "--date", "2026-06-25", "--commit", stdout=out)
@@ -1595,6 +1641,50 @@ class ImportFootballDataMatchesCommandTests(TestCase):
         self.assertEqual(match.football_data_winner, "HOME_TEAM")
         self.assertEqual(match.winner_team, self.colombia)
         self.assertEqual(match.score_display, "1 - 1 (5 - 4 pen.)")
+
+    @patch("matches.management.commands.import_football_data_matches.FootballDataClient", FakeFootballDataListClient)
+    def test_import_football_data_matches_normalizes_cumulative_penalty_shootout_payload(self):
+        FakeFootballDataListClient.fixtures = [
+            {
+                "id": 537415,
+                "utcDate": self.kickoff.isoformat().replace("+00:00", "Z"),
+                "stage": "LAST_32",
+                "matchday": 9,
+                "status": "FINISHED",
+                "homeTeam": {
+                    "id": 100,
+                    "name": "Colombia",
+                    "tla": "COL",
+                    "crest": "https://crests.example/col.svg",
+                },
+                "awayTeam": {
+                    "id": 200,
+                    "name": "Brazil",
+                    "tla": "BRA",
+                    "crest": "https://crests.example/bra.svg",
+                },
+                "score": {
+                    "winner": None,
+                    "duration": "PENALTY_SHOOTOUT",
+                    "fullTime": {"home": 5, "away": 6},
+                    "halfTime": {"home": 0, "away": 1},
+                    "regularTime": {"home": 1, "away": 1},
+                    "extraTime": {"home": 0, "away": 0},
+                    "penalties": {"home": 5, "away": 5},
+                },
+            }
+        ]
+
+        call_command("import_football_data_matches", "--date", "2026-06-25", "--commit", stdout=StringIO())
+
+        match = Match.objects.get(football_data_match_id=537415)
+        self.assertEqual(match.home_score, 1)
+        self.assertEqual(match.away_score, 1)
+        self.assertEqual(match.home_penalty_score, 4)
+        self.assertEqual(match.away_penalty_score, 5)
+        self.assertEqual(match.football_data_winner, "AWAY_TEAM")
+        self.assertEqual(match.winner_team, self.brasil)
+        self.assertEqual(match.score_display, "1 - 1 (4 - 5 pen.)")
 
     @patch("matches.management.commands.import_football_data_matches.FootballDataClient", FakeFootballDataListClient)
     def test_import_football_data_matches_sets_bracket_position_from_knockout_matchday(self):
@@ -1779,5 +1869,3 @@ class ImportFootballDataMatchesCommandTests(TestCase):
 
         match.refresh_from_db()
         self.assertIsNone(match.bracket_position)
-
-

@@ -316,7 +316,6 @@ class KnockoutAdvancementService:
 		return len(source_matches) == 2 and sorted(positions) == sorted([first_position, second_position])
 
 	def _placeholder_kickoff_at(self, source_matches):
-		latest_source_kickoff = max(match.kickoff_at for match in source_matches)
-		return max(timezone.now() + timedelta(days=1), latest_source_kickoff + timedelta(days=1))
+		return timezone.now() + timedelta(days=6)
 
 

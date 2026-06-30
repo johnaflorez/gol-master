@@ -57,6 +57,121 @@ class FootballDataPlayersImportResult:
     deactivated: int = 0
 
 
+@dataclass(frozen=True)
+class FootballDataMatchScore:
+    home_score: int | None = None
+    away_score: int | None = None
+    home_penalty_score: int | None = None
+    away_penalty_score: int | None = None
+    winner: str = ""
+
+
+def extract_football_data_match_score(fixture):
+    score = fixture.get("score") or {}
+    has_penalty_shootout = _has_penalty_shootout(fixture, score)
+    home_score, away_score = _extract_base_score(score, has_penalty_shootout)
+    home_penalty_score, away_penalty_score = _extract_penalty_score(score, home_score, away_score, has_penalty_shootout)
+    winner = _normalize_winner(score.get("winner")) or _derive_winner(
+        home_score,
+        away_score,
+        home_penalty_score,
+        away_penalty_score,
+    )
+    return FootballDataMatchScore(
+        home_score=home_score,
+        away_score=away_score,
+        home_penalty_score=home_penalty_score,
+        away_penalty_score=away_penalty_score,
+        winner=winner,
+    )
+
+
+def _has_penalty_shootout(fixture, score):
+    values = {
+        fixture.get("status") or "",
+        fixture.get("duration") or "",
+        score.get("duration") or "",
+    }
+    if any(str(value).strip().upper() == "PENALTY_SHOOTOUT" for value in values):
+        return True
+    penalties = score.get("penalties") or {}
+    return penalties.get("home") is not None or penalties.get("away") is not None
+
+
+def _extract_base_score(score, has_penalty_shootout):
+    if has_penalty_shootout:
+        regular_home, regular_away = _period_score(score, "regularTime")
+        if regular_home is not None or regular_away is not None:
+            extra_home, extra_away = _period_score(score, "extraTime")
+            return _add_nullable_scores(regular_home, extra_home), _add_nullable_scores(regular_away, extra_away)
+
+    for key in ("fullTime", "regularTime", "halfTime"):
+        home, away = _period_score(score, key)
+        if home is not None or away is not None:
+            return home, away
+    return None, None
+
+
+def _extract_penalty_score(score, home_score, away_score, has_penalty_shootout):
+    penalties = score.get("penalties") or {}
+    raw_home = _safe_nullable_int(penalties.get("home"))
+    raw_away = _safe_nullable_int(penalties.get("away"))
+
+    if raw_home is None and raw_away is None and not has_penalty_shootout:
+        return None, None
+
+    full_home, full_away = _period_score(score, "fullTime")
+    derived_home, derived_away = _derive_penalties_from_full_time(full_home, full_away, home_score, away_score)
+
+    if raw_home is not None and raw_away is not None and raw_home != raw_away:
+        return raw_home, raw_away
+    if derived_home is not None and derived_away is not None and derived_home != derived_away:
+        return derived_home, derived_away
+    if raw_home is not None or raw_away is not None:
+        return raw_home, raw_away
+    return derived_home, derived_away
+
+
+def _derive_penalties_from_full_time(full_home, full_away, base_home, base_away):
+    if None in (full_home, full_away, base_home, base_away):
+        return None, None
+    home = int(full_home) - int(base_home)
+    away = int(full_away) - int(base_away)
+    if home < 0 or away < 0:
+        return None, None
+    return home, away
+
+
+def _period_score(score, key):
+    value = score.get(key) or {}
+    return _safe_nullable_int(value.get("home")), _safe_nullable_int(value.get("away"))
+
+
+def _add_nullable_scores(first, second):
+    if first is None:
+        return second
+    if second is None:
+        return first
+    return int(first) + int(second)
+
+
+def _derive_winner(home_score, away_score, home_penalty_score, away_penalty_score):
+    if home_penalty_score is not None and away_penalty_score is not None and home_penalty_score != away_penalty_score:
+        return "HOME_TEAM" if home_penalty_score > away_penalty_score else "AWAY_TEAM"
+    if home_score is not None and away_score is not None and home_score != away_score:
+        return "HOME_TEAM" if home_score > away_score else "AWAY_TEAM"
+    return ""
+
+
+def _normalize_winner(winner):
+    winner = (winner or "").strip().upper()
+    return winner if winner in {"HOME_TEAM", "AWAY_TEAM", "DRAW"} else ""
+
+
+def _safe_nullable_int(value):
+    return None if value is None else int(value)
+
+
 class FootballDataClient:
     """Small football-data.org client using Django settings."""
 
@@ -108,14 +223,14 @@ class FootballDataClient:
         ).get("matches", [])
 
     def get_competition_matches(
-        self,
-        *,
-        competition_code=None,
-        season=None,
-        date_from: date | str | None = None,
-        date_to: date | str | None = None,
-        status=None,
-        stage=None,
+            self,
+            *,
+            competition_code=None,
+            season=None,
+            date_from: date | str | None = None,
+            date_to: date | str | None = None,
+            status=None,
+            stage=None,
     ):
         competition_code = competition_code or settings.FOOTBALL_DATA_COMPETITION_CODE
         if isinstance(date_from, date):
@@ -510,20 +625,18 @@ class FootballDataSyncService:
     def _update_match_from_fixture(self, match, fixture):
         update_fields = []
         status = self._normalize_status(fixture.get("status"))
-        score = fixture.get("score") or {}
-        home_score, away_score = self._extract_score(score)
-        home_penalty_score, away_penalty_score = self._extract_penalties(score)
+        match_score = extract_football_data_match_score(fixture)
 
         update_fields += self._set_if_changed(match, "live_status", self._map_live_status(status))
         update_fields += self._set_if_changed(match, "finished", status in self.FINISHED_STATUSES)
-        update_fields += self._set_if_changed(match, "football_data_winner", self._normalize_winner(score.get("winner")))
+        update_fields += self._set_if_changed(match, "football_data_winner", match_score.winner)
 
-        if home_score is not None:
-            update_fields += self._set_if_changed(match, "home_score", int(home_score))
-        if away_score is not None:
-            update_fields += self._set_if_changed(match, "away_score", int(away_score))
-        update_fields += self._set_if_changed(match, "home_penalty_score", home_penalty_score)
-        update_fields += self._set_if_changed(match, "away_penalty_score", away_penalty_score)
+        if match_score.home_score is not None:
+            update_fields += self._set_if_changed(match, "home_score", match_score.home_score)
+        if match_score.away_score is not None:
+            update_fields += self._set_if_changed(match, "away_score", match_score.away_score)
+        update_fields += self._set_if_changed(match, "home_penalty_score", match_score.home_penalty_score)
+        update_fields += self._set_if_changed(match, "away_penalty_score", match_score.away_penalty_score)
 
         home_team = fixture.get("homeTeam") or {}
         away_team = fixture.get("awayTeam") or {}
@@ -533,24 +646,6 @@ class FootballDataSyncService:
             match.save(update_fields=list(dict.fromkeys(update_fields)))
 
         return bool(update_fields)
-
-    def _extract_score(self, score):
-        for key in ("fullTime", "regularTime", "halfTime"):
-            value = score.get(key) or {}
-            home = value.get("home")
-            away = value.get("away")
-            if home is not None or away is not None:
-                return home, away
-        return None, None
-
-    def _extract_penalties(self, score):
-        penalties = score.get("penalties") or {}
-        home = penalties.get("home")
-        away = penalties.get("away")
-        return (
-            int(home) if home is not None else None,
-            int(away) if away is not None else None,
-        )
 
     def _map_live_status(self, status):
         status = self._normalize_status(status)
@@ -566,8 +661,7 @@ class FootballDataSyncService:
         return (status or "SCHEDULED").strip().upper()
 
     def _normalize_winner(self, winner):
-        winner = (winner or "").strip().upper()
-        return winner if winner in {"HOME_TEAM", "AWAY_TEAM", "DRAW"} else ""
+        return _normalize_winner(winner)
 
     def _update_team_data(self, match, home_team, away_team):
         self._update_single_team_data(match.home_team, match.home_team_id, home_team)
@@ -596,4 +690,3 @@ class FootballDataSyncService:
             setattr(instance, field, value)
             return [field]
         return []
-

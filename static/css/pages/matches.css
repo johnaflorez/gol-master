@@ -460,6 +460,12 @@
 
 .knockout-match-footer {
     border-top: 1px solid rgba(224, 231, 255, 0.75);
+    flex-wrap: wrap;
+    line-height: 1.25;
+}
+
+.knockout-match-date {
+    white-space: nowrap;
 }
 
 .knockout-match-meta .badge {
@@ -548,17 +554,6 @@
     margin-left: 0.12rem;
 }
 
-.knockout-penalty-label {
-    color: #FBBF24;
-    font-weight: 900;
-    white-space: nowrap;
-}
-
-.knockout-qualified {
-    color: #065F46;
-    font-weight: 800;
-    white-space: nowrap;
-}
 
 .knockout-projected-slot {
     background: rgba(255, 255, 255, 0.72);
