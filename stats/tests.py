@@ -80,7 +80,7 @@ class TournamentStatsServiceTests(TestCase):
         self.team_a = Team.objects.create(name="Equipo A", code="EQA")
         self.team_b = Team.objects.create(name="Equipo B", code="EQB")
 
-    def _match(self, *, home_score, away_score, finished=True):
+    def _match(self, *, home_score, away_score, finished=True, phase="PR"):
         return Match.objects.create(
             home_team=self.team_a,
             away_team=self.team_b,
@@ -88,6 +88,7 @@ class TournamentStatsServiceTests(TestCase):
             home_score=home_score,
             away_score=away_score,
             finished=finished,
+            phase=phase,
         )
 
     def test_get_stats_uses_finished_matches_totals(self):
@@ -100,6 +101,28 @@ class TournamentStatsServiceTests(TestCase):
         self.assertEqual(stats["total_matches"], 2)
         self.assertEqual(stats["total_goals"], 6)
         self.assertEqual(stats["avg_goals"], 3)
+
+    def test_get_stats_includes_average_goals_by_phase(self):
+        self._match(home_score=2, away_score=1, phase="PR")
+        self._match(home_score=1, away_score=1, phase="PR")
+        self._match(home_score=3, away_score=2, phase="DR")
+        self._match(home_score=4, away_score=4, phase="OF", finished=False)
+
+        stats = TournamentStatsService().get_stats()
+
+        self.assertEqual([row["phase"] for row in stats["goals_by_phase"]], ["PR", "DR"])
+        primera_ronda = stats["goals_by_phase"][0]
+        dieciseisavos = stats["goals_by_phase"][1]
+
+        self.assertEqual(primera_ronda["label"], "Primera Ronda")
+        self.assertEqual(primera_ronda["matches"], 2)
+        self.assertEqual(primera_ronda["total_goals"], 5)
+        self.assertEqual(primera_ronda["avg_goals"], 2.5)
+
+        self.assertEqual(dieciseisavos["label"], "Dieciséisavos de Final")
+        self.assertEqual(dieciseisavos["matches"], 1)
+        self.assertEqual(dieciseisavos["total_goals"], 5)
+        self.assertEqual(dieciseisavos["avg_goals"], 5)
 
 
 class TopScorersViewTests(TestCase):

@@ -9,9 +9,16 @@ from django.utils import timezone
 
 from core.models import Suggestion
 from core.services.final_match_announcements import get_recent_final_match_announcements
+from core.templatetags.dict_extras import phase_color
 from matches.models import Match, MatchEvent
 from predictions.models import Prediction
 from teams.models import Team
+
+
+class PhaseColorFilterTests(TestCase):
+
+	def test_last_32_uses_lime_badge_color(self):
+		self.assertEqual(phase_color("DR"), "text-bg-lime")
 
 
 class DashboardViewTests(TestCase):
@@ -70,6 +77,32 @@ class DashboardViewTests(TestCase):
 		self.assertIn("total_matches", response.context["tournament_stats"])
 		self.assertIn("total_goals", response.context["tournament_stats"])
 		self.assertIn("avg_goals", response.context["tournament_stats"])
+		self.assertIn("goals_by_phase", response.context["tournament_stats"])
+
+	def test_dashboard_shows_average_goals_by_phase(self):
+		pr_match = self._create_match(timezone.now() - timedelta(hours=3))
+		pr_match.home_score = 2
+		pr_match.away_score = 1
+		pr_match.finished = True
+		pr_match.phase = "PR"
+		pr_match.save()
+
+		dr_match = self._create_match(timezone.now() - timedelta(hours=2))
+		dr_match.home_score = 1
+		dr_match.away_score = 1
+		dr_match.finished = True
+		dr_match.phase = "DR"
+		dr_match.save()
+
+		response = self.client.get(reverse("dashboard"))
+
+		self.assertEqual(response.status_code, 200)
+		self.assertContains(response, "Promedio de gol por ronda")
+		self.assertContains(response, "Primera Ronda")
+		self.assertContains(response, "Dieciséisavos de Final")
+		self.assertContains(response, "text-bg-lime")
+		self.assertContains(response, "3,00")
+		self.assertContains(response, "2,00")
 
 	def test_dashboard_shows_predict_button_only_for_available_matches(self):
 		today = timezone.localdate()

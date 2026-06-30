@@ -17,7 +17,7 @@ def phase_color(phase_code):
         'PR': 'text-bg-secondary',      # Primera Ronda - Gris
         'SR': 'text-bg-info',           # Segunda Ronda - Azul claro
         'TR': 'text-bg-primary',        # Tercera Ronda - Azul
-        'DR': 'text-bg-success',        # Dieciséisavos - Verde
+        'DR': 'text-bg-lime',           # Dieciséisavos - Verde limón
         'OF': 'text-bg-warning',        # Octavos - Amarillo
         'CF': 'text-bg-danger',         # Cuartos - Rojo
         'SF': 'text-bg-dark',           # Semifinal - Oscuro

@@ -40,6 +40,23 @@
     margin: 0.25rem 0;
 }
 
+.dashboard-phase-goals-table {
+    font-size: 0.86rem;
+}
+
+.dashboard-phase-goals-table th {
+    color: #6B7280;
+    font-size: 0.72rem;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+}
+
+.dashboard-phase-goals-table .badge {
+    font-size: 0.68rem;
+    padding: 0.35em 0.55em;
+    white-space: normal;
+}
+
 .dashboard-match-row {
     padding-top: 0.75rem !important;
     padding-bottom: 0.75rem !important;

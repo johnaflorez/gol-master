@@ -669,6 +669,11 @@ button:focus-visible,
     color: #fff !important;
 }
 
+.text-bg-lime {
+    background: #A3E635 !important;
+    color: #1F2937 !important;
+}
+
 .text-bg-info {
     background: var(--mundial-cyan) !important;
     color: #1f2937 !important;
