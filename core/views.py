@@ -17,11 +17,12 @@ from core.forms import FootballDataCommandForm, SuggestionForm
 from core.models import Suggestion
 from matches.models import Match
 from core.services.final_match_announcements import get_recent_final_match_announcements
+from core.services.live_match_sync import maybe_sync_live_matches
 from matches.query_utils import order_with_finished_last
-from predictions.models import Prediction
+from predictions.models import Prediction, TournamentPrediction
+from predictions.services.tournament_deadline import get_tournament_prediction_deadline, is_tournament_prediction_closed
 from rankings.services.ranking_service import RankingService
 from stats.services.tournament_stats import TournamentStatsService
-
 
 LIVE_DASHBOARD_STATUSES = ["LIVE", "HT"]
 RECENT_STARTED_MATCH_WINDOW = timedelta(hours=12)
@@ -73,12 +74,20 @@ class DashboardView(LoginRequiredMixin, TemplateView):
         ranking_service = RankingService()
         ranking = ranking_service.get_ranking(limit=10)
         tournament_stats = TournamentStatsService().get_stats()
+        tournament_prediction = TournamentPrediction.objects.select_related(
+            "champion_team",
+            "top_scorer",
+            "top_scorer__team",
+        ).filter(user=self.request.user).first()
 
         context.update(
             {
                 "matches": latest_matches,
                 "ranking": ranking,
                 "tournament_stats": tournament_stats,
+                "tournament_prediction": tournament_prediction,
+                "tournament_prediction_deadline": get_tournament_prediction_deadline(),
+                "tournament_prediction_closed": is_tournament_prediction_closed(now),
                 "now": now,
             }
         )
@@ -90,6 +99,7 @@ class DashboardLiveSnapshotView(LoginRequiredMixin, View):
 
     def get(self, request, *args, **kwargs):
         now = timezone.now()
+        live_sync = maybe_sync_live_matches(now=now)
 
         matches = order_with_finished_last(
             get_dashboard_matches_queryset(now=now).only(
@@ -160,98 +170,97 @@ class DashboardLiveSnapshotView(LoginRequiredMixin, View):
                 "server_time": now.isoformat(),
                 "matches": payload,
                 "final_match_announcements": get_recent_final_match_announcements(now=now),
+                "live_sync": live_sync.as_dict(),
             }
         )
 
 
 class SuggestionCreateView(LoginRequiredMixin, CreateView):
-  template_name = "core/suggestions/form.html"
-  form_class = SuggestionForm
-  success_url = reverse_lazy("suggestion_create")
+    template_name = "core/suggestions/form.html"
+    form_class = SuggestionForm
+    success_url = reverse_lazy("suggestion_create")
 
-  def form_valid(self, form):
-    form.instance.user = self.request.user
-    messages.success(self.request, "Gracias, tu sugerencia fue enviada correctamente.")
-    return super().form_valid(form)
+    def form_valid(self, form):
+        form.instance.user = self.request.user
+        messages.success(self.request, "Gracias, tu sugerencia fue enviada correctamente.")
+        return super().form_valid(form)
 
 
 class SuperuserRequiredMixin(UserPassesTestMixin):
-  def test_func(self):
-    return self.request.user.is_superuser
+    def test_func(self):
+        return self.request.user.is_superuser
 
 
 class FootballDataCommandView(LoginRequiredMixin, SuperuserRequiredMixin, TemplateView):
-  template_name = "core/admin/football_data_commands.html"
+    template_name = "core/admin/football_data_commands.html"
 
-  def get_context_data(self, **kwargs):
-    context = super().get_context_data(**kwargs)
-    context.setdefault("form", FootballDataCommandForm())
-    context.setdefault("command_output", "")
-    context.setdefault("command_error", "")
-    context.setdefault("executed_command", "")
-    return context
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context.setdefault("form", FootballDataCommandForm())
+        context.setdefault("command_output", "")
+        context.setdefault("command_error", "")
+        context.setdefault("executed_command", "")
+        return context
 
-  def post(self, request, *args, **kwargs):
-    form = FootballDataCommandForm(request.POST)
-    context = self.get_context_data(form=form)
+    def post(self, request, *args, **kwargs):
+        form = FootballDataCommandForm(request.POST)
+        context = self.get_context_data(form=form)
 
-    if not form.is_valid():
-      messages.error(request, "Revisa los campos del formulario antes de ejecutar el comando.")
-      return self.render_to_response(context)
+        if not form.is_valid():
+            messages.error(request, "Revisa los campos del formulario antes de ejecutar el comando.")
+            return self.render_to_response(context)
 
-    command_name, command_args = form.build_command()
-    stdout = StringIO()
-    stderr = StringIO()
-    context["executed_command"] = "python manage.py " + " ".join([command_name, *command_args, "--verbosity", "2"])
+        command_name, command_args = form.build_command()
+        stdout = StringIO()
+        stderr = StringIO()
+        context["executed_command"] = "python manage.py " + " ".join([command_name, *command_args, "--verbosity", "2"])
 
-    try:
-      call_command(command_name, *command_args, stdout=stdout, stderr=stderr, verbosity=2)
-    except CommandError as exc:
-      context["command_error"] = str(exc)
-      messages.error(request, "El comando terminó con error.")
-    else:
-      messages.success(request, "Comando ejecutado correctamente.")
+        try:
+            call_command(command_name, *command_args, stdout=stdout, stderr=stderr, verbosity=2)
+        except CommandError as exc:
+            context["command_error"] = str(exc)
+            messages.error(request, "El comando terminó con error.")
+        else:
+            messages.success(request, "Comando ejecutado correctamente.")
 
-    context["command_output"] = stdout.getvalue()
-    stderr_output = stderr.getvalue()
-    if stderr_output:
-      context["command_error"] = "\n".join(part for part in [context["command_error"], stderr_output] if part)
+        context["command_output"] = stdout.getvalue()
+        stderr_output = stderr.getvalue()
+        if stderr_output:
+            context["command_error"] = "\n".join(part for part in [context["command_error"], stderr_output] if part)
 
-    return self.render_to_response(context)
+        return self.render_to_response(context)
 
 
 class SuggestionListView(LoginRequiredMixin, SuperuserRequiredMixin, ListView):
-  template_name = "core/suggestions/list.html"
-  context_object_name = "suggestions"
-  paginate_by = 20
+    template_name = "core/suggestions/list.html"
+    context_object_name = "suggestions"
+    paginate_by = 20
 
-  def get_queryset(self):
-    queryset = Suggestion.objects.select_related("user")
-    status = self.request.GET.get("status", "pending")
+    def get_queryset(self):
+        queryset = Suggestion.objects.select_related("user")
+        status = self.request.GET.get("status", "pending")
 
-    if status == "resolved":
-      return queryset.filter(is_resolved=True)
-    if status == "all":
-      return queryset
-    return queryset.filter(is_resolved=False)
+        if status == "resolved":
+            return queryset.filter(is_resolved=True)
+        if status == "all":
+            return queryset
+        return queryset.filter(is_resolved=False)
 
-  def get_context_data(self, **kwargs):
-    context = super().get_context_data(**kwargs)
-    context["selected_status"] = self.request.GET.get("status", "pending")
-    context["pending_count"] = Suggestion.objects.filter(is_resolved=False).count()
-    context["resolved_count"] = Suggestion.objects.filter(is_resolved=True).count()
-    return context
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["selected_status"] = self.request.GET.get("status", "pending")
+        context["pending_count"] = Suggestion.objects.filter(is_resolved=False).count()
+        context["resolved_count"] = Suggestion.objects.filter(is_resolved=True).count()
+        return context
 
 
 class SuggestionResolveView(LoginRequiredMixin, SuperuserRequiredMixin, View):
-  def post(self, request, *args, **kwargs):
-    suggestion = get_object_or_404(Suggestion, pk=kwargs["pk"])
-    suggestion.is_resolved = True
-    suggestion.save(update_fields=["is_resolved", "updated_at"])
-    messages.success(request, "Sugerencia marcada como solucionada/revisada.")
-    next_url = request.POST.get("next")
-    if next_url and url_has_allowed_host_and_scheme(next_url, allowed_hosts={request.get_host()}):
-      return redirect(next_url)
-    return redirect("suggestion_list")
-
-
+    def post(self, request, *args, **kwargs):
+        suggestion = get_object_or_404(Suggestion, pk=kwargs["pk"])
+        suggestion.is_resolved = True
+        suggestion.save(update_fields=["is_resolved", "updated_at"])
+        messages.success(request, "Sugerencia marcada como solucionada/revisada.")
+        next_url = request.POST.get("next")
+        if next_url and url_has_allowed_host_and_scheme(next_url, allowed_hosts={request.get_host()}):
+            return redirect(next_url)
+        return redirect("suggestion_list")

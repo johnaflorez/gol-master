@@ -1,7 +1,7 @@
 from datetime import datetime, time, timedelta
 
 from django.contrib.auth.models import User
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
 
@@ -203,6 +203,7 @@ class PredictionCreateViewTests(TestCase):
 		self.assertEqual([match.id for match in matches], [earlier.id, later.id])
 
 
+@override_settings(TOURNAMENT_PREDICTION_DEADLINE="2099-07-04 12:00")
 class TournamentPredictionViewTests(TestCase):
 
 	def setUp(self):
@@ -256,6 +257,7 @@ class TournamentPredictionViewTests(TestCase):
 		self.assertContains(response, 'list="top-scorer-options"')
 		self.assertContains(response, "COL - Colombia")
 		self.assertContains(response, "Luis Díaz (COL)")
+		self.assertContains(response, "La votación se bloqueará")
 
 	def test_creates_tournament_prediction_from_datalist_text_values(self):
 		self.client.login(username="global-user", password="secret123")
@@ -319,6 +321,54 @@ class TournamentPredictionViewTests(TestCase):
 		self.assertNotContains(response, "Tu elección actual")
 		self.assertNotContains(response, "Guardar pronóstico")
 		self.assertNotContains(response, "Editar pronóstico")
+
+	@override_settings(TOURNAMENT_PREDICTION_DEADLINE="2000-07-04 12:00")
+	def test_closed_tournament_prediction_hides_form_for_new_vote(self):
+		self.client.login(username="global-user", password="secret123")
+
+		response = self.client.get(reverse("tournament_prediction"))
+
+		self.assertEqual(response.status_code, 200)
+		self.assertTrue(response.context["tournament_prediction_closed"])
+		self.assertContains(response, "La votación de campeón y goleador está cerrada")
+		self.assertContains(response, "Ya no se pueden registrar nuevas elecciones")
+		self.assertNotContains(response, "Guardar pronóstico")
+		self.assertNotContains(response, 'list="champion-team-options"')
+		self.assertNotContains(response, 'list="top-scorer-options"')
+
+	@override_settings(TOURNAMENT_PREDICTION_DEADLINE="2000-07-04 12:00")
+	def test_closed_tournament_prediction_rejects_post_for_new_vote(self):
+		self.client.login(username="global-user", password="secret123")
+
+		response = self.client.post(
+			reverse("tournament_prediction"),
+			{
+				"champion_team": self.team_a.id,
+				"top_scorer": self.player_a.id,
+			},
+		)
+
+		self.assertRedirects(response, reverse("tournament_prediction"))
+		self.assertFalse(TournamentPrediction.objects.filter(user=self.user).exists())
+
+	@override_settings(TOURNAMENT_PREDICTION_DEADLINE="2000-07-04 12:00")
+	def test_closed_tournament_prediction_still_shows_existing_vote(self):
+		TournamentPrediction.objects.create(
+			user=self.user,
+			champion_team=self.team_a,
+			top_scorer=self.player_a,
+			top_scorer_name="Luis Díaz",
+		)
+		self.client.login(username="global-user", password="secret123")
+
+		response = self.client.get(reverse("tournament_prediction"))
+
+		self.assertEqual(response.status_code, 200)
+		self.assertTrue(response.context["tournament_prediction_closed"])
+		self.assertContains(response, "Pronóstico registrado")
+		self.assertContains(response, "Colombia")
+		self.assertContains(response, "Luis Díaz")
+		self.assertNotContains(response, "Guardar pronóstico")
 
 
 class MyPredictionsViewTests(TestCase):

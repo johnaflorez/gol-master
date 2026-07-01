@@ -40,6 +40,48 @@
     margin: 0.25rem 0;
 }
 
+.dashboard-tournament-prediction-card {
+    border: 1px solid rgba(247, 127, 0, 0.24);
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.98), rgba(255, 247, 237, 0.92));
+}
+
+.dashboard-tournament-choice,
+.dashboard-tournament-empty {
+    background: rgba(255, 255, 255, 0.78);
+    border: 1px solid rgba(224, 231, 255, 0.85);
+    border-radius: 0.85rem;
+    padding: 0.8rem 0.9rem;
+}
+
+.dashboard-tournament-choice-value {
+    color: var(--mundial-blue);
+    font-weight: 800;
+}
+
+.dashboard-tournament-scorer {
+    align-items: center;
+    display: flex;
+    gap: 0.65rem;
+    min-width: 0;
+}
+
+.dashboard-top-scorer-photo {
+    align-items: center;
+    border: 2px solid rgba(247, 127, 0, 0.28);
+    border-radius: 999px;
+    display: inline-flex;
+    flex: 0 0 auto;
+    height: 2.4rem;
+    justify-content: center;
+    object-fit: cover;
+    width: 2.4rem;
+}
+
+.dashboard-top-scorer-photo--fallback {
+    background: rgba(247, 127, 0, 0.14);
+    color: var(--mundial-red);
+}
+
 .dashboard-phase-goals-table {
     font-size: 0.86rem;
 }

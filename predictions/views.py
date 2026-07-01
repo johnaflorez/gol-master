@@ -14,6 +14,7 @@ from matches.models import Match
 from matches.query_utils import order_with_finished_last
 from predictions.forms import PredictionForm, TournamentPredictionForm
 from predictions.models import Prediction, TournamentPrediction
+from predictions.services.tournament_deadline import get_tournament_prediction_deadline, is_tournament_prediction_closed
 from teams.utils import get_country_label, get_country_options, match_country_q, parse_country_filter
 
 
@@ -178,18 +179,18 @@ class MyPredictionsView(LoginRequiredMixin, ListView):
 
     def _get_phase_stats(self):
         winner_or_draw_condition = (
-            Q(
-                predicted_home_score__gt=F("predicted_away_score"),
-                match__home_score__gt=F("match__away_score"),
-            )
-            | Q(
-                predicted_home_score=F("predicted_away_score"),
-                match__home_score=F("match__away_score"),
-            )
-            | Q(
-                predicted_home_score__lt=F("predicted_away_score"),
-                match__home_score__lt=F("match__away_score"),
-            )
+                Q(
+                    predicted_home_score__gt=F("predicted_away_score"),
+                    match__home_score__gt=F("match__away_score"),
+                )
+                | Q(
+            predicted_home_score=F("predicted_away_score"),
+            match__home_score=F("match__away_score"),
+        )
+                | Q(
+            predicted_home_score__lt=F("predicted_away_score"),
+            match__home_score__lt=F("match__away_score"),
+        )
         )
 
         rows = Prediction.objects.filter(user=self.request.user).values("match__phase").annotate(
@@ -295,11 +296,23 @@ class TournamentPredictionView(LoginRequiredMixin, FormView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context["tournament_prediction"] = self._get_prediction()
+        context["tournament_prediction_deadline"] = get_tournament_prediction_deadline()
+        context["tournament_prediction_closed"] = is_tournament_prediction_closed()
         return context
+
+    def post(self, request, *args, **kwargs):
+        if is_tournament_prediction_closed() and not self._get_prediction():
+            messages.error(
+                request,
+                "La votación de campeón y goleador cerró el 4 de julio a las 12:00 p.m.",
+            )
+            return redirect(self.get_success_url())
+        return super().post(request, *args, **kwargs)
 
     def form_valid(self, form):
         if self._get_prediction():
-            messages.warning(self.request, "Tu pronóstico del campeón y goleador ya fue registrado y no se puede modificar.")
+            messages.warning(self.request,
+                             "Tu pronóstico del campeón y goleador ya fue registrado y no se puede modificar.")
             return redirect(self.get_success_url())
 
         prediction = form.save(commit=False)
@@ -450,7 +463,8 @@ class AllPredictionsView(LoginRequiredMixin, TemplateView):
         history_paginator = Paginator(historical_predictions, self.historical_paginate_by)
         history_page_obj = history_paginator.get_page(self.request.GET.get("page"))
         history_active = requested_tab == "history" or bool(
-            selected_country or selected_phase or selected_points != "" or selected_user_id or self.request.GET.get("page")
+            selected_country or selected_phase or selected_points != "" or selected_user_id or self.request.GET.get(
+                "page")
         )
         tournament_active = requested_tab == "tournament" and not history_active
         active_tab = "tournament" if tournament_active else "history" if history_active else "today"

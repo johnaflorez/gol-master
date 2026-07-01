@@ -1,10 +1,10 @@
 """
 Django settings for config project.
 """
-
-import os
-from pathlib import Path
 import dj_database_url
+import os
+
+from pathlib import Path
 from dotenv import load_dotenv
 from celery.schedules import crontab
 
@@ -18,6 +18,7 @@ SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-8i66z6vc1(72i$09$v^6n
 
 DEBUG = os.environ.get('DEBUG', 'True') == 'True'
 
+
 def _split_env_list(var_name, default=""):
     raw = os.environ.get(var_name, default)
     return [item.strip() for item in raw.split(',') if item.strip()]
@@ -28,6 +29,7 @@ def _env_bool(var_name, default=False):
     if raw is None:
         return default
     return raw.strip().lower() in {'1', 'true', 'yes', 'on'}
+
 
 ALLOWED_HOSTS = _split_env_list('ALLOWED_HOSTS', 'localhost,127.0.0.1')
 
@@ -59,7 +61,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
-    'whitenoise.middleware.WhiteNoiseMiddleware',   # <- whitenoise, justo despues de security
+    'whitenoise.middleware.WhiteNoiseMiddleware',  # <- whitenoise, justo despues de security
     'django.contrib.sessions.middleware.SessionMiddleware',
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -150,7 +152,6 @@ except OSError:
         except OSError:
             pass
 
-
 if USE_S3_MEDIA:
     AWS_ACCESS_KEY_ID = os.environ.get('AWS_ACCESS_KEY_ID', '')
     AWS_SECRET_ACCESS_KEY = os.environ.get('AWS_SECRET_ACCESS_KEY', '')
@@ -178,7 +179,6 @@ if USE_S3_MEDIA:
         },
     }
 
-
 # REST Framework
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
@@ -200,6 +200,17 @@ FOOTBALL_DATA_TIMEOUT = int(os.environ.get('FOOTBALL_DATA_TIMEOUT', '15'))
 FOOTBALL_DATA_COMPETITION_CODE = os.environ.get('FOOTBALL_DATA_COMPETITION_CODE', 'WC')
 FOOTBALL_DATA_SEASON = int(os.environ.get('FOOTBALL_DATA_SEASON', '2026'))
 FOOTBALL_DATA_SCORERS_LIMIT = int(os.environ.get('FOOTBALL_DATA_SCORERS_LIMIT', '500'))
+FOOTBALL_DATA_OPPORTUNISTIC_SYNC_ENABLED = _env_bool('FOOTBALL_DATA_OPPORTUNISTIC_SYNC_ENABLED', True)
+FOOTBALL_DATA_OPPORTUNISTIC_SYNC_INTERVAL_SECONDS = int(
+    os.environ.get('FOOTBALL_DATA_OPPORTUNISTIC_SYNC_INTERVAL_SECONDS', '60'))
+FOOTBALL_DATA_OPPORTUNISTIC_SYNC_DAYS_BACK = int(os.environ.get('FOOTBALL_DATA_OPPORTUNISTIC_SYNC_DAYS_BACK', '1'))
+FOOTBALL_DATA_OPPORTUNISTIC_SYNC_DAYS_FORWARD = int(
+    os.environ.get('FOOTBALL_DATA_OPPORTUNISTIC_SYNC_DAYS_FORWARD', '1'))
+FOOTBALL_DATA_OPPORTUNISTIC_SYNC_FETCH_PADDING_DAYS = int(
+    os.environ.get('FOOTBALL_DATA_OPPORTUNISTIC_SYNC_FETCH_PADDING_DAYS', '1'))
+
+# Champion/top-scorer voting deadline in the active Django timezone.
+TOURNAMENT_PREDICTION_DEADLINE = os.environ.get('TOURNAMENT_PREDICTION_DEADLINE', '2026-07-04 12:00')
 
 # Celery / Celery Beat
 CELERY_BROKER_URL = os.environ.get('CELERY_BROKER_URL') or os.environ.get('REDIS_URL', 'redis://localhost:6379/0')
