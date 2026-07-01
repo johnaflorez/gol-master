@@ -91,7 +91,7 @@
                             <div class="dashboard-my-pick-team">{{ tournament_prediction.champion_team|team_with_flag }}</div>
                             <div class="dashboard-my-pick-scorer">
                                 {% if tournament_prediction.top_scorer and tournament_prediction.top_scorer.photo %}
-                                    <img src="{{ tournament_prediction.top_scorer.photo.url }}" alt="Foto de {{ tournament_prediction.top_scorer.name }}" class="dashboard-top-scorer-photo">
+                                    <img src="{{ tournament_prediction.top_scorer.photo.url }}" alt="Foto de {{ tournament_prediction.top_scorer.name }}" class="dashboard-top-scorer-photo avatar-clickable" role="button" tabindex="0" aria-label="Ver foto de {{ tournament_prediction.top_scorer.name }} ampliada" data-avatar-url="{{ tournament_prediction.top_scorer.photo.url }}" data-avatar-title="Foto de {{ tournament_prediction.top_scorer.name }}">
                                 {% else %}
                                     <span class="dashboard-top-scorer-photo dashboard-top-scorer-photo--fallback"><i class="fas fa-user"></i></span>
                                 {% endif %}

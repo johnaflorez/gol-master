@@ -643,6 +643,21 @@
     font-size: 0.76rem;
 }
 
+@media (min-width: 576px) {
+    .dashboard-scoreboard-team-name {
+        font-size: clamp(1.08rem, 1.65vw, 1.35rem);
+        line-height: 1.15;
+    }
+
+    .dashboard-scoreboard-team-name img,
+    .dashboard-scoreboard-team-name .fi,
+    .dashboard-scoreboard-team-name .flag-icon {
+        font-size: 1.25em;
+        height: 1.45em;
+        width: auto;
+    }
+}
+
 @media (max-width: 991.98px) {
     .dashboard-layout {
         grid-template-columns: 1fr;
