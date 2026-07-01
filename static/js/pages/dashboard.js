@@ -26,25 +26,29 @@ document.addEventListener('DOMContentLoaded', function () {
         }
 
         if (match.status === "FT") {
-            statusEl.className = "badge text-bg-secondary";
+            statusEl.className = "badge dashboard-match-status text-bg-secondary";
             statusEl.innerHTML = `<i class="fas fa-check-circle me-1"></i>Finalizado`;
             minuteEl.textContent = "";
         } else if (match.status === "HT") {
-            statusEl.className = "badge text-bg-warning";
+            statusEl.className = "badge dashboard-match-status text-bg-warning";
             statusEl.innerHTML = `<i class="fas fa-pause me-1"></i>Descanso`;
             minuteEl.textContent = "";
         } else if (match.status === "LIVE") {
-            statusEl.className = "badge text-bg-success";
+            statusEl.className = "badge dashboard-match-status text-bg-success";
             statusEl.innerHTML = `<i class="fas fa-circle-play me-1"></i>En juego`;
             minuteEl.textContent = match.live_minute ? `${match.live_minute}'` : "";
         } else {
-            statusEl.className = "badge text-bg-dark";
+            statusEl.className = "badge dashboard-match-status text-bg-dark";
             statusEl.innerHTML = `<i class="fas fa-hourglass-half me-1"></i>Por jugar`;
             minuteEl.textContent = "";
         }
 
         if (scoreEl) {
-            scoreEl.textContent = match.status === "NS" ? "VS" : scoreText;
+            if (match.status === "NS") {
+                scoreEl.innerHTML = '<span class="dashboard-scoreboard-vs">VS</span>';
+            } else {
+                scoreEl.textContent = scoreText;
+            }
         }
 
         if (eventsEl) {

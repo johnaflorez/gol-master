@@ -182,8 +182,13 @@
 }
 
 .dashboard-scoreboard-vs {
+    display: inline-block;
     font-size: 0.86rem;
     letter-spacing: 0.08em;
+}
+
+.dashboard-match-status {
+    white-space: nowrap;
 }
 
 .dashboard-my-match-prediction {
@@ -275,6 +280,40 @@
     justify-content: space-between;
     min-width: 0;
     padding: 0.65rem 0 0.2rem;
+}
+
+.dashboard-ranking-row__person {
+    align-items: center;
+    display: flex;
+    flex: 1 1 auto;
+    gap: 0.5rem;
+    min-width: 0;
+}
+
+.dashboard-ranking-row__person .table-user-avatar {
+    flex: 0 0 auto;
+}
+
+.dashboard-ranking-row__text {
+    min-width: 0;
+}
+
+.dashboard-ranking-row__name {
+    color: var(--mundial-blue);
+    font-weight: 800;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.dashboard-ranking-row__meta {
+    color: #6B7280;
+    font-size: 0.78rem;
+    line-height: 1.2;
+}
+
+.dashboard-ranking-row__points {
+    flex: 0 0 auto;
 }
 
 .dashboard-ranking-item--mine {
@@ -664,9 +703,21 @@
     }
 
     .dashboard-scoreboard {
-        gap: 0.45rem;
-        grid-template-columns: 1fr;
+        gap: 0.35rem;
+        grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+        grid-template-areas:
+            "home score away"
+            "status status status";
+        row-gap: 0.45rem;
         text-align: center;
+    }
+
+    .dashboard-scoreboard-team--home {
+        grid-area: home;
+    }
+
+    .dashboard-scoreboard-team--away {
+        grid-area: away;
     }
 
     .dashboard-scoreboard-team--away,
@@ -674,8 +725,64 @@
         text-align: center;
     }
 
+    .dashboard-scoreboard-team-name {
+        font-size: 0.82rem;
+        line-height: 1.15;
+        white-space: normal;
+    }
+
     .dashboard-scoreboard-center {
-        order: 2;
+        display: contents;
+        min-width: 3.7rem;
+    }
+
+    .dashboard-scoreboard-score {
+        border-radius: 0.65rem;
+        font-size: 1rem;
+        grid-area: score;
+        justify-self: center;
+        min-width: 3.7rem;
+        padding: 0.45rem 0.45rem;
+    }
+
+    .dashboard-match-status {
+        font-size: 0.68rem;
+        grid-area: status;
+        justify-self: center;
+        max-width: 100%;
+        padding: 0.32em 0.55em;
+    }
+
+    .dashboard-scoreboard-vs {
+        font-size: 0.72rem;
+        letter-spacing: 0.04em;
+    }
+
+    .dashboard-ranking-row {
+        align-items: stretch;
+        background: rgba(255, 255, 255, 0.7);
+        border: 1px solid rgba(224, 231, 255, 0.78);
+        border-radius: 0.85rem;
+        flex-direction: column;
+        gap: 0.5rem;
+        padding: 0.65rem;
+    }
+
+    .dashboard-ranking-row__person {
+        align-items: flex-start;
+    }
+
+    .dashboard-ranking-row__name {
+        line-height: 1.2;
+        white-space: normal;
+    }
+
+    .dashboard-ranking-row__meta {
+        font-size: 0.74rem;
+    }
+
+    .dashboard-ranking-row__points {
+        align-self: flex-start;
     }
 
     .dashboard-ranking-podium {
@@ -690,6 +797,16 @@
 
     .dashboard-match-actions {
         justify-content: flex-start;
+    }
+}
+
+@media (max-width: 359.98px) {
+    .dashboard-scoreboard {
+        grid-template-columns: minmax(0, 1fr) minmax(3.4rem, auto) minmax(0, 1fr);
+    }
+
+    .dashboard-scoreboard-score {
+        min-width: 3.4rem;
     }
 }
 

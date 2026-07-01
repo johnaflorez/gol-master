@@ -109,23 +109,26 @@
                     </div>
                 </div>
 
-                <div class="dashboard-picks-strip" aria-label="Pronósticos de campeón y goleador de todos los usuarios">
-                    {% for prediction in tournament_predictions %}
-                        <article class="dashboard-pick-card {% if prediction.user_id == request.user.id %}dashboard-pick-card--mine{% endif %}">
-                            <div class="dashboard-pick-user">
-                                {% include "includes/user_avatar.html" with user=prediction.user %}
-                                <div class="min-width-0">
-                                    <div class="fw-semibold text-truncate">{{ prediction.user.get_full_name|default:prediction.user.username }}</div>
-                                    {% if prediction.user_id == request.user.id %}<div class="small text-mundial-blue fw-bold">Tu voto</div>{% endif %}
-                                </div>
-                            </div>
-                            <div class="dashboard-pick-values">
-                                <div><span>Campeón</span><strong>{{ prediction.champion_team|team_with_flag }}</strong></div>
-                                <div><span>Goleador</span><strong>{{ prediction.get_top_scorer_name }}</strong></div>
-                            </div>
-                        </article>
-                    {% endfor %}
-                </div>
+                {% if not tournament_prediction or tournament_predictions_count > 1 %}
+                    <div class="dashboard-picks-strip" aria-label="Pronósticos de campeón y goleador de todos los usuarios">
+                        {% for prediction in tournament_predictions %}
+                            {% if not tournament_prediction or prediction.user_id != request.user.id %}
+                                <article class="dashboard-pick-card">
+                                    <div class="dashboard-pick-user">
+                                        {% include "includes/user_avatar.html" with user=prediction.user %}
+                                        <div class="min-width-0">
+                                            <div class="fw-semibold text-truncate">{{ prediction.user.get_full_name|default:prediction.user.username }}</div>
+                                        </div>
+                                    </div>
+                                    <div class="dashboard-pick-values">
+                                        <div><span>Campeón</span><strong>{{ prediction.champion_team|team_with_flag }}</strong></div>
+                                        <div><span>Goleador</span><strong>{{ prediction.get_top_scorer_name }}</strong></div>
+                                    </div>
+                                </article>
+                            {% endif %}
+                        {% endfor %}
+                    </div>
+                {% endif %}
             {% else %}
                 <div class="dashboard-family-pulse-empty">
                     <i class="fas fa-trophy text-mundial-gold"></i>
@@ -186,7 +189,7 @@
                                                                 <span class="dashboard-scoreboard-vs">VS</span>
                                                             {% endif %}
                                                         </div>
-                                                        <span class="badge {% if match.finished %}text-bg-secondary{% elif match.kickoff_at <= now %}text-bg-success{% else %}text-bg-dark{% endif %}" id="live-status-{{ match.id }}">
+                                                        <span class="badge dashboard-match-status {% if match.finished %}text-bg-secondary{% elif match.kickoff_at <= now %}text-bg-success{% else %}text-bg-dark{% endif %}" id="live-status-{{ match.id }}">
                                                             {% if match.finished %}
                                                                 <i class="fas fa-check-circle me-1"></i>Finalizado
                                                             {% elif match.kickoff_at <= now %}
@@ -348,17 +351,17 @@
                             <div class="dashboard-ranking-list">
                                 {% for item in ranking_rest %}
                                     <div class="dashboard-ranking-row {% if item.user.id == request.user.id %}dashboard-ranking-item--mine{% endif %}">
-                                        <div class="d-flex align-items-center gap-2 min-width-0">
+                                        <div class="dashboard-ranking-row__person">
                                             <div class="badge text-bg-light border rounded-circle rank-number-badge">
                                                 {{ forloop.counter|add:3 }}
                                             </div>
                                             {% include "includes/user_avatar.html" with user=item.user %}
-                                            <div class="min-width-0">
-                                                <div class="fw-semibold text-truncate" title="{{ item.user.get_full_name|default:item.user.username }}">{{ item.user.get_full_name|default:item.user.username }}</div>
-                                                <div class="small text-muted">{{ item.exact_predictions }} exactos · {{ item.hit_rate|floatformat:0 }}% acierto</div>
+                                            <div class="dashboard-ranking-row__text">
+                                                <div class="dashboard-ranking-row__name" title="{{ item.user.get_full_name|default:item.user.username }}">{{ item.user.get_full_name|default:item.user.username }}</div>
+                                                <div class="dashboard-ranking-row__meta">{{ item.exact_predictions }} exactos · {{ item.hit_rate|floatformat:0 }}% acierto</div>
                                             </div>
                                         </div>
-                                        <span class="badge {% if item.points == 0 %}text-bg-light border{% else %}text-bg-primary{% endif %} rounded-pill flex-shrink-0">
+                                        <span class="dashboard-ranking-row__points badge {% if item.points == 0 %}text-bg-light border{% else %}text-bg-primary{% endif %} rounded-pill">
                                             <i class="fas fa-star me-1"></i>{{ item.points }} pts
                                         </span>
                                     </div>
