@@ -87,7 +87,7 @@
                             </div>
                             {% if tournament_prediction or not tournament_prediction_closed %}
                                 <a href="{% url 'tournament_prediction' %}" class="btn btn-primary btn-sm">
-                                    {% if tournament_prediction %}
+                                    {% if touriction %}
                                         <i class="fas fa-eye me-1"></i>Ver elección
                                     {% else %}
                                         <i class="fas fa-plus me-1"></i>Hacer pronóstico
@@ -125,7 +125,7 @@
                                 </div>
                                 {% if not tournament_prediction_closed %}
                                     <div class="small text-muted mt-1">
-                                        <i class="fas fa-clock me-1"></i>La votación se bloqueará el {{ tournament_prediction_deadline|date:"d/m/Y H:i" }}.
+                                        <i class="fas fa-clock me-1"></i>La votación se bloqueará el {{ tournament_prediction_deadline|date:"d/m/Y" }} a las 12:00 p.m.
                                     </div>
                                 {% endif %}
                             {% else %}
@@ -133,10 +133,10 @@
                                     <div>
                                         {% if tournament_prediction_closed %}
                                             <div class="fw-semibold"><i class="fas fa-lock me-2 text-mundial-red"></i>La votación de campeón y goleador está cerrada.</div>
-                                            <div class="small text-muted">El bloqueo inició el {{ tournament_prediction_deadline|date:"d/m/Y H:i" }}.</div>
+                                            <div class="small text-muted">El bloqueo inició el {{ tournament_prediction_deadline|date:"d/m/Y" }} a las 12:00 p.m.</div>
                                         {% else %}
                                             <div class="fw-semibold"><i class="fas fa-circle-info me-2 text-mundial-blue"></i>Aún no has votado campeón y goleador.</div>
-                                            <div class="small text-muted">Registra tu elección antes del {{ tournament_prediction_deadline|date:"d/m/Y H:i" }}.</div>
+                                            <div class="small text-muted">Registra tu elección antes del {{ tournament_prediction_deadline|date:"d/m/Y" }} a las 12:00 p.m.</div>
                                         {% endif %}
                                     </div>
                                     {% if tournament_prediction_closed %}
