@@ -72,6 +72,39 @@ class DashboardViewTests(TestCase):
         matches = list(response.context["matches"])
         self.assertEqual([match.id for match in matches], [upcoming_first.id, upcoming_second.id, finished_early.id])
 
+    def test_dashboard_groups_today_matches_by_status_and_shows_user_prediction(self):
+        today = timezone.localdate()
+        fixed_now = timezone.make_aware(datetime.combine(today, time(hour=10)))
+        live_match = self._create_match(fixed_now - timedelta(minutes=15))
+        live_match.live_status = "LIVE"
+        live_match.home_score = 1
+        live_match.away_score = 0
+        live_match.save()
+        upcoming_match = self._create_match(fixed_now + timedelta(hours=2))
+        finished_match = self._create_match(fixed_now - timedelta(hours=2))
+        finished_match.finished = True
+        finished_match.live_status = "FT"
+        finished_match.home_score = 2
+        finished_match.away_score = 1
+        finished_match.save()
+        Prediction.objects.create(
+            user=self.user,
+            match=upcoming_match,
+            predicted_home_score=2,
+            predicted_away_score=0,
+        )
+
+        with patch("core.views.timezone.now", return_value=fixed_now), patch("core.views.timezone.localdate", return_value=today):
+            response = self.client.get(reverse("dashboard"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual([group["code"] for group in response.context["match_groups"]], ["live", "upcoming", "finished"])
+        self.assertContains(response, "dashboard-match-card--live")
+        self.assertContains(response, "dashboard-scoreboard")
+        self.assertContains(response, "Tu pronóstico:")
+        self.assertContains(response, "<strong>2 - 0</strong>", html=True)
+        self.assertContains(response, "Finalizados")
+
     def test_dashboard_exposes_tournament_stats(self):
         response = self.client.get(reverse("dashboard"))
 
@@ -114,10 +147,10 @@ class DashboardViewTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertIsNone(response.context["tournament_prediction"])
         self.assertFalse(response.context["tournament_prediction_closed"])
-        self.assertContains(response, "Mi campeón y goleador")
-        self.assertContains(response, "Aún no has votado campeón y goleador")
-        self.assertContains(response, "Hacer pronóstico")
-        self.assertContains(response, "Crear elección")
+        self.assertEqual(response.context["tournament_predictions_count"], 0)
+        self.assertContains(response, "Pulso de campeón y goleador")
+        self.assertContains(response, "Aún no hay elecciones registradas")
+        self.assertContains(response, "Hacer mi elección")
         self.assertContains(response, reverse("tournament_prediction"))
 
     @override_settings(TOURNAMENT_PREDICTION_DEADLINE="2000-07-04 12:00")
@@ -127,12 +160,12 @@ class DashboardViewTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertIsNone(response.context["tournament_prediction"])
         self.assertTrue(response.context["tournament_prediction_closed"])
-        self.assertContains(response, "Mi campeón y goleador")
-        self.assertContains(response, "La votación de campeón y goleador está cerrada")
+        self.assertContains(response, "Pulso de campeón y goleador")
+        self.assertContains(response, "La votación ya está cerrada")
         self.assertContains(response, "Votación cerrada")
-        self.assertContains(response, "Ver elecciones")
+        self.assertContains(response, "Ver todas")
         self.assertContains(response, reverse("all_predictions") + "?tab=tournament")
-        self.assertNotContains(response, "Hacer pronóstico")
+        self.assertNotContains(response, "Hacer mi elección")
         self.assertNotContains(response, "Crear elección")
 
     @override_settings(TOURNAMENT_PREDICTION_DEADLINE="2099-07-04 12:00")
@@ -156,15 +189,81 @@ class DashboardViewTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.context["tournament_prediction"], prediction)
-        self.assertContains(response, "Mi campeón y goleador")
-        self.assertContains(response, "Campeón votado")
-        self.assertContains(response, "Goleador votado")
+        self.assertEqual(response.context["tournament_predictions_count"], 1)
+        self.assertContains(response, "Pulso de campeón y goleador")
+        self.assertContains(response, "Favoritos a campeón")
+        self.assertContains(response, "Favoritos a goleador")
+        self.assertContains(response, "Tu elección")
+        self.assertContains(response, "Tu voto")
         self.assertContains(response, "Colombia")
         self.assertContains(response, "Luis Díaz")
         self.assertContains(response, "players/luis-diaz.png")
-        self.assertContains(response, "Ver elección")
+        self.assertContains(response, "Ver mi elección")
         self.assertContains(response, reverse("tournament_prediction"))
-        self.assertNotContains(response, "Aún no has votado campeón y goleador")
+        self.assertNotContains(response, "Aún no hay elecciones registradas")
+
+    @override_settings(TOURNAMENT_PREDICTION_DEADLINE="2099-07-04 12:00")
+    def test_dashboard_shows_family_tournament_predictions(self):
+        other_user = User.objects.create_user(username="other-dashboard", password="secret123")
+        colombia = Team.objects.create(name="Colombia", code="COL", tla="COL")
+        brasil = Team.objects.create(name="Brasil", code="BRA", tla="BRA")
+        luis = Player.objects.create(name="Luis Díaz", team=colombia)
+        vinicius = Player.objects.create(name="Vinicius Jr", team=brasil)
+        TournamentPrediction.objects.create(
+            user=self.user,
+            champion_team=colombia,
+            top_scorer=luis,
+            top_scorer_name="Luis Díaz",
+        )
+        TournamentPrediction.objects.create(
+            user=other_user,
+            champion_team=brasil,
+            top_scorer=vinicius,
+            top_scorer_name="Vinicius Jr",
+        )
+
+        response = self.client.get(reverse("dashboard"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["tournament_predictions_count"], 2)
+        self.assertEqual(len(response.context["tournament_predictions"]), 2)
+        self.assertContains(response, "2 votos globales")
+        self.assertContains(response, "Colombia")
+        self.assertContains(response, "Brasil")
+        self.assertContains(response, "Luis Díaz")
+        self.assertContains(response, "Vinicius Jr")
+        self.assertContains(response, other_user.username)
+        self.assertContains(response, "dashboard-pick-card")
+
+    def test_dashboard_ranking_uses_podium_and_compact_rows(self):
+        users = [self.user]
+        for index in range(1, 4):
+            users.append(User.objects.create_user(username=f"ranking-user-{index}", password="secret123"))
+        match = self._create_match(timezone.now() - timedelta(hours=2))
+        match.finished = True
+        match.home_score = 1
+        match.away_score = 0
+        match.save()
+
+        for points, user in zip([8, 6, 4, 2], users):
+            Prediction.objects.create(
+                user=user,
+                match=match,
+                predicted_home_score=1,
+                predicted_away_score=0,
+                points=points,
+            )
+
+        response = self.client.get(reverse("dashboard"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.context["ranking_top3"]), 3)
+        self.assertEqual(len(response.context["ranking_rest"]), 1)
+        self.assertEqual(response.context["current_user_ranking_item"]["user"], self.user)
+        self.assertContains(response, "dashboard-ranking-podium")
+        self.assertContains(response, "🥇")
+        self.assertContains(response, "Tu posición en el top")
+        self.assertContains(response, "dashboard-ranking-row")
 
     def test_dashboard_shows_predict_button_only_for_available_matches(self):
         today = timezone.localdate()

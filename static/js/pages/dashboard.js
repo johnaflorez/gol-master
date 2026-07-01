@@ -18,6 +18,7 @@ document.addEventListener('DOMContentLoaded', function () {
         const statusEl = document.getElementById(`live-status-${match.id}`);
         const minuteEl = document.getElementById(`live-minute-${match.id}`);
         const eventsEl = document.getElementById(`live-events-${match.id}`);
+        const scoreEl = document.getElementById(`live-score-${match.id}`);
         const scoreText = match.score_display || `${match.home_score} - ${match.away_score}`;
 
         if (!statusEl) {
@@ -26,20 +27,24 @@ document.addEventListener('DOMContentLoaded', function () {
 
         if (match.status === "FT") {
             statusEl.className = "badge text-bg-secondary";
-            statusEl.innerHTML = `<i class="fas fa-check-circle me-1"></i>${scoreText}`;
+            statusEl.innerHTML = `<i class="fas fa-check-circle me-1"></i>Finalizado`;
             minuteEl.textContent = "";
         } else if (match.status === "HT") {
             statusEl.className = "badge text-bg-warning";
-            statusEl.innerHTML = `<i class="fas fa-pause me-1"></i>Descanso ${scoreText}`;
+            statusEl.innerHTML = `<i class="fas fa-pause me-1"></i>Descanso`;
             minuteEl.textContent = "";
         } else if (match.status === "LIVE") {
             statusEl.className = "badge text-bg-success";
-            statusEl.innerHTML = `<i class="fas fa-circle-play me-1"></i>En juego ${scoreText}`;
+            statusEl.innerHTML = `<i class="fas fa-circle-play me-1"></i>En juego`;
             minuteEl.textContent = match.live_minute ? `${match.live_minute}'` : "";
         } else {
             statusEl.className = "badge text-bg-dark";
             statusEl.innerHTML = `<i class="fas fa-hourglass-half me-1"></i>Por jugar`;
             minuteEl.textContent = "";
+        }
+
+        if (scoreEl) {
+            scoreEl.textContent = match.status === "NS" ? "VS" : scoreText;
         }
 
         if (eventsEl) {

@@ -4,7 +4,7 @@ from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.core.management import call_command
 from django.core.management.base import CommandError
 from django.http import JsonResponse
-from django.db.models import Exists, OuterRef, Q
+from django.db.models import Count, Exists, OuterRef, Q, Subquery
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse_lazy
 from django.utils.http import url_has_allowed_host_and_scheme
@@ -28,6 +28,14 @@ LIVE_DASHBOARD_STATUSES = ["LIVE", "HT"]
 RECENT_STARTED_MATCH_WINDOW = timedelta(hours=12)
 
 
+def _with_vote_percent(rows, total_votes):
+    if not total_votes:
+        return rows
+    for row in rows:
+        row["percent"] = round((row["votes"] / total_votes) * 100)
+    return rows
+
+
 def get_dashboard_matches_queryset(now=None):
     """Matches visible on the dashboard, including active matches that cross midnight."""
     now = now or timezone.now()
@@ -47,12 +55,110 @@ def get_dashboard_matches_queryset(now=None):
     )
 
 
+def _match_dashboard_status(match, now):
+    if match.finished or match.live_status == "FT":
+        return "finished"
+    if match.live_status in LIVE_DASHBOARD_STATUSES or match.kickoff_at <= now:
+        return "live"
+    return "upcoming"
+
+
+def _group_dashboard_matches(matches, now):
+    groups = {
+        "live": {
+            "code": "live",
+            "label": "En vivo",
+            "icon": "fas fa-circle-play",
+            "badge_class": "text-bg-success",
+            "matches": [],
+        },
+        "upcoming": {
+            "code": "upcoming",
+            "label": "Próximos",
+            "icon": "fas fa-hourglass-half",
+            "badge_class": "text-bg-dark",
+            "matches": [],
+        },
+        "finished": {
+            "code": "finished",
+            "label": "Finalizados",
+            "icon": "fas fa-flag-checkered",
+            "badge_class": "text-bg-secondary",
+            "matches": [],
+        },
+    }
+
+    for match in matches:
+        groups[_match_dashboard_status(match, now)]["matches"].append(match)
+
+    return [group for group in groups.values() if group["matches"]]
+
+
 class HomeView(TemplateView):
     template_name = "core/home.html"
 
 
 class DashboardView(LoginRequiredMixin, TemplateView):
     template_name = "core/dashboard.html"
+
+    def _tournament_prediction_context(self, now):
+        predictions = list(
+            TournamentPrediction.objects.select_related(
+                "user",
+                "user__profile",
+                "champion_team",
+                "top_scorer",
+                "top_scorer__team",
+            ).order_by("user__username")
+        )
+        total_votes = len(predictions)
+
+        champion_summary = [
+            {"team": row["champion_team"], "votes": row["votes"], "percent": 0}
+            for row in TournamentPrediction.objects.values("champion_team").annotate(
+                votes=Count("id")
+            ).order_by("-votes", "champion_team__name")[:5]
+        ]
+        champion_teams = {
+            team.id: team
+            for team in TournamentPrediction.objects.filter(
+                champion_team_id__in=[row["team"] for row in champion_summary]
+            ).select_related("champion_team")
+            for team in [team.champion_team]
+        }
+        for row in champion_summary:
+            row["team"] = champion_teams.get(row["team"])
+
+        scorer_votes = {}
+        for prediction in predictions:
+            scorer_key = prediction.top_scorer_id or f"name:{prediction.get_top_scorer_name().casefold()}"
+            if scorer_key not in scorer_votes:
+                scorer_votes[scorer_key] = {
+                    "name": prediction.get_top_scorer_name(),
+                    "player": prediction.top_scorer,
+                    "votes": 0,
+                    "percent": 0,
+                }
+            scorer_votes[scorer_key]["votes"] += 1
+        top_scorer_summary = sorted(
+            scorer_votes.values(),
+            key=lambda row: (-row["votes"], row["name"].casefold()),
+        )[:5]
+
+        tournament_prediction = next(
+            (prediction for prediction in predictions if prediction.user_id == self.request.user.id),
+            None,
+        )
+
+        return {
+            "tournament_prediction": tournament_prediction,
+            "tournament_predictions": predictions,
+            "tournament_predictions_count": total_votes,
+            "champion_vote_summary": _with_vote_percent(champion_summary, total_votes),
+            "top_scorer_vote_summary": _with_vote_percent(top_scorer_summary, total_votes),
+            "tournament_prediction_deadline": get_tournament_prediction_deadline(),
+            "tournament_prediction_closed": is_tournament_prediction_closed(now),
+        }
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -66,6 +172,9 @@ class DashboardView(LoginRequiredMixin, TemplateView):
         latest_matches = order_with_finished_last(
             get_dashboard_matches_queryset(now=now).annotate(
                 has_prediction=Exists(user_predictions),
+                user_predicted_home_score=Subquery(user_predictions.values("predicted_home_score")[:1]),
+                user_predicted_away_score=Subquery(user_predictions.values("predicted_away_score")[:1]),
+                user_predicted_penalty_winner=Subquery(user_predictions.values("predicted_penalty_winner")[:1]),
             ),
             "kickoff_at",
             "id",
@@ -73,24 +182,27 @@ class DashboardView(LoginRequiredMixin, TemplateView):
 
         ranking_service = RankingService()
         ranking = ranking_service.get_ranking(limit=10)
+        ranking_top3 = ranking[:3]
+        ranking_rest = ranking[3:]
+        current_user_ranking_item = next(
+            (item for item in ranking if item["user"].id == self.request.user.id),
+            None,
+        )
         tournament_stats = TournamentStatsService().get_stats()
-        tournament_prediction = TournamentPrediction.objects.select_related(
-            "champion_team",
-            "top_scorer",
-            "top_scorer__team",
-        ).filter(user=self.request.user).first()
 
         context.update(
             {
                 "matches": latest_matches,
+                "match_groups": _group_dashboard_matches(latest_matches, now),
                 "ranking": ranking,
+                "ranking_top3": ranking_top3,
+                "ranking_rest": ranking_rest,
+                "current_user_ranking_item": current_user_ranking_item,
                 "tournament_stats": tournament_stats,
-                "tournament_prediction": tournament_prediction,
-                "tournament_prediction_deadline": get_tournament_prediction_deadline(),
-                "tournament_prediction_closed": is_tournament_prediction_closed(now),
                 "now": now,
             }
         )
+        context.update(self._tournament_prediction_context(now))
 
         return context
 

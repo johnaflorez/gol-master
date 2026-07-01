@@ -4,7 +4,7 @@
 {% load team_flags %}
 {% load user_extras %}
 
-{% block title %}📊 Dashboard - Mundial Familiar 2026{% endblock %}
+{% block title %}📊 Inicio - Mundial Familiar 2026{% endblock %}
 
 {% block extra_css %}
     <link rel="stylesheet" href="{% static 'css/pages/dashboard.css' %}">
@@ -12,282 +12,379 @@
 
 {% block content %}
     <div id="dashboard-live-config" data-live-snapshot-url="{% url 'dashboard_live_snapshot' %}" hidden></div>
-    <div class="dashboard-compact-header">
-        <h1 class="page-title mb-1">
-            <i class="fas fa-chart-line text-mundial-red"></i> Dashboard del Torneo
-        </h1>
-        <p class="text-muted mb-0">Bienvenido a tu panel de control - Seguimiento en tiempo real de los partidos y pronósticos</p>
-    </div>
 
-    <div class="row g-3 dashboard-compact">
-        <!-- Ranking (Full width en móviles, 1/3 en desktop) -->
-        <div class="col-lg-4 order-lg-1 order-2">
-            <div class="card h-100">
-                <div class="card-header">
-                        <h5 class="mb-0"><i class="fas fa-medal me-2 text-mundial-gold"></i>Ranking familiar</h5>
+    <header class="dashboard-hero">
+        <div>
+            <h1 class="page-title mb-1">
+                <i class="fas fa-chart-line text-mundial-red"></i> Inicio
+            </h1>
+            <p class="text-muted mb-0">Marcadores en vivo, tus elecciones y el pulso del Mundial Familiar 2026.</p>
+        </div>
+        <div class="dashboard-hero-badges">
+            <span class="badge text-bg-info"><i class="fas fa-satellite-dish me-1"></i>En vivo</span>
+            <span class="badge text-bg-light border"><i class="fas fa-calendar-day me-1"></i>{{ matches|length }} partidos hoy</span>
+            <span class="badge text-bg-warning"><i class="fas fa-trophy me-1"></i>{{ tournament_predictions_count }} votos globales</span>
+        </div>
+    </header>
+
+    <section class="dashboard-family-pulse card mb-3">
+        <div class="card-body">
+            <div class="dashboard-family-pulse__header">
+                <div>
+                    <span class="dashboard-section-kicker"><i class="fas fa-users me-1"></i>Pronóstico familiar</span>
+                    <h2 class="h4 mb-1">Pulso de campeón y goleador</h2>
+                    <p class="text-muted mb-0">Así van las elecciones globales de todos los participantes.</p>
+                </div>
+                <div class="dashboard-family-pulse__actions">
+                    {% if tournament_prediction or not tournament_prediction_closed %}
+                        <a href="{% url 'tournament_prediction' %}" class="btn btn-primary btn-sm">
+                            {% if tournament_prediction %}
+                                <i class="fas fa-eye me-1"></i>Ver mi elección
+                            {% else %}
+                                <i class="fas fa-plus me-1"></i>Hacer mi elección
+                            {% endif %}
+                        </a>
+                    {% else %}
+                        <span class="badge text-bg-danger"><i class="fas fa-lock me-1"></i>Votación cerrada</span>
+                    {% endif %}
+                    <a href="{% url 'all_predictions' %}?tab=tournament" class="btn btn-outline-primary btn-sm">
+                        <i class="fas fa-list me-1"></i>Ver todas
+                    </a>
+                </div>
+            </div>
+
+            {% if tournament_predictions_count %}
+                <div class="dashboard-vote-grid">
+                    <div class="dashboard-consensus-card">
+                        <div class="dashboard-consensus-card__title"><i class="fas fa-crown me-1 text-mundial-gold"></i>Favoritos a campeón</div>
+                        {% for row in champion_vote_summary %}
+                            <div class="dashboard-vote-row">
+                                <div class="dashboard-vote-row__top">
+                                    <span class="dashboard-vote-name">{{ row.team|team_with_flag }}</span>
+                                    <span class="dashboard-vote-count">{{ row.votes }} voto{{ row.votes|pluralize }}</span>
+                                </div>
+                                <div class="progress dashboard-vote-progress" role="progressbar" aria-label="Votos por {{ row.team.name }}" aria-valuenow="{{ row.percent }}" aria-valuemin="0" aria-valuemax="100">
+                                    <div class="progress-bar" style="width: {{ row.percent }}%"></div>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+
+                    <div class="dashboard-consensus-card">
+                        <div class="dashboard-consensus-card__title"><i class="fas fa-futbol me-1 text-mundial-red"></i>Favoritos a goleador</div>
+                        {% for row in top_scorer_vote_summary %}
+                            <div class="dashboard-vote-row">
+                                <div class="dashboard-vote-row__top">
+                                    <span class="dashboard-vote-name">{{ row.name }}</span>
+                                    <span class="dashboard-vote-count">{{ row.votes }} voto{{ row.votes|pluralize }}</span>
+                                </div>
+                                <div class="progress dashboard-vote-progress dashboard-vote-progress--scorer" role="progressbar" aria-label="Votos por {{ row.name }}" aria-valuenow="{{ row.percent }}" aria-valuemin="0" aria-valuemax="100">
+                                    <div class="progress-bar" style="width: {{ row.percent }}%"></div>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+
+                    <div class="dashboard-my-pick-card {% if not tournament_prediction %}dashboard-my-pick-card--empty{% endif %}">
+                        <div class="dashboard-consensus-card__title"><i class="fas fa-user-check me-1 text-mundial-blue"></i>Tu elección</div>
+                        {% if tournament_prediction %}
+                            <div class="dashboard-my-pick-team">{{ tournament_prediction.champion_team|team_with_flag }}</div>
+                            <div class="dashboard-my-pick-scorer">
+                                {% if tournament_prediction.top_scorer and tournament_prediction.top_scorer.photo %}
+                                    <img src="{{ tournament_prediction.top_scorer.photo.url }}" alt="Foto de {{ tournament_prediction.top_scorer.name }}" class="dashboard-top-scorer-photo">
+                                {% else %}
+                                    <span class="dashboard-top-scorer-photo dashboard-top-scorer-photo--fallback"><i class="fas fa-user"></i></span>
+                                {% endif %}
+                                <span>{{ tournament_prediction.get_top_scorer_name }}</span>
+                            </div>
+                            <div class="small text-muted mt-2"><i class="fas fa-lock me-1"></i>Registrado el {{ tournament_prediction.created_at|date:"d/m/Y H:i" }}</div>
+                        {% elif tournament_prediction_closed %}
+                            <div class="fw-semibold"><i class="fas fa-lock me-2 text-mundial-red"></i>Votación cerrada</div>
+                            <div class="small text-muted">El bloqueo inició el {{ tournament_prediction_deadline|date:"d/m/Y" }} a las 12:00 p.m.</div>
+                        {% else %}
+                            <div class="fw-semibold"><i class="fas fa-circle-info me-2 text-mundial-blue"></i>Aún no has votado.</div>
+                            <div class="small text-muted mb-3">Registra tu elección antes del {{ tournament_prediction_deadline|date:"d/m/Y" }} a las 12:00 p.m.</div>
+                            <a href="{% url 'tournament_prediction' %}" class="btn btn-outline-primary btn-sm"><i class="fas fa-plus me-1"></i>Crear elección</a>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div class="dashboard-picks-strip" aria-label="Pronósticos de campeón y goleador de todos los usuarios">
+                    {% for prediction in tournament_predictions %}
+                        <article class="dashboard-pick-card {% if prediction.user_id == request.user.id %}dashboard-pick-card--mine{% endif %}">
+                            <div class="dashboard-pick-user">
+                                {% include "includes/user_avatar.html" with user=prediction.user %}
+                                <div class="min-width-0">
+                                    <div class="fw-semibold text-truncate">{{ prediction.user.get_full_name|default:prediction.user.username }}</div>
+                                    {% if prediction.user_id == request.user.id %}<div class="small text-mundial-blue fw-bold">Tu voto</div>{% endif %}
+                                </div>
+                            </div>
+                            <div class="dashboard-pick-values">
+                                <div><span>Campeón</span><strong>{{ prediction.champion_team|team_with_flag }}</strong></div>
+                                <div><span>Goleador</span><strong>{{ prediction.get_top_scorer_name }}</strong></div>
+                            </div>
+                        </article>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="dashboard-family-pulse-empty">
+                    <i class="fas fa-trophy text-mundial-gold"></i>
+                    <div>
+                        <div class="fw-semibold">Aún no hay elecciones registradas.</div>
+                        {% if tournament_prediction_closed %}
+                            <div class="small text-muted">La votación ya está cerrada.</div>
+                        {% else %}
+                            <div class="small text-muted">Sé el primero en elegir campeón y goleador antes del {{ tournament_prediction_deadline|date:"d/m/Y" }} a las 12:00 p.m.</div>
+                        {% endif %}
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+    </section>
+
+    <div class="dashboard-layout">
+        <main class="dashboard-main">
+            <section class="card dashboard-priority-card">
+                <div class="card-header d-flex flex-column flex-sm-row justify-content-between align-items-start align-items-sm-center gap-2">
+                    <div>
+                        <h5 class="mb-0"><i class="fas fa-calendar-day me-2 text-mundial-gold"></i>Partidos de hoy</h5>
+                        <small class="text-muted">Seguimiento rápido de marcadores y estado actual.</small>
+                    </div>
+                    <span class="badge text-bg-info">{{ matches|length }} partidos</span>
                 </div>
                 <div class="card-body">
-                    {% for item in ranking %}
-                        <div class="d-flex justify-content-between align-items-center dashboard-ranking-item border-bottom">
-                            <div class="d-flex align-items-center gap-2">
-                                <div class="badge text-bg-primary rounded-circle rank-number-badge">
-                                    {{ forloop.counter }}
+                    {% if match_groups %}
+                        <div class="dashboard-match-groups">
+                            {% for group in match_groups %}
+                                <div class="dashboard-match-group dashboard-match-group--{{ group.code }}">
+                                    <div class="dashboard-match-group-title">
+                                        <span class="badge {{ group.badge_class }}"><i class="{{ group.icon }} me-1"></i>{{ group.label }}</span>
+                                        <span class="small text-muted">{{ group.matches|length }} partido{{ group.matches|length|pluralize }}</span>
+                                    </div>
+                                    <div class="dashboard-match-cards">
+                                        {% for match in group.matches %}
+                                            <article class="dashboard-match-card dashboard-match-card--{{ group.code }}" id="live-match-{{ match.id }}">
+                                                <div class="dashboard-match-card__top">
+                                                    <span class="badge {{ match.phase|phase_color }} today-phase-tag">
+                                                        <i class="fas fa-layer-group me-1"></i>{{ match.get_phase_display }}
+                                                    </span>
+                                                    <span class="dashboard-match-time">
+                                                        <i class="far fa-clock me-1 text-mundial-blue"></i>{{ match.kickoff_at|date:"d/m/Y H:i" }}
+                                                        <span class="ms-1" id="live-minute-{{ match.id }}">{% if match.live_minute %}{{ match.live_minute }}'{% endif %}</span>
+                                                    </span>
+                                                </div>
+
+                                                <div class="dashboard-scoreboard">
+                                                    <div class="dashboard-scoreboard-team dashboard-scoreboard-team--home">
+                                                        <div class="dashboard-scoreboard-team-name">{{ match.home_team|team_with_flag }}</div>
+                                                    </div>
+                                                    <div class="dashboard-scoreboard-center">
+                                                        <div class="dashboard-scoreboard-score" id="live-score-{{ match.id }}">
+                                                            {% if match.finished or match.kickoff_at <= now %}
+                                                                {{ match.score_display }}
+                                                            {% else %}
+                                                                <span class="dashboard-scoreboard-vs">VS</span>
+                                                            {% endif %}
+                                                        </div>
+                                                        <span class="badge {% if match.finished %}text-bg-secondary{% elif match.kickoff_at <= now %}text-bg-success{% else %}text-bg-dark{% endif %}" id="live-status-{{ match.id }}">
+                                                            {% if match.finished %}
+                                                                <i class="fas fa-check-circle me-1"></i>Finalizado
+                                                            {% elif match.kickoff_at <= now %}
+                                                                <i class="fas fa-circle-play me-1"></i>En juego
+                                                            {% else %}
+                                                                <i class="fas fa-hourglass-half me-1"></i>Por jugar
+                                                            {% endif %}
+                                                        </span>
+                                                    </div>
+                                                    <div class="dashboard-scoreboard-team dashboard-scoreboard-team--away">
+                                                        <div class="dashboard-scoreboard-team-name">{{ match.away_team|team_with_flag }}</div>
+                                                    </div>
+                                                </div>
+
+                                                <div class="dashboard-match-footer">
+                                                    <div class="dashboard-my-match-prediction">
+                                                        {% if match.has_prediction %}
+                                                            <i class="fas fa-dice me-1 text-mundial-blue"></i>
+                                                            Tu pronóstico: <strong>{{ match.user_predicted_home_score }} - {{ match.user_predicted_away_score }}</strong>
+                                                            {% if match.user_predicted_penalty_winner %}<span class="text-muted">· penales definidos</span>{% endif %}
+                                                        {% else %}
+                                                            <i class="fas fa-circle-info me-1 text-muted"></i>
+                                                            <span class="text-muted">Aún no has pronosticado este partido</span>
+                                                        {% endif %}
+                                                    </div>
+                                                    <div class="dashboard-match-actions">
+                                                        {% if not match.finished and match.kickoff_at > now and not match.has_prediction %}
+                                                            <a href="{% url 'prediction_create' match.id %}" class="btn btn-primary btn-sm">
+                                                                <i class="fas fa-edit me-1"></i>Pronosticar
+                                                            </a>
+                                                        {% elif match.finished %}
+                                                            <span class="badge text-bg-secondary"><i class="fas fa-flag-checkered me-1"></i>Finalizado</span>
+                                                        {% elif match.kickoff_at <= now %}
+                                                            <span class="badge text-bg-success"><i class="fas fa-circle-play me-1"></i>En juego</span>
+                                                        {% else %}
+                                                            <span class="badge text-bg-info"><i class="fas fa-check me-1"></i>Pronosticado</span>
+                                                        {% endif %}
+                                                    </div>
+                                                </div>
+                                                <div class="small text-muted mt-2" id="live-events-{{ match.id }}"></div>
+                                            </article>
+                                        {% endfor %}
+                                    </div>
                                 </div>
-                                {% include "includes/user_avatar.html" with user=item.user %}
-                                <div>
-                                    <div class="d-none d-sm-block fw-semibold">{{ item.user.get_full_name|default:item.user.username }}</div>
-                                    <div class="d-sm-none text-truncate fw-semibold max-width-120" title="{{ item.user.get_full_name|default:item.user.username }}">{{ item.user.get_full_name|default:item.user.username|truncatewords:2 }}</div>
-                                    <div class="small text-muted user-rich-bio">{{ item.user|user_bio_or_username }}</div>
-                                </div>
-                            </div>
-                            <div>
-                                <span class="badge {% if item.points == 0 %}text-bg-light border{% else %}text-bg-primary{% endif %} rounded-pill">
-                                    <i class="fas fa-star me-1"></i>{{ item.points }} pts
-                                </span>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div class="text-center py-5">
+                            <i class="fas fa-calendar-times text-muted icon-size-2"></i>
+                            <p class="text-muted mb-0 mt-2">No hay partidos programados para hoy</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </section>
+
+            <section class="card dashboard-stats-card">
+                <div class="card-header d-flex flex-column flex-sm-row justify-content-between align-items-start align-items-sm-center gap-2">
+                    <div>
+                        <h5 class="mb-0"><i class="fas fa-bar-chart me-2 text-mundial-green"></i>Estadísticas del torneo</h5>
+                        <small class="text-muted">Resumen general y promedio de gol por ronda.</small>
+                    </div>
+                    <span class="badge text-bg-info">En vivo</span>
+                </div>
+                <div class="card-body">
+                    <div class="row g-2">
+                        <div class="col-6 col-md-4">
+                            <div class="stat-box dashboard-stat-box">
+                                <div class="stat-label"><i class="fas fa-futbol me-1"></i>Partidos</div>
+                                <div class="stat-value">{{ tournament_stats.total_matches }}</div>
+                                <small class="text-muted">Finalizados</small>
                             </div>
                         </div>
-                    {% empty %}
+                        <div class="col-6 col-md-4">
+                            <div class="stat-box dashboard-stat-box">
+                                <div class="stat-label"><i class="fas fa-fire me-1"></i>Goles</div>
+                                <div class="stat-value">{{ tournament_stats.total_goals }}</div>
+                                <small class="text-muted">En total</small>
+                            </div>
+                        </div>
+                        <div class="col-12 col-md-4">
+                            <div class="stat-box dashboard-stat-box">
+                                <div class="stat-label"><i class="fas fa-calculator me-1"></i>Promedio</div>
+                                <div class="stat-value">{{ tournament_stats.avg_goals|floatformat:2 }}</div>
+                                <small class="text-muted">Goles/partido</small>
+                            </div>
+                        </div>
+                    </div>
+
+                    {% if tournament_stats.goals_by_phase %}
+                        <hr class="my-3">
+                        <div class="dashboard-phase-goals">
+                            <div class="fw-semibold mb-2">
+                                <i class="fas fa-layer-group me-2 text-mundial-blue"></i>Promedio de gol por ronda
+                            </div>
+                            <div class="table-responsive">
+                                <table class="table table-sm align-middle mb-0 dashboard-phase-goals-table">
+                                    <thead>
+                                    <tr>
+                                        <th>Ronda</th>
+                                        <th class="text-center">Partidos</th>
+                                        <th class="text-center">Goles</th>
+                                        <th class="text-end">Promedio</th>
+                                    </tr>
+                                    </thead>
+                                    <tbody>
+                                    {% for row in tournament_stats.goals_by_phase %}
+                                        <tr>
+                                            <td><span class="badge {{ row.phase|phase_color }}">{{ row.label }}</span></td>
+                                            <td class="text-center">{{ row.matches }}</td>
+                                            <td class="text-center">{{ row.total_goals }}</td>
+                                            <td class="text-end"><strong>{{ row.avg_goals|floatformat:2 }}</strong></td>
+                                        </tr>
+                                    {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    {% endif %}
+                </div>
+            </section>
+        </main>
+
+        <aside class="dashboard-aside">
+
+            <section class="card dashboard-ranking-card">
+                <div class="card-header d-flex justify-content-between align-items-center gap-2">
+                    <h5 class="mb-0"><i class="fas fa-medal me-2 text-mundial-gold"></i>Ranking familiar</h5>
+                    <a href="{% url 'ranking' %}" class="btn btn-outline-primary btn-sm">Ver todo</a>
+                </div>
+                <div class="card-body">
+                    {% if ranking %}
+                        <div class="dashboard-ranking-podium" aria-label="Podio del ranking familiar">
+                            {% for item in ranking_top3 %}
+                                <article class="dashboard-podium-card dashboard-podium-card--{{ forloop.counter }} {% if item.user.id == request.user.id %}dashboard-ranking-item--mine{% endif %}">
+                                    <div class="dashboard-podium-medal">
+                                        {% if forloop.counter == 1 %}🥇{% elif forloop.counter == 2 %}🥈{% else %}🥉{% endif %}
+                                    </div>
+                                    {% include "includes/user_avatar.html" with user=item.user %}
+                                    <div class="dashboard-podium-name text-truncate" title="{{ item.user.get_full_name|default:item.user.username }}">
+                                        {{ item.user.get_full_name|default:item.user.username }}
+                                    </div>
+                                    <div class="dashboard-podium-points">{{ item.points }} pts</div>
+                                    <div class="dashboard-podium-meta">{{ item.exact_predictions }} exactos</div>
+                                </article>
+                            {% endfor %}
+                        </div>
+
+                        {% if current_user_ranking_item %}
+                            <div class="dashboard-my-ranking-snapshot">
+                                <div>
+                                    <div class="small text-uppercase fw-bold text-muted">Tu posición en el top</div>
+                                    <div class="fw-semibold">{{ current_user_ranking_item.points }} pts · {{ current_user_ranking_item.exact_predictions }} exactos</div>
+                                </div>
+                                <span class="badge text-bg-primary"><i class="fas fa-user-check me-1"></i>Estás compitiendo</span>
+                            </div>
+                        {% endif %}
+
+                        {% if ranking_rest %}
+                            <div class="dashboard-ranking-list">
+                                {% for item in ranking_rest %}
+                                    <div class="dashboard-ranking-row {% if item.user.id == request.user.id %}dashboard-ranking-item--mine{% endif %}">
+                                        <div class="d-flex align-items-center gap-2 min-width-0">
+                                            <div class="badge text-bg-light border rounded-circle rank-number-badge">
+                                                {{ forloop.counter|add:3 }}
+                                            </div>
+                                            {% include "includes/user_avatar.html" with user=item.user %}
+                                            <div class="min-width-0">
+                                                <div class="fw-semibold text-truncate" title="{{ item.user.get_full_name|default:item.user.username }}">{{ item.user.get_full_name|default:item.user.username }}</div>
+                                                <div class="small text-muted">{{ item.exact_predictions }} exactos · {{ item.hit_rate|floatformat:0 }}% acierto</div>
+                                            </div>
+                                        </div>
+                                        <span class="badge {% if item.points == 0 %}text-bg-light border{% else %}text-bg-primary{% endif %} rounded-pill flex-shrink-0">
+                                            <i class="fas fa-star me-1"></i>{{ item.points }} pts
+                                        </span>
+                                    </div>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    {% else %}
                         <div class="text-center py-4">
                             <i class="fas fa-inbox text-muted icon-size-2"></i>
                             <p class="text-muted mb-0 mt-2">Aun no hay datos en el ranking</p>
                         </div>
-                    {% endfor %}
-
-                    <hr class="my-2">
-
-                    <div class="alert alert-info mb-0 dashboard-score-alert">
-                        <div class="fw-semibold mb-2"><i class="fas fa-info-circle me-2"></i>Sistema de puntuación</div>
-                        <ul class="mb-0 ps-3 small">
-                            <li><strong>+2 puntos</strong> por acertar el ganador o empate</li>
-                            <li><strong>+3 puntos adicionales</strong> si aciertas el marcador exacto</li>
-                            <li><strong>+3 puntos adicionales</strong> si pronosticas empate en eliminatorias y aciertas el ganador por penales</li>
-                            <li>Los puntos se calculan automáticamente al finalizar cada partido</li>
-                        </ul>
-                    </div>
-
-                    <div class="d-grid dashboard-ranking-link">
-                        <a href="{% url 'ranking' %}" class="btn btn-primary btn-sm">
-                            <img src="{% static 'images/world-cup.png' %}" alt="Copa del mundo" class="wc-icon me-2">Ver ranking completo
-                        </a>
-                    </div>
+                    {% endif %}
                 </div>
-            </div>
-        </div>
+            </section>
 
-        <!-- Contenido principal (2/3 en desktop, full width en móviles) -->
-        <div class="col-lg-8 order-lg-2 order-1">
-            <div class="row g-3 h-100">
-                <!-- Campeón y goleador -->
-                <div class="col-12">
-                    <div class="card dashboard-tournament-prediction-card">
-                        <div class="card-header d-flex flex-column flex-sm-row justify-content-between align-items-start align-items-sm-center gap-2">
-                            <div>
-                                <h5 class="mb-0"><i class="fas fa-trophy me-2 text-mundial-gold"></i>Mi campeón y goleador</h5>
-                                <small class="text-muted">Tu elección global del torneo.</small>
-                            </div>
-                            {% if tournament_prediction or not tournament_prediction_closed %}
-                                <a href="{% url 'tournament_prediction' %}" class="btn btn-primary btn-sm">
-                                    {% if touriction %}
-                                        <i class="fas fa-eye me-1"></i>Ver elección
-                                    {% else %}
-                                        <i class="fas fa-plus me-1"></i>Hacer pronóstico
-                                    {% endif %}
-                                </a>
-                            {% else %}
-                                <span class="badge text-bg-danger"><i class="fas fa-lock me-1"></i>Votación cerrada</span>
-                            {% endif %}
-                        </div>
-                        <div class="card-body">
-                            {% if tournament_prediction %}
-                                <div class="row g-2 align-items-stretch">
-                                    <div class="col-md-6">
-                                        <div class="dashboard-tournament-choice h-100">
-                                            <div class="small text-muted fw-bold text-uppercase mb-2"><i class="fas fa-medal me-1"></i>Campeón votado</div>
-                                            <div class="dashboard-tournament-choice-value">{{ tournament_prediction.champion_team|team_with_flag }}</div>
-                                        </div>
-                                    </div>
-                                    <div class="col-md-6">
-                                        <div class="dashboard-tournament-choice h-100">
-                                            <div class="small text-muted fw-bold text-uppercase mb-2"><i class="fas fa-futbol me-1"></i>Goleador votado</div>
-                                            <div class="dashboard-tournament-scorer">
-                                                {% if tournament_prediction.top_scorer and tournament_prediction.top_scorer.photo %}
-                                                    <img src="{{ tournament_prediction.top_scorer.photo.url }}" alt="Foto de {{ tournament_prediction.top_scorer.name }}" class="dashboard-top-scorer-photo">
-                                                {% else %}
-                                                    <span class="dashboard-top-scorer-photo dashboard-top-scorer-photo--fallback"><i class="fas fa-user"></i></span>
-                                                {% endif %}
-                                                <span class="dashboard-tournament-choice-value">{{ tournament_prediction.get_top_scorer_name }}</span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="small text-muted mt-2">
-                                    <i class="fas fa-lock me-1"></i>Registrado el {{ tournament_prediction.created_at|date:"d/m/Y H:i" }}.
-                                </div>
-                                {% if not tournament_prediction_closed %}
-                                    <div class="small text-muted mt-1">
-                                        <i class="fas fa-clock me-1"></i>La votación se bloqueará el {{ tournament_prediction_deadline|date:"d/m/Y" }} a las 12:00 p.m.
-                                    </div>
-                                {% endif %}
-                            {% else %}
-                                <div class="dashboard-tournament-empty d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3">
-                                    <div>
-                                        {% if tournament_prediction_closed %}
-                                            <div class="fw-semibold"><i class="fas fa-lock me-2 text-mundial-red"></i>La votación de campeón y goleador está cerrada.</div>
-                                            <div class="small text-muted">El bloqueo inició el {{ tournament_prediction_deadline|date:"d/m/Y" }} a las 12:00 p.m.</div>
-                                        {% else %}
-                                            <div class="fw-semibold"><i class="fas fa-circle-info me-2 text-mundial-blue"></i>Aún no has votado campeón y goleador.</div>
-                                            <div class="small text-muted">Registra tu elección antes del {{ tournament_prediction_deadline|date:"d/m/Y" }} a las 12:00 p.m.</div>
-                                        {% endif %}
-                                    </div>
-                                    {% if tournament_prediction_closed %}
-                                        <a href="{% url 'all_predictions' %}?tab=tournament" class="btn btn-outline-secondary btn-sm">
-                                            <i class="fas fa-users me-1"></i>Ver elecciones
-                                        </a>
-                                    {% else %}
-                                        <a href="{% url 'tournament_prediction' %}" class="btn btn-outline-primary btn-sm">
-                                            <i class="fas fa-plus me-1"></i>Crear elección
-                                        </a>
-                                    {% endif %}
-                                </div>
-                            {% endif %}
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Estadísticas -->
-                <div class="col-12">
-                    <div class="card">
-                        <div class="card-header d-flex flex-column flex-sm-row justify-content-between align-items-start align-items-sm-center">
-                            <h5 class="mb-2 mb-sm-0"><i class="fas fa-bar-chart me-2 text-mundial-green"></i>Estadísticas del torneo</h5>
-                            <span class="badge text-bg-info">En vivo</span>
-                        </div>
-                        <div class="card-body">
-                            <div class="row g-2">
-                                <div class="col-6 col-md-4">
-                                    <div class="stat-box dashboard-stat-box">
-                                        <div class="stat-label"><i class="fas fa-futbol me-1"></i>Partidos</div>
-                                        <div class="stat-value">{{ tournament_stats.total_matches }}</div>
-                                        <small class="text-muted">Finalizados</small>
-                                    </div>
-                                </div>
-
-                                <div class="col-6 col-md-4">
-                                    <div class="stat-box dashboard-stat-box">
-                                        <div class="stat-label"><i class="fas fa-fire me-1"></i>Goles</div>
-                                        <div class="stat-value">{{ tournament_stats.total_goals }}</div>
-                                        <small class="text-muted">En total</small>
-                                    </div>
-                                </div>
-
-                                <div class="col-6 col-md-4">
-                                    <div class="stat-box dashboard-stat-box">
-                                        <div class="stat-label"><i class="fas fa-calculator me-1"></i>Promedio</div>
-                                        <div class="stat-value">{{ tournament_stats.avg_goals|floatformat:2 }}</div>
-                                        <small class="text-muted">Goles/partido</small>
-                                    </div>
-                                </div>
-                            </div>
-
-                            {% if tournament_stats.goals_by_phase %}
-                                <hr class="my-3">
-                                <div class="dashboard-phase-goals">
-                                    <div class="fw-semibold mb-2">
-                                        <i class="fas fa-layer-group me-2 text-mundial-blue"></i>Promedio de gol por ronda
-                                    </div>
-                                    <div class="table-responsive">
-                                        <table class="table table-sm align-middle mb-0 dashboard-phase-goals-table">
-                                            <thead>
-                                            <tr>
-                                                <th>Ronda</th>
-                                                <th class="text-center">Partidos</th>
-                                                <th class="text-center">Goles</th>
-                                                <th class="text-end">Promedio</th>
-                                            </tr>
-                                            </thead>
-                                            <tbody>
-                                            {% for row in tournament_stats.goals_by_phase %}
-                                                <tr>
-                                                    <td><span class="badge {{ row.phase|phase_color }}">{{ row.label }}</span></td>
-                                                    <td class="text-center">{{ row.matches }}</td>
-                                                    <td class="text-center">{{ row.total_goals }}</td>
-                                                    <td class="text-end"><strong>{{ row.avg_goals|floatformat:2 }}</strong></td>
-                                                </tr>
-                                            {% endfor %}
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                </div>
-                            {% endif %}
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Partidos del día -->
-                <div class="col-12">
-                    <div class="card h-100">
-                        <div class="card-header d-flex flex-column flex-sm-row justify-content-between align-items-start align-items-sm-center">
-                            <h5 class="mb-2 mb-sm-0"><i class="fas fa-calendar-day me-2 text-mundial-gold"></i>Partidos de hoy</h5>
-                            <span class="badge text-bg-info">{{ matches|length }} partidos</span>
-                        </div>
-                        <div class="card-body">
-                            {% for match in matches %}
-                                <div class="dashboard-match-row border-bottom" id="live-match-{{ match.id }}">
-                                    <div class="d-flex justify-content-between align-items-start mb-2">
-                                        <div class="today-match-title">{{ match.home_team|team_with_flag }} vs {{ match.away_team|team_with_flag }}</div>
-                                        <span class="badge {{ match.phase|phase_color }} today-phase-tag">
-                                            <i class="fas fa-layer-group me-1"></i>{{ match.get_phase_display }}
-                                        </span>
-                                    </div>
-                                    <div class="d-flex flex-column flex-sm-row justify-content-sm-between align-items-sm-center gap-2">
-                                        <div class="today-meta-left">
-                                            <div class="small">
-                                                <i class="far fa-clock me-1 text-mundial-blue"></i>
-                                                <span class="text-muted">{{ match.kickoff_at|date:"d/m/Y H:i" }}</span>
-                                                <span class="text-muted ms-2" id="live-minute-{{ match.id }}">
-                                                    {% if match.live_minute %}{{ match.live_minute }}'{% endif %}
-                                                </span>
-                                            </div>
-                                            <div class="today-status-left">
-                                                <span class="badge {% if match.finished %}text-bg-secondary{% elif match.kickoff_at <= now %}text-bg-success{% else %}text-bg-dark{% endif %}" id="live-status-{{ match.id }}">
-                                                    {% if match.finished %}
-                                                        <i class="fas fa-check-circle me-1"></i>{{ match.score_display }}
-                                                    {% elif match.kickoff_at <= now %}
-                                                        <i class="fas fa-circle-play me-1"></i>En juego
-                                                    {% else %}
-                                                        <i class="fas fa-hourglass-half me-1"></i>Por jugar
-                                                    {% endif %}
-                                                </span>
-                                            </div>
-                                        </div>
-                                        <div class="today-right-tags">
-                                            {% if not match.finished and match.kickoff_at > now and not match.has_prediction %}
-                                                <a href="{% url 'prediction_create' match.id %}" class="btn btn-primary btn-sm">
-                                                    <i class="fas fa-edit me-1"></i>Pronosticar
-                                                </a>
-                                            {% elif match.finished %}
-                                                <span class="badge text-bg-secondary"><i class="fas fa-flag-checkered me-1"></i>Finalizado</span>
-                                            {% elif match.kickoff_at <= now %}
-                                                <span class="badge text-bg-success"><i class="fas fa-circle-play me-1"></i>En juego</span>
-                                            {% else %}
-                                                <span class="badge text-bg-info"><i class="fas fa-check me-1"></i>Pronosticado</span>
-                                            {% endif %}
-                                        </div>
-                                    </div>
-                                    <div class="small text-muted mt-2" id="live-events-{{ match.id }}"></div>
-                                </div>
-                            {% empty %}
-                                <div class="text-center py-4">
-                                    <i class="fas fa-calendar-times text-muted icon-size-2"></i>
-                                    <p class="text-muted mb-0 mt-2">No hay partidos programados para hoy</p>
-                                </div>
-                            {% endfor %}
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
+            <section class="alert alert-info dashboard-score-alert mb-0">
+                <div class="fw-semibold mb-2"><i class="fas fa-info-circle me-2"></i>Sistema de puntuación</div>
+                <ul class="mb-0 ps-3 small">
+                    <li><strong>+2 puntos</strong> por acertar el ganador o empate</li>
+                    <li><strong>+3 puntos adicionales</strong> si aciertas el marcador exacto</li>
+                    <li><strong>+3 puntos adicionales</strong> si pronosticas empate en eliminatorias y aciertas el ganador por penales</li>
+                    <li>Los puntos se calculan automáticamente al finalizar cada partido</li>
+                </ul>
+            </section>
+        </aside>
     </div>
-
 {% endblock %}
 
 {% block extra_js %}
